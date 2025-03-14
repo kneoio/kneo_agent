@@ -8,8 +8,8 @@ import importlib
 
 from anthropic import AsyncAnthropic
 
+from api.brand_api import BrandAPI
 from core.tool_registry import ToolRegistry
-from tools.base_tool import BaseTool
 from core.brand_context import BrandContextManager
 
 
@@ -17,30 +17,20 @@ class DJAgent:
     def __init__(self, config: Dict[str, Any]):
         self.logger = logging.getLogger(__name__)
         self.config = config
-
-        # Initialize the Claude client
         self.claude = AsyncAnthropic(api_key=config["claude"]["api_key"])
-
-        # Initialize brand context manager
         self.brand_manager = BrandContextManager()
         self._initialize_brands()
-
-        # Initialize the tool registry and register tools
         self.tool_registry = ToolRegistry()
         self._register_tools()
 
     def _initialize_brands(self):
-        """Initialize brand contexts from API."""
-        # Load brands from API
         brand_api = BrandAPI(self.config.get("api", {}))
         brands = brand_api.get_all_brands()
-
         for brand in brands:
             brand_id = brand.get("id")
             if brand_id:
                 self.brand_manager.add_brand(brand_id, brand)
 
-        # Log initialization
         brand_ids = self.brand_manager.get_all_brand_ids()
         self.logger.info(f"Initialized {len(brand_ids)} brands from API")
 

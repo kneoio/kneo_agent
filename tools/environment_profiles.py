@@ -38,15 +38,15 @@ class EnvironmentProfileManager(BaseTool):
         ]
 
     def _load_profiles(self):
-        self.profiles = self.api.get_profiles(self.brand_id)
-        self.logger.info(f"Loaded {len(self.profiles)} environment profiles for brand {self.brand_id or 'current'}")
+        self.profiles = self.api.get_profiles()
+        self.logger.info(f"Loaded {len(self.profiles)}")
 
     def get_profile(self, profile_name: str) -> Optional[Dict[str, Any]]:
         if profile_name in self.profiles:
             return self.profiles[profile_name]
 
         # Try loading directly from API if not in cache
-        profile = self.api.get_profile(profile_name, self.brand_id)
+        profile = self.api.get_profile(profile_name)
         if profile:
             self.profiles[profile_name] = profile
             return profile

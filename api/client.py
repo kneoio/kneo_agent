@@ -12,7 +12,7 @@ load_dotenv()
 
 class APIClient:
     def __init__(self, base_url=None, api_key=None, timeout=None):
-        self.base_url = base_url or os.getenv("API_BASE_URL", "http://localhost:8000")
+        self.base_url = base_url or os.getenv("API_BASE_URL")
         self.api_key = api_key or os.getenv("API_KEY")
         self.timeout = timeout or int(os.getenv("API_TIMEOUT", "10"))
         self.logger = logging.getLogger(__name__)

@@ -10,10 +10,9 @@ class BrandAPI:
         self.api_client = APIClient()  # Will use environment variables automatically
 
     def get_all_brands(self) -> List[Dict[str, Any]]:
-        """Get all available brands/radiostations."""
-        response = self.api_client.get("brands")
-        if response:
-            return response.get("brands", [])
+        response = self.api_client.get("radiostations")
+        if response and "payload" in response:
+            return response["payload"].get("viewData", {}).get("entries", [])
         return []
 
     def get_brand(self, brand_id: str) -> Optional[Dict[str, Any]]:

@@ -1,54 +1,70 @@
-#!/usr/bin/env python3
 import logging
 from typing import Dict, Any, List, Optional
 from api.client import APIClient
 
 
 class EnvironmentProfileAPI:
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any] = None):
         self.logger = logging.getLogger(__name__)
-        self.api_client = APIClient(
-            base_url=config.get("api_base_url", "http://localhost:8000"),
-            api_key=config.get("api_key"),
-            timeout=config.get("timeout", 10)
-        )
+        self.api_client = APIClient()
 
-    def get_profiles(self, brand_id: str = None) -> Dict[str, Dict[str, Any]]:
-        endpoint = f"brands/{brand_id}/profiles" if brand_id else "brands/current/profiles"
+    def get_profiles(self) -> List[Dict[str, Any]]:
+        """Get all available profiles"""
+        endpoint = "profiles"
         response = self.api_client.get(endpoint)
-        if response:
-            return response.get("profiles", {})
-        return {}
+        if response and "payload" in response:
+            return response["payload"].get("viewData", {}).get("entries", [])
+        return []
 
-    def get_profile(self, profile_name: str, brand_id: str = None) -> Optional[Dict[str, Any]]:
-        endpoint = f"brands/{brand_id}/profiles/{profile_name}" if brand_id else f"brands/current/profiles/{profile_name}"
+    def get_station_profile(self, station_id: str) -> Optional[Dict[str, Any]]:
+        """Get the profile for a specific radio station"""
+        endpoint = f"radiostations/{station_id}"
         response = self.api_client.get(endpoint)
-        if response:
-            return response.get("profile")
+        if response and "payload" in response:
+            return response["payload"].get("profile")
         return None
 
-    def create_profile(self, profile_name: str, profile_data: Dict[str, Any], brand_id: str = None) -> bool:
-        endpoint = f"brands/{brand_id}/profiles" if brand_id else "brands/current/profiles"
-        data = {"name": profile_name, "profile": profile_data}
-        response = self.api_client.post(endpoint, data)
+    def get_profile(self, profile_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific profile by ID"""
+        endpoint = f"profiles/{profile_id}"
+        response = self.api_client.get(endpoint)
+        if response and "payload" in response:
+            return response["payload"]
+        return None
+
+    def create_profile(self, profile_data: Dict[str, Any]) -> bool:
+        """Create a new profile"""
+        endpoint = "profiles"
+        response = self.api_client.post(endpoint, profile_data)
         if response and response.get("success"):
-            self.logger.info(f"Created new environment profile: {profile_name}")
+            self.logger.info(f"Created new environment profile: {profile_data.get('name')}")
             return True
         return False
 
-    def update_profile(self, profile_name: str, profile_data: Dict[str, Any], brand_id: str = None) -> bool:
-        endpoint = f"brands/{brand_id}/profiles/{profile_name}" if brand_id else f"brands/current/profiles/{profile_name}"
-        data = {"profile": profile_data}
-        response = self.api_client.put(endpoint, data)
+    def update_profile(self, profile_id: str, profile_data: Dict[str, Any]) -> bool:
+        """Update an existing profile"""
+        endpoint = f"profiles/{profile_id}"
+        response = self.api_client.put(endpoint, profile_data)
         if response and response.get("success"):
-            self.logger.info(f"Updated environment profile: {profile_name}")
+            self.logger.info(f"Updated environment profile: {profile_data.get('name')}")
             return True
         return False
 
-    def delete_profile(self, profile_name: str, brand_id: str = None) -> bool:
-        endpoint = f"brands/{brand_id}/profiles/{profile_name}" if brand_id else f"brands/current/profiles/{profile_name}"
+    def delete_profile(self, profile_id: str) -> bool:
+        """Delete a profile"""
+        endpoint = f"profiles/{profile_id}"
         response = self.api_client.delete(endpoint)
         if response and response.get("success"):
-            self.logger.info(f"Deleted environment profile: {profile_name}")
+            self.logger.info(f"Deleted environment profile with ID: {profile_id}")
+            return True
+        return False
+
+    def assign_profile_to_station(self, station_id: str, profile_id: str) -> bool:
+        """Assign a profile to a radio station"""
+        endpoint = f"radiostations/{station_id}/profile"
+        data = {"profileId": profile_id}
+        response = self.api_client.put(endpoint, data)
+        if response and response.get("success"):
+            self.logger.info(f"Assigned profile {profile_id} to station {station_id}")
             return True
         return False
