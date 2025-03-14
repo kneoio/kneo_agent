@@ -39,15 +39,18 @@ class AudienceEngagement(BaseTool):
         self.processing_thread = threading.Thread(target=self._process_feedback_queue, daemon=True)
         self.processing_thread.start()
 
-    def _get_name(self) -> str:
+    @property
+    def name(self) -> str:
         """Get the name of the tool."""
         return "audience_engagement"
 
-    def _get_description(self) -> str:
+    @property
+    def description(self) -> str:
         """Get a description of the tool."""
         return "Tracks and analyzes audience engagement and feedback."
 
-    def _get_category(self) -> str:
+    @property
+    def category(self) -> str:
         """Get the category of the tool."""
         return "interaction"
 

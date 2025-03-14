@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # tools/time_announcer.py - Time Announcer tool
 
-import logging
 import random
-from typing import Dict, Any, List
 from datetime import datetime, timedelta
+from typing import List
 
 from tools.base_tool import BaseTool
 
@@ -24,13 +23,16 @@ class TimeAnnouncer(BaseTool):
         self.last_announcement = None
         self.next_announcement = self._calculate_next_announcement()
 
-    def _get_name(self) -> str:
+    @property
+    def name(self) -> str:
         return "time_announcer"
 
-    def _get_description(self) -> str:
+    @property
+    def description(self) -> str:
         return "Generates time announcements at appropriate intervals."
 
-    def _get_category(self) -> str:
+    @property
+    def category(self) -> str:
         return "presentation"
 
     def get_capabilities(self) -> List[str]:

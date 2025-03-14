@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-import logging
 import asyncio
+import json
+import logging
 import time
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-import importlib
+from typing import Dict, Any
 
 from anthropic import AsyncAnthropic
 
 from api.brand_api import BrandAPI
+from components.decision_executor import DecisionExecutor
+from components.prompt_builder import PromptBuilder
 from core.tool_registry import ToolRegistry
-from core.brand_context import BrandContextManager
+from models.brand import BrandManager
 
 
 class DJAgent:
@@ -18,27 +19,42 @@ class DJAgent:
         self.logger = logging.getLogger(__name__)
         self.config = config
         self.claude = AsyncAnthropic(api_key=config["claude"]["api_key"])
-        self.brand_manager = BrandContextManager()
-        self._initialize_brands()
+
+        # Create separate Claude clients for each brand to maintain conversation history
+        self.claude_clients: Dict[str, AsyncAnthropic] = {}
+
+        self.brand_manager = BrandManager()
         self.tool_registry = ToolRegistry()
+
+        # Initialize dictionaries
+        self.conversation_history = {}
+
+        self._initialize_brands()
         self._register_tools()
+
+        # Initialize components
+        self.prompt_builder = PromptBuilder(self.tool_registry)
+        self.decision_executor = DecisionExecutor(self.brand_manager, self.tool_registry, self._get_claude_response)
 
     def _initialize_brands(self):
         brand_api = BrandAPI(self.config.get("api", {}))
-        brands = brand_api.get_all_brands()
-        for brand in brands:
-            brand_id = brand.get("id")
-            if brand_id:
-                self.brand_manager.add_brand(brand_id, brand)
+        api_response = brand_api.get_all_brands()
+        self.brand_manager = BrandManager.from_api_response(api_response)
 
-        brand_ids = self.brand_manager.get_all_brand_ids()
-        self.logger.info(f"Initialized {len(brand_ids)} brands from API")
+        # Initialize Claude clients and conversation history for each brand
+        for brand_slug in self.brand_manager.get_all_brand_slugs():
+            self.claude_clients[brand_slug] = AsyncAnthropic(api_key=self.config["claude"]["api_key"])
+            self.conversation_history[brand_slug] = []
+
+        self.logger.info(f"Initialized {len(self.brand_manager.get_all_brand_slugs())} brands from API")
 
     def _register_tools(self):
         for tool_config in self.config.get("tools", []):
             try:
                 module_path = tool_config["module"]
                 class_name = tool_config["class"]
+
+                import importlib
                 module = importlib.import_module(module_path)
                 tool_class = getattr(module, class_name)
 
@@ -52,248 +68,96 @@ class DJAgent:
             except (ImportError, AttributeError, KeyError) as e:
                 self.logger.error(f"Failed to register tool {tool_config.get('name', 'unknown')}: {e}")
 
-    async def _get_claude_response(self, prompt: str, brand_id: str = None) -> str:
-        """Get a response from Claude based on the current context."""
-        system_prompt = self._build_system_prompt(brand_id)
+    async def _get_claude_response(self, prompt: str, brand_slug: str = None) -> str:
+        """Get a response from Claude based on the current context, maintaining brand-specific conversation."""
+        if not brand_slug:
+            self.logger.error("No brand specified for Claude response")
+            return "Error: Brand not specified"
+
+        brand = self.brand_manager.get_brand(brand_slug)
+        if not brand:
+            self.logger.error(f"Brand {brand_slug} not found")
+            return f"Error: Brand {brand_slug} not found"
+
+        system_prompt = self.prompt_builder.build_system_prompt(brand)
+
+        # Get brand-specific Claude client
+        claude_client = self.claude_clients.get(brand_slug, self.claude)
+
+        # Get conversation history for this brand
+        history = self.conversation_history.get(brand_slug, [])
+
+        # Add the new message
+        history.append({"role": "user", "content": prompt})
+
         try:
-            response = await self.claude.messages.create(
+            response = await claude_client.messages.create(
                 model=self.config["claude"]["model"],
                 system=system_prompt,
-                messages=[{"role": "user", "content": prompt}],
+                messages=history,
                 max_tokens=self.config["claude"].get("max_tokens", 1000),
                 temperature=self.config["claude"].get("temperature", 0.7),
             )
-            return response.content[0].text
+
+            response_text = response.content[0].text
+
+            # Add the assistant's response to history
+            history.append({"role": "assistant", "content": response_text})
+
+            # Trim history if it gets too long (keep last 10 messages)
+            if len(history) > 10:
+                history = history[-10:]
+
+            # Update the history
+            self.conversation_history[brand_slug] = history
+
+            return response_text
+
         except Exception as e:
-            self.logger.error(f"Error getting response from Claude: {e}")
+            self.logger.error(f"Error getting response from Claude for brand {brand_slug}: {e}")
             return "I'm having trouble connecting to my reasoning system. Let me try again in a moment."
 
-    def _build_system_prompt(self, brand_id: str = None) -> str:
-        """Build a system prompt for Claude based on current context and environment."""
-        brand = self.brand_manager.get_brand(brand_id)
-        if not brand:
-            self.logger.error(f"Cannot build prompt: brand {brand_id} not found")
-            return "You are an AI DJ Agent. Please help manage music and announcements."
-
-        brand_id = brand.brand_id
-        profile_name = brand.get_current_profile()
-        state = brand.get_state()
-
-        # Get profile info from the environment profiles tool
-        env_profiles = self.tool_registry.get_tool("environment_profiles")
-        if env_profiles:
-            profile_text = env_profiles.get_profile_guidelines(profile_name)
-            profile_obj = env_profiles.get_profile(profile_name)
-        else:
-            profile_text = f"Profile: {profile_name}"
-            profile_obj = {"language": "en"}
-
-        # Get language from profile
-        language = profile_obj.get("language", "en") if profile_obj else "en"
-
-        # Build comprehensive system prompt
-        prompt = f"""You are an AI DJ Agent for {brand_id} radiostation in a {profile_name} environment.
-    Please respond in {language} language.
-
-    Current context:
-    - Brand: {brand_id}
-    - Environment: {profile_name}
-    - Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-    - Current Song: {state.get('current_song', 'None')}
-    - Audience: {state.get('audience_info', {})}
-    - Current/Upcoming Events: {state.get('upcoming_events', [])}
-
-    Environment profile guidelines:
-    {profile_text}
-
-    Your available tools:
-    {self.tool_registry.get_tool_descriptions()}
-
-    When deciding what to do next, consider:
-    1. The current context and environment
-    2. Appropriate music selection
-    3. Engaging commentary that's suitable for the audience
-    4. Timing of announcements and transitions
-    5. Response to audience feedback and requests
-
-    Maintain an engaging, appropriate tone for the {profile_name} setting.
-    """
-        return prompt
-
-    async def process_cycle(self, brand_id: str = None):
+    async def process_cycle(self, brand_slug: str = None):
         """Process a single operation cycle for a specific brand."""
-        brand = self.brand_manager.get_brand(brand_id)
+        brand = self.brand_manager.get_brand(brand_slug)
         if not brand:
-            self.logger.error(f"Cannot process cycle: brand {brand_id} not found")
+            self.logger.error(f"Cannot process cycle: brand {brand_slug} not found")
             return
 
         # Get current state information
         current_state = brand.get_state()
 
+        # Add brand identity details to the prompt
+        brand_name = brand.slugName
+        country = brand.country
+        profile_name = brand.profile.name if brand.profile else "generic"
+
         # Ask Claude for decision on what to do next
         prompt = f"""
-            Current state for brand {brand.brand_id}:
-            {current_state}
+I'm the AI DJ for {brand_name} radio station in {country} with a {profile_name} environment.
 
-            What action should I take next? Choose from:
-            1. Select and play a new song
-            2. Make an announcement
-            3. Check for audience feedback
-            4. Process a special request
-            5. Check for upcoming events
-            6. Other (specify)
+Current state:
+{json.dumps(current_state, indent=2)}
 
-            Explain your decision briefly and provide necessary details for execution.
-        """
+What action should I take next? Choose from:
+1. Select and play a new song
+2. Make an announcement
+3. Check for audience feedback
+4. Process a special request
+5. Check for upcoming events
+6. Other (specify)
 
-        decision = await self._get_claude_response(prompt, brand.brand_id)
-        self.logger.info(f"Brand {brand.brand_id} - Claude decision: {decision}")
+Explain your decision briefly with necessary details for execution.
+"""
+
+        decision = await self._get_claude_response(prompt, brand.slugName)
+        self.logger.info(f"Brand {brand.slugName} - Claude decision: {decision}")
 
         # Parse and execute the decision
-        await self._execute_decision(decision, brand.brand_id)
+        await self.decision_executor.execute(decision, brand.slugName)
 
         # Update system state after action
         brand.update_state("last_action", decision)
-
-    async def _execute_decision(self, decision: str, brand_id: str = None):
-        """Execute the decision made by Claude for a specific brand."""
-        brand = self.brand_manager.get_brand(brand_id)
-        if not brand:
-            self.logger.error(f"Cannot execute decision: brand {brand_id} not found")
-            return
-
-        # Simple parsing of the decision text to determine the action
-        decision_lower = decision.lower()
-
-        if "play a new song" in decision_lower or "select a song" in decision_lower:
-            await self._select_and_play_song(decision, brand.brand_id)
-        elif "announcement" in decision_lower or "introduce" in decision_lower:
-            await self._make_announcement(decision, brand.brand_id)
-        elif "audience feedback" in decision_lower or "check feedback" in decision_lower:
-            await self._check_audience_feedback(brand.brand_id)
-        elif "special request" in decision_lower or "process request" in decision_lower:
-            await self._process_special_request(decision, brand.brand_id)
-        elif "upcoming events" in decision_lower or "check events" in decision_lower:
-            await self._check_upcoming_events(brand.brand_id)
-        else:
-            # Generic handling for other types of decisions
-            self.logger.info(f"Brand {brand.brand_id} - Executing general decision: {decision}")
-
-    async def _select_and_play_song(self, decision: str, brand_id: str):
-        """Select and play a song based on the decision for a specific brand."""
-        music_db = self.tool_registry.get_tool("music_database")
-        queue_mgr = self.tool_registry.get_tool("song_queue_manager")
-
-        if not music_db or not queue_mgr:
-            self.logger.error(f"Brand {brand_id} - Required tools not available for song selection")
-            return
-
-        # Extract criteria from decision
-        criteria = {"brand_id": brand_id}
-        if "genre" in decision.lower():
-            genre_start = decision.lower().find("genre") + 5
-            genre_end = decision.find(".", genre_start)
-            if genre_end == -1:
-                genre_end = len(decision)
-            genre = decision[genre_start:genre_end].strip()
-            criteria["genre"] = genre
-
-        # Query music database for song recommendations
-        songs = music_db.search_songs(criteria)
-        if songs:
-            selected_song = songs[0]  # Take first recommendation for simplicity
-            queue_mgr.add_song(selected_song, brand_id=brand_id)
-            self.logger.info(
-                f"Brand {brand_id} - Added song to queue: {selected_song['title']} by {selected_song['artist']}")
-
-            # Generate introduction for the song
-            speech_tool = self.tool_registry.get_tool("speech_generator")
-            if speech_tool:
-                intro_text = f"Next up, we have {selected_song['title']} by {selected_song['artist']}."
-                speech_tool.generate_speech(intro_text, brand_id=brand_id)
-
-            # Update brand context with current song
-            brand = self.brand_manager.get_brand(brand_id)
-            if brand:
-                brand.update_state("current_song", selected_song)
-
-    async def _make_announcement(self, decision: str, brand_id: str):
-        """Make an announcement based on the decision for a specific brand."""
-        speech_tool = self.tool_registry.get_tool("speech_generator")
-        if not speech_tool:
-            self.logger.error(f"Brand {brand_id} - Speech generator tool not available")
-            return
-
-        # Extract announcement text from decision
-        announcement_text = decision
-        if "announce that" in decision.lower():
-            start_idx = decision.lower().find("announce that") + 13
-            announcement_text = decision[start_idx:].strip()
-
-        speech_tool.generate_speech(announcement_text, brand_id=brand_id)
-        self.logger.info(f"Brand {brand_id} - Made announcement: {announcement_text}")
-
-    async def _check_audience_feedback(self, brand_id: str):
-        """Check for audience feedback for a specific brand."""
-        engagement_tool = self.tool_registry.get_tool("audience_engagement")
-        if not engagement_tool:
-            self.logger.error(f"Brand {brand_id} - Audience engagement tool not available")
-            return
-
-        feedback = engagement_tool.get_recent_feedback(brand_id=brand_id)
-        if feedback:
-            self.logger.info(f"Brand {brand_id} - Received audience feedback: {feedback}")
-
-            # Update brand context with feedback
-            brand = self.brand_manager.get_brand(brand_id)
-            if brand:
-                brand.update_state("feedback", feedback)
-
-            # Ask Claude how to respond to the feedback
-            prompt = f"Audience feedback received: {feedback}. How should I respond to this feedback?"
-            response_decision = await self._get_claude_response(prompt, brand_id)
-
-            # Execute the response decision
-            await self._execute_decision(response_decision, brand_id)
-
-    async def _process_special_request(self, decision: str, brand_id: str):
-        """Process a special request for a specific brand."""
-        self.logger.info(f"Brand {brand_id} - Processing special request: {decision}")
-
-        if "song request" in decision.lower():
-            song_recog = self.tool_registry.get_tool("song_recognition")
-            queue_mgr = self.tool_registry.get_tool("song_queue_manager")
-
-            if song_recog and queue_mgr:
-                request_details = decision[decision.lower().find("song request") + 12:].strip()
-                song_info = song_recog.identify_song(request_details, brand_id=brand_id)
-                if song_info:
-                    queue_mgr.add_song(song_info, brand_id=brand_id)
-                    self.logger.info(f"Brand {brand_id} - Added requested song: {song_info.get('title')}")
-
-    async def _check_upcoming_events(self, brand_id: str):
-        """Check for upcoming events for a specific brand."""
-        calendar_tool = self.tool_registry.get_tool("event_calendar")
-        if not calendar_tool:
-            self.logger.error(f"Brand {brand_id} - Event calendar tool not available")
-            return
-
-        upcoming_events = calendar_tool.get_upcoming_events(brand_id=brand_id, time_window_minutes=30)
-        if upcoming_events:
-            self.logger.info(f"Brand {brand_id} - Upcoming events: {upcoming_events}")
-
-            # Update brand context with events
-            brand = self.brand_manager.get_brand(brand_id)
-            if brand:
-                brand.update_state("upcoming_events", upcoming_events)
-
-            # Ask Claude how to prepare for the upcoming event
-            event_str = ", ".join([f"{e['title']} at {e['time']}" for e in upcoming_events])
-            prompt = f"Upcoming events: {event_str}. How should I prepare for these events?"
-            prep_decision = await self._get_claude_response(prompt, brand_id)
-
-            # Execute the preparation decision
-            await self._execute_decision(prep_decision, brand_id)
 
     async def run_async(self, duration_seconds=None):
         """Run the DJ Agent asynchronously for all brands."""
@@ -307,9 +171,9 @@ class DJAgent:
                     self.logger.info(f"Reached time limit of {duration_seconds} seconds")
                     break
 
-                # Process cycle for each brand
-                for brand_id in self.brand_manager.get_all_brand_ids():
-                    await self.process_cycle(brand_id)
+                # Process cycle for each brand using slugName
+                for brand_slug in self.brand_manager.get_all_brand_slugs():
+                    await self.process_cycle(brand_slug)
 
                 # Sleep between cycles
                 await asyncio.sleep(self.config.get("cycle_interval_seconds", 10))

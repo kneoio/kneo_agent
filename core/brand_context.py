@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional
 
 
 class BrandContext:
-    """Manages context for a specific brand/radiostation."""
 
     def __init__(self, brand_id: str, brand_config: Dict[str, Any]):
         self.logger = logging.getLogger(__name__)
@@ -37,7 +36,6 @@ class BrandContext:
 
 
 class BrandContextManager:
-    """Manages contexts for multiple brands/radiostations."""
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -45,7 +43,6 @@ class BrandContextManager:
         self.current_brand_id: Optional[str] = None
 
     def add_brand(self, brand_id: str, brand_config: Dict[str, Any]) -> BrandContext:
-        """Add a new brand context."""
         if brand_id in self.brands:
             self.logger.warning(f"Brand {brand_id} already exists, overwriting")
 

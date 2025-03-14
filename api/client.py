@@ -5,9 +5,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
-
 
 class APIClient:
     def __init__(self, base_url=None, api_key=None, timeout=None):

@@ -1,54 +1,31 @@
 #!/usr/bin/env python3
-import logging
-from typing import Dict, Any, List, Optional
+from abc import ABC, abstractmethod
+
+from typing import Dict, Any, Optional, List
 
 
-class BaseTool:
-    """Base class for all tools."""
+class BaseTool(ABC):
+    """Base class for all tools with brand awareness."""
 
     def __init__(self, config: Dict[str, Any]):
-        self.logger = logging.getLogger(self.__class__.__module__)
         self.config = config
         self.brand_manager = config.get("brand_manager")
-        self._initialize()
 
-    def _initialize(self):
-        """Initialize the tool. Override in subclasses."""
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Tool name used for registration and lookups."""
         pass
 
     @property
-    def name(self) -> str:
-        """Get the name of the tool."""
-        return self._get_name()
+    @abstractmethod
+    def description(self) -> str:
+        """Tool description for Claude's system prompt."""
+        pass
 
-    def _get_name(self) -> str:
-        """Get the name of the tool. Override in subclasses."""
-        raise NotImplementedError("Tool must implement _get_name method")
+    def get_brand(self, brand_identifier: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Get brand by slugName or ID, or current brand if None provided."""
+        if not self.brand_manager:
+            return None
 
-    def get_description(self) -> str:
-        """Get a description of the tool."""
-        return self._get_description()
-
-    def _get_description(self) -> str:
-        """Get a description of the tool. Override in subclasses."""
-        raise NotImplementedError("Tool must implement _get_description method")
-
-    def get_category(self) -> str:
-        """Get the category of the tool."""
-        return self._get_category()
-
-    def _get_category(self) -> str:
-        """Get the category of the tool. Override in subclasses."""
-        raise NotImplementedError("Tool must implement _get_category method")
-
-    def get_current_brand_id(self) -> Optional[str]:
-        """Get the current brand ID from the brand manager."""
-        if self.brand_manager:
-            return self.brand_manager.get_current_brand_id()
-        return None
-
-    def get_brand_context(self, brand_id: Optional[str] = None):
-        """Get the context for a specific brand or the current brand."""
-        if self.brand_manager:
-            return self.brand_manager.get_brand(brand_id)
-        return None
+        return self.brand_manager.get_brand(brand_identifier)

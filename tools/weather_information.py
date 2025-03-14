@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 # tools/weather_information.py - Weather Information tool
 
-import logging
-from typing import Dict, Any, List, Optional
 import json
 import os
-import time
 from datetime import datetime, timedelta
-import requests
+from typing import Dict, Any, List, Optional
 
 from tools.base_tool import BaseTool
 
@@ -31,15 +28,18 @@ class WeatherInformation(BaseTool):
         if os.path.exists(self.cache_file):
             self._load_cache()
 
-    def _get_name(self) -> str:
+    @property
+    def name(self) -> str:
         """Get the name of the tool."""
         return "weather_information"
 
-    def _get_description(self) -> str:
+    @property
+    def description(self) -> str:
         """Get a description of the tool."""
         return "Provides access to weather information and forecasts."
 
-    def _get_category(self) -> str:
+    @property
+    def category(self) -> str:
         """Get the category of the tool."""
         return "information"
 
@@ -492,8 +492,8 @@ class WeatherInformation(BaseTool):
 
         # Generate precipitation chance
         precip_chance = (
-                    combined_hash % 100) if "Rain" in condition or "Snow" in condition or "Thunder" in condition else (
-                    combined_hash % 30)
+                combined_hash % 100) if "Rain" in condition or "Snow" in condition or "Thunder" in condition else (
+                combined_hash % 30)
 
         return {
             "date": forecast_date.strftime("%Y-%m-%d"),

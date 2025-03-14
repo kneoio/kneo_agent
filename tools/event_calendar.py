@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 # tools/event_calendar.py - Event Calendar tool
 
-import logging
-from typing import Dict, Any, List, Optional
-import json
 import os
-from datetime import datetime, timedelta
 import sqlite3
+from datetime import datetime
+from typing import Dict, Any, List, Optional
 
 from tools.base_tool import BaseTool
 
@@ -35,15 +33,18 @@ class EventCalendar(BaseTool):
 
         self.logger.info(f"Connected to event database at {self.db_path}")
 
-    def _get_name(self) -> str:
+    @property
+    def name(self) -> str:
         """Get the name of the tool."""
         return "event_calendar"
 
-    def _get_description(self) -> str:
+    @property
+    def description(self) -> str:
         """Get a description of the tool."""
         return "Manages and accesses the event calendar for scheduling and announcements."
 
-    def _get_category(self) -> str:
+    @property
+    def category(self) -> str:
         """Get the category of the tool."""
         return "scheduling"
 

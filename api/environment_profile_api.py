@@ -26,7 +26,7 @@ class EnvironmentProfileAPI:
 
     def get_profile(self, profile_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific profile by ID"""
-        endpoint = f"profiles/{profile_id}"
+        endpoint = f"radiostations/{profile_id}"
         response = self.api_client.get(endpoint)
         if response and "payload" in response:
             return response["payload"]

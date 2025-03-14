@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # tools/song_recognition.py - Song Recognition tool
 
-import logging
+import hashlib
 import json
 import os
-import hashlib
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
 
@@ -28,13 +27,16 @@ class SongRecognition(BaseTool):
             if os.path.exists(self.cache_file):
                 self._load_cache()
 
-    def _get_name(self) -> str:
+    @property
+    def name(self) -> str:
         return "song_recognition"
 
-    def _get_description(self) -> str:
+    @property
+    def description(self) -> str:
         return "Recognizes songs from audio samples or text descriptions."
 
-    def _get_category(self) -> str:
+    @property
+    def category(self) -> str:
         return "music"
 
     def get_capabilities(self) -> List[str]:

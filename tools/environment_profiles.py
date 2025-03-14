@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
-import logging
 from typing import Dict, Any, List, Optional
-from tools.base_tool import BaseTool
+
 from api.environment_profile_api import EnvironmentProfileAPI
+from tools.base_tool import BaseTool
+
+
+def get_capabilities() -> List[str]:
+    return [
+        "get_profile",
+        "set_current_profile",
+        "get_current_profile",
+        "list_profiles",
+        "get_profile_guidelines",
+        "get_allowed_genres"
+    ]
 
 
 class EnvironmentProfileManager(BaseTool):
@@ -12,34 +23,17 @@ class EnvironmentProfileManager(BaseTool):
         self.current_profile = "generic"
         self.brand_id = self.config.get("brand_id")
 
-        # Load profiles from API
-        self._load_profiles()
-
-    def _get_name(self) -> str:
+    @property
+    def name(self) -> str:
         return "environment_profiles"
 
-    def _get_description(self) -> str:
+    @property
+    def description(self) -> str:
         return "Manages environment profiles for different settings."
 
-    def _get_category(self) -> str:
+    @property
+    def category(self) -> str:
         return "configuration"
-
-    def get_capabilities(self) -> List[str]:
-        return [
-            "get_profile",
-            "set_current_profile",
-            "get_current_profile",
-            "create_profile",
-            "update_profile",
-            "delete_profile",
-            "list_profiles",
-            "get_profile_guidelines",
-            "get_allowed_genres"
-        ]
-
-    def _load_profiles(self):
-        self.profiles = self.api.get_profiles()
-        self.logger.info(f"Loaded {len(self.profiles)}")
 
     def get_profile(self, profile_name: str) -> Optional[Dict[str, Any]]:
         if profile_name in self.profiles:
@@ -64,34 +58,6 @@ class EnvironmentProfileManager(BaseTool):
 
     def get_current_profile(self) -> Dict[str, Any]:
         return self.get_profile(self.current_profile) or self.get_profile("generic") or {}
-
-    def create_profile(self, profile_name: str, profile_data: Dict[str, Any]) -> bool:
-        success = self.api.create_profile(profile_name, profile_data, self.brand_id)
-        if success:
-            # Update local cache
-            self.profiles[profile_name] = profile_data
-        return success
-
-    def update_profile(self, profile_name: str, profile_data: Dict[str, Any]) -> bool:
-        success = self.api.update_profile(profile_name, profile_data, self.brand_id)
-        if success:
-            # Update local cache
-            if profile_name in self.profiles:
-                self.profiles[profile_name].update(profile_data)
-        return success
-
-    def delete_profile(self, profile_name: str) -> bool:
-        # Check if it's the current profile
-        if profile_name == self.current_profile:
-            self.logger.warning(f"Deleting current profile '{profile_name}', switching to 'generic'")
-            self.current_profile = "generic"
-
-        success = self.api.delete_profile(profile_name, self.brand_id)
-        if success:
-            # Update local cache
-            if profile_name in self.profiles:
-                del self.profiles[profile_name]
-        return success
 
     def list_profiles(self) -> List[Dict[str, Any]]:
         result = []
