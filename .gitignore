@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+
+venv/
+.idea/
+.vscode/
+/.env
+
+# Log files
+*.log
+config.yaml
+custom_profiles.json
+*.wav
