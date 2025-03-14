@@ -35,20 +35,16 @@ class DJAgent:
         self.logger.info(f"Initialized {len(brand_ids)} brands from API")
 
     def _register_tools(self):
-        """Register all available tools from configuration."""
         for tool_config in self.config.get("tools", []):
             try:
-                # Dynamically import the tool class
                 module_path = tool_config["module"]
                 class_name = tool_config["class"]
                 module = importlib.import_module(module_path)
                 tool_class = getattr(module, class_name)
 
-                # Add the brand manager to the tool config
                 tool_config_with_brands = tool_config.get("config", {}).copy()
                 tool_config_with_brands["brand_manager"] = self.brand_manager
 
-                # Instantiate and register the tool
                 tool_instance = tool_class(tool_config_with_brands)
                 self.tool_registry.register_tool(tool_instance)
                 self.logger.info(f"Registered tool: {tool_instance.name}")

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 import logging
-import requests
-import json
 import os
-from typing import Dict, Any, List, Optional
+
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables
