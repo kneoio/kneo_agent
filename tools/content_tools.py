@@ -1,86 +1,99 @@
-# tools/content_tools.py
-import requests
+import os
+from dotenv import load_dotenv
+from elevenlabs.client import ElevenLabs
 from langchain.prompts import PromptTemplate
-from langchain.llms.anthropic import ChatAnthropic
+from langchain_anthropic import ChatAnthropic
+import json
+import re
+
+load_dotenv()
 
 
 class IntroductionTool:
-    """Tool to generate song introductions using Claude."""
-
     def __init__(self, config):
-        # Initialize Claude model
         self.llm = ChatAnthropic(
-            model="claude-3-7-sonnet-20250219",
+            model_name="claude-3-sonnet-20240229",
             temperature=0.7,
-            api_key=config.get("ANTHROPIC_API_KEY", "")
+            api_key=os.getenv("ANTHROPIC_API_KEY", "")
         )
 
-        # Set up prompt template
-        self.prompt_template = PromptTemplate(
+        self.intro_prompt_template = PromptTemplate(
             input_variables=["song_title", "artist"],
             template="""
-            You are an enthusiastic radio DJ. Create a brief, engaging introduction for the song "{song_title}" by {artist}.
-            Your introduction should be conversational, authentic, and between 3-8 seconds when spoken (about 10-30 words).
-            Occasionally mention the radio station name "AI Radio" and add some personality.
+            You are a radio DJ. Introduce "{song_title}" by {artist}.
+            Keep it short (10-30 words) and mention "AI Radio".
             """
         )
 
-    def create_introduction(self, song):
-        """Generate a DJ introduction for the selected song."""
+        self.filename_parse_prompt = PromptTemplate(
+            input_variables=["filename"],
+            template="""
+            Parse this music filename into artist and title. Return only a JSON object with "artist" and "title" keys.
+            If you can't reliably determine both, return null values.
+
+            Filename: {filename}
+            """
+        )
+
+    def parse_filename_with_llm(self, filename):
         try:
-            # Extract title and artist
-            title = song.get("title", "Unknown Title")
-            artist = song.get("artist", "Unknown Artist")
-
-            # Extract from filename if needed
-            if title == "Unknown Title" and "filename" in song:
-                filename = song["filename"]
-                parts = filename.split('-')
-                if len(parts) >= 2:
-                    artist = parts[0].strip()
-                    title = parts[1].strip().split('.')[0]
-
-            # Generate introduction
-            prompt = self.prompt_template.format(song_title=title, artist=artist)
+            print(f"Trying to recognize filename: {filename}")
+            prompt = self.filename_parse_prompt.format(filename=filename)
             response = self.llm.invoke(prompt)
-            introduction = response.content[0].text.strip()
-
-            print(f"Created introduction: {introduction}")
-            return introduction
+            json_match = re.search(r'\{.*\}', response.content, re.DOTALL)
+            if json_match:
+                parsed_data = json.loads(json_match.group(0))
+                return parsed_data
+            return {"artist": None, "title": None}
 
         except Exception as e:
-            print(f"Error creating song introduction: {e}")
-            return f"Now playing: {song.get('title', 'our next track')} by {song.get('artist', 'an amazing artist')}"
+            print(f"Filename parsing error: {e}")
+            return {"artist": None, "title": None}
+
+    def create_introduction(self, song):
+        try:
+            title = song.get("title", None)
+            artist = song.get("artist", None)
+            if (not title or not artist) and "filename" in song:
+                filename = song["filename"]
+                parsed_data = self.parse_filename_with_llm(filename)
+
+                if parsed_data.get("title"):
+                    title = parsed_data.get("title")
+                if parsed_data.get("artist"):
+                    artist = parsed_data.get("artist")
+
+            if not title or not artist or title == "Unknown Title" or artist == "Unknown Artist":
+                return None
+
+            prompt = self.intro_prompt_template.format(song_title=title, artist=artist)
+            response = self.llm.invoke(prompt)
+            return response.content
+
+        except Exception as e:
+            print(f"Introduction error: {e}")
+            return None
 
 
 class TTSTool:
-    """Tool to convert text to speech using ElevenLabs."""
 
     def __init__(self, config):
-        self.api_key = config.get("ELEVENLABS_API_KEY", "")
+        self.client = ElevenLabs(
+            api_key=os.getenv("ELEVENLABS_API_KEY")
+        )
 
     def convert_to_speech(self, text):
-        """Convert text to speech using ElevenLabs API."""
+        if not text:
+            return None
+
         try:
-            response = requests.post(
-                "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",  # Default voice ID
-                headers={
-                    "Accept": "audio/mpeg",
-                    "Content-Type": "application/json",
-                    "xi-api-key": self.api_key
-                },
-                json={
-                    "text": text,
-                    "model_id": "eleven_monolingual_v1",
-                    "voice_settings": {
-                        "stability": 0.5,
-                        "similarity_boost": 0.75
-                    }
-                }
+            audio = self.client.text_to_speech.convert(
+                voice_id="JBFqnCBsd6RMkjVDRZzb",
+                text=text,
+                model_id="eleven_multilingual_v2",
+                output_format="mp3_44100_128"
             )
-            response.raise_for_status()
-            print("Successfully generated TTS audio")
-            return response.content
-        except requests.RequestException as e:
-            print(f"Error in text-to-speech conversion: {e}")
+            return b''.join(audio)
+        except Exception as e:
+            print(f"TTS error: {e}")
             return None

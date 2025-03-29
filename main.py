@@ -3,9 +3,10 @@
 
 import logging
 import argparse
-from core.agent_v1 import DJAgent
 from core.config import load_config
 from core.logging_config import setup_logging
+
+from core.agent import AIDJAgent
 
 
 def main():
@@ -13,12 +14,11 @@ def main():
     parser.add_argument("--config", default="config.json", help="Path to configuration file")
     args = parser.parse_args()
 
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    setup_logging(log_level)
+    setup_logging()
     logger = logging.getLogger(__name__)
     logger.info("Starting AI DJ Agent System")
 
-    config = load_config(args.config)
+    config = load_config("config.yaml")
     logger.info(f"Loaded configuration from {args.config}")
 
     dj_agent = AIDJAgent(config)

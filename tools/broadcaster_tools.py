@@ -2,8 +2,7 @@
 import requests
 
 
-class SongFetchTool:
-    """Tool to fetch available songs from the broadcaster API."""
+class SoundFragmentTool:
 
     def __init__(self, config):
         self.api_base_url = config.get("BROADCASTER_API_BASE_URL", "http://localhost:38707/api")
@@ -11,15 +10,15 @@ class SongFetchTool:
         self.api_timeout = config.get("BROADCASTER_API_TIMEOUT", 10)
 
     def fetch_songs(self):
-        """Fetch available songs from the API."""
         try:
             response = requests.get(
-                f"{self.api_base_url}/songs",
+                f"{self.api_base_url}/thomas-lee/soundfragments/available-soundfragments",
                 headers=self._get_headers(),
                 timeout=self.api_timeout
             )
             response.raise_for_status()
-            songs = response.json()
+            data = response.json()
+            songs = data["payload"]["viewData"]["entries"]
             print(f"Fetched {len(songs)} available songs")
             return songs
         except requests.RequestException as e:
@@ -27,26 +26,23 @@ class SongFetchTool:
             return []
 
     def _get_headers(self):
-        """Get the headers for API requests."""
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
 
-class BroadcastTool:
-    """Tool to submit song and introduction to the broadcaster API."""
+class QueueTool:
 
     def __init__(self, config):
         self.api_base_url = config.get("BROADCASTER_API_BASE_URL", "http://localhost:38707/api")
         self.api_key = config.get("BROADCASTER_API_KEY", "")
         self.api_timeout = config.get("BROADCASTER_API_TIMEOUT", 10)
 
-    def send_broadcast(self, song_uuid, audio_data):
-        """Send song and introduction to the broadcaster."""
+    def send_to_broadcast(self, song_uuid, audio_data):
         try:
             response = requests.post(
-                f"{self.api_base_url}/broadcast",
+                f"{self.api_base_url}/thomas-lee/queue/{song_uuid}",
                 headers=self._get_headers(),
                 timeout=self.api_timeout,
                 data={"song_uuid": song_uuid},
@@ -60,7 +56,6 @@ class BroadcastTool:
             return False
 
     def _get_headers(self):
-        """Get the headers for API requests."""
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"

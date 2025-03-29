@@ -6,7 +6,6 @@ from datetime import datetime
 
 @dataclass
 class SoundFragment:
-    """Model for sound fragment data from API."""
     id: str
     title: str
     artist: str
@@ -22,7 +21,6 @@ class SoundFragment:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SoundFragment':
-        """Create a SoundFragment from API response data."""
         return cls(
             id=data.get("id", ""),
             author=data.get("author", "undefined"),
@@ -41,7 +39,6 @@ class SoundFragment:
 
 @dataclass
 class Song:
-    """Model for song data from API."""
     id: str
     soundFragmentDTO: SoundFragment
     playedByBrandCount: int = 0
@@ -65,7 +62,6 @@ class Song:
         return self.soundFragmentDTO.album
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert Song to dictionary format."""
         return {
             "id": self.id,
             "title": self.title,
@@ -78,7 +74,6 @@ class Song:
         }
 
     def get(self, key, default=None):
-        """Implement get method to be compatible with dictionary interface."""
         if key == "id":
             return self.id
         elif key == "title":
@@ -99,7 +94,6 @@ class Song:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Song':
-        """Create a Song from API response data."""
         sound_fragment_data = data.get("soundFragmentDTO", {})
         sound_fragment = SoundFragment.from_dict(sound_fragment_data)
 

@@ -14,10 +14,8 @@ print("Available voices:")
 for voice in voice_response.voices:
     print(f"- {voice.name}: {voice.voice_id}")
 
-# Select a voice from the list or use a specific voice ID
 selected_voice_id = voice_response.voices[0].voice_id if voice_response.voices else "JBFqnCBsd6RMkjVDRZzb"
 
-# Convert text to speech
 text_to_convert = "Ladies and gentlemen, please welcome to the stage... The Eagles with \"Hotel California!\""
 audio = client.text_to_speech.convert(
     text=text_to_convert,
@@ -26,8 +24,6 @@ audio = client.text_to_speech.convert(
     output_format="mp3_44100_128",
 )
 
-# Save the audio to a file
-# Handle the generator correctly
 with open("output_speech.mp3", "wb") as f:
     for chunk in audio:
         f.write(chunk)
