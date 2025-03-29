@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 import logging
 from typing import Dict, Any, List, Optional
-from api.client import APIClient
-from models.brand import Brand, Profile, BrandManager
-
+from api.broadcaster_client import BroadcasterAPIClient
+from mock.simple_brand import SimpleBrand
 
 class BrandAPI:
     def __init__(self, config: Dict[str, Any] = None):
         self.logger = logging.getLogger(__name__)
-        self.api_client = APIClient()  # Will use environment variables automatically
+        self.api_client = BroadcasterAPIClient()  # Will use environment variables automatically
 
     def get_all_brands(self) -> Dict[str, Any]:
         """Get all brands with profiles from the API.
@@ -22,20 +21,27 @@ class BrandAPI:
             return {"payload": {"viewData": {"entries": []}}}
         return response
 
-    def get_brand(self, brand_id: str) -> Optional[Brand]:
-        """Get details for a specific brand as a Brand object."""
-        response = self.api_client.get(f"brands/{brand_id}")
-        if not response or "brand" not in response:
-            self.logger.error(f"Failed to retrieve brand {brand_id}")
-            return None
+    def get_brand(self, brand_identifier=None):
+        # If string identifier, create simple brand
+        if isinstance(brand_identifier, str):
+            from simple_brand import SimpleBrand
+            return SimpleBrand(brand_identifier)
+        return None
 
-        brand_data = response.get("brand")
-        # Get profile data
-        profile_data = self.get_brand_profile(brand_id)
-        if profile_data:
-            brand_data["profile"] = profile_data
+#    def get_brand(self, brand_id: str) -> Optional[Brand]:
+#        """Get details for a specific brand as a Brand object."""
+#        response = self.api_client.get(f"brands/{brand_id}")
+#        if not response or "brand" not in response:
+#            self.logger.error(f"Failed to retrieve brand {brand_id}")
+#            return None
 
-        return Brand.from_dict(brand_data)
+#       brand_data = response.get("brand")
+#       # Get profile data
+#        profile_data = self.get_brand_profile(brand_id)
+#        if profile_data:
+#            brand_data["profile"] = profile_data
+
+ #       return Brand.from_dict(brand_data)
 
     def get_brand_profile(self, brand_id: str) -> Optional[Dict[str, Any]]:
         """Get current profile for a brand."""

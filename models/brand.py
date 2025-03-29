@@ -38,6 +38,14 @@ class Profile:
             archived=data.get("archived", 0)
         )
 
+    @property
+    def profile(self):
+        if hasattr(self, '_profile'):
+            return self._profile
+        # Return empty object with required attrs
+        from types import SimpleNamespace
+        return SimpleNamespace(name="Standard", allowedGenres=[], explicitContent=False, announcementFrequency="MEDIUM")
+
 
 @dataclass
 class Brand:

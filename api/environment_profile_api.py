@@ -1,12 +1,12 @@
 import logging
 from typing import Dict, Any, List, Optional
-from api.client import APIClient
+from api.broadcaster_client import BroadcasterAPIClient
 
 
 class EnvironmentProfileAPI:
     def __init__(self, config: Dict[str, Any] = None):
         self.logger = logging.getLogger(__name__)
-        self.api_client = APIClient()
+        self.api_client = BroadcasterAPIClient()
 
     def get_profiles(self) -> List[Dict[str, Any]]:
         """Get all available profiles"""

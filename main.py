@@ -3,15 +3,14 @@
 
 import logging
 import argparse
-from core.agent import DJAgent
+from core.agent_v1 import DJAgent
 from core.config import load_config
 from core.logging_config import setup_logging
 
 
 def main():
     parser = argparse.ArgumentParser(description="AI DJ Agent System")
-    parser.add_argument("--config", default="config.yaml", help="Path to configuration file")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--config", default="config.json", help="Path to configuration file")
     args = parser.parse_args()
 
     log_level = logging.DEBUG if args.debug else logging.INFO
@@ -22,7 +21,7 @@ def main():
     config = load_config(args.config)
     logger.info(f"Loaded configuration from {args.config}")
 
-    dj_agent = DJAgent(config)
+    dj_agent = AIDJAgent(config)
     logger.info("DJ Agent initialized successfully")
 
     try:
