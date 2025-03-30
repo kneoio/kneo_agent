@@ -1,5 +1,38 @@
 # tools/broadcaster_tools.py
 import requests
+import time
+from functools import wraps
+from typing import Any, Callable, TypeVar, cast
+
+T = TypeVar('T')
+
+
+def cached(expiration_time: int = 300) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        cache: dict[str, Any] = {'data': None, 'timestamp': 0}
+
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> T:
+            current_time = int(time.time())  # Ensure timestamp is int
+            # Only use cache if not expired AND data exists AND not empty/error
+            if (current_time - cache['timestamp'] <= expiration_time and
+                    cache['data'] is not None and
+                    cache['data'] != []):  # Assuming empty list means no songs
+                print("Using cached data")
+                return cast(T, cache['data'])
+
+            # Fetch fresh data
+            result = func(*args, **kwargs)
+            # Only cache if result is valid (not empty and no error)
+            if isinstance(result, list) and result:  # Assuming we expect a non-empty list
+                cache['data'] = result
+                cache['timestamp'] = current_time
+                print("Cache updated with fresh data")
+            return result
+
+        return wrapper
+
+    return decorator
 
 
 class SoundFragmentTool:
@@ -9,7 +42,8 @@ class SoundFragmentTool:
         self.api_key = config.get("BROADCASTER_API_KEY", "")
         self.api_timeout = config.get("BROADCASTER_API_TIMEOUT", 10)
 
-    def fetch_songs(self):
+    @cached(expiration_time=300)  # 5 minutes cache
+    def fetch_songs(self) -> list:
         try:
             response = requests.get(
                 f"{self.api_base_url}/thomas-lee/soundfragments/available-soundfragments",
@@ -20,10 +54,10 @@ class SoundFragmentTool:
             data = response.json()
             songs = data["payload"]["viewData"]["entries"]
             print(f"Fetched {len(songs)} available songs")
-            return songs
+            return songs if songs else []  # Ensure we return empty list rather than None
         except requests.RequestException as e:
             print(f"Error fetching available songs: {e}")
-            return []
+            return []  # Return empty list on error
 
     def _get_headers(self):
         headers = {"Content-Type": "application/json"}
@@ -37,9 +71,9 @@ class QueueTool:
     def __init__(self, config):
         self.api_base_url = config.get("BROADCASTER_API_BASE_URL", "http://localhost:38707/api")
         self.api_key = config.get("BROADCASTER_API_KEY", "")
-        self.api_timeout = config.get("BROADCASTER_API_TIMEOUT", 10)
+        self.api_timeout = config.get("BROADCASTER_API_TIMEOUT", 100)
 
-    def send_to_broadcast(self, song_uuid, audio_data):
+    def send_to_broadcast(self, song_uuid: str, audio_data: bytes) -> bool:
         try:
             response = requests.post(
                 f"{self.api_base_url}/thomas-lee/queue/{song_uuid}",
