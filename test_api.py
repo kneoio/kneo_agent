@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # Test parameters
-BRAND_ID = 'thomas-lee'
+BRAND_ID = 'hartman-torres'
 LIMIT = 10
 SONG_ID = 'song1'  # Will need a valid ID from get_available_songs
 

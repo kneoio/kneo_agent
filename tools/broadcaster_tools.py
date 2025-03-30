@@ -43,10 +43,10 @@ class SoundFragmentTool:
         self.api_timeout = config.get("BROADCASTER_API_TIMEOUT", 10)
 
     @cached(expiration_time=300)  # 5 minutes cache
-    def fetch_songs(self) -> list:
+    def fetch_songs(self, brand: str) -> list:
         try:
             response = requests.get(
-                f"{self.api_base_url}/thomas-lee/soundfragments/available-soundfragments",
+                f"{self.api_base_url}/{brand}/soundfragments/available-soundfragments",
                 headers=self._get_headers(),
                 timeout=self.api_timeout
             )
@@ -73,10 +73,10 @@ class QueueTool:
         self.api_key = config.get("BROADCASTER_API_KEY", "")
         self.api_timeout = config.get("BROADCASTER_API_TIMEOUT", 100)
 
-    def send_to_broadcast(self, song_uuid: str, audio_data: bytes) -> bool:
+    def send_to_broadcast(self, brand: str, song_uuid: str, audio_data: bytes) -> bool:
         try:
             response = requests.post(
-                f"{self.api_base_url}/thomas-lee/queue/{song_uuid}",
+                f"{self.api_base_url}/{brand}/queue/{song_uuid}",
                 headers=self._get_headers(),
                 timeout=self.api_timeout,
                 data={"song_uuid": song_uuid},
