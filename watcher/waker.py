@@ -16,11 +16,10 @@ class Waker:
         self.interval = 30
         self.config = config
         self.radio_station_name = None
-        self.active_agents = {}  # Track running agents by station name
-        self.agent_lock = threading.Lock()  # Lock for thread safety
+        self.active_agents = {}
+        self.agent_lock = threading.Lock()
 
     def get_active_brands(self) -> Optional[List[Dict]]:
-        """Fetch brands with multiple statuses and set radio station name"""
         try:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
@@ -52,12 +51,10 @@ class Waker:
             return None
 
     def run_agent(self, station_name):
-        """Run an agent in its own thread"""
         logging.info(f"Starting agent thread for {station_name}")
         agent = AIDJAgent(self.config, station_name)
         agent.run()
 
-        # When agent finishes, remove it from active agents
         with self.agent_lock:
             if station_name in self.active_agents:
                 del self.active_agents[station_name]
@@ -75,7 +72,6 @@ class Waker:
                     for brand in brands:
                         station_name = brand.get("radioStationName")
 
-                        # Only start a new agent if one isn't already running for this station
                         with self.agent_lock:
                             if station_name not in self.active_agents:
                                 logging.info(f"Creating new agent for {station_name}")

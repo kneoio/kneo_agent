@@ -6,12 +6,13 @@ from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 from langchain.prompts import PromptTemplate
 from langchain_anthropic import ChatAnthropic
+from langchain.memory import ConversationBufferMemory
 
 load_dotenv()
 
 
-class IntroductionTool:
-    def __init__(self, config):
+class InteractionTool:
+    def __init__(self, config, memory: ConversationBufferMemory):
         self.llm = ChatAnthropic(
             model_name="claude-3-sonnet-20240229",
             temperature=0.7,
@@ -22,17 +23,24 @@ class IntroductionTool:
             api_key=os.getenv("ELEVENLABS_API_KEY")
         )
 
+        self.memory = memory  # Use the passed memory instance
+
         self.intro_prompt_template = PromptTemplate(
-            input_variables=["song_title", "artist", "brand"],
+            input_variables=["song_title", "artist", "brand", "history"],
             template="""
             You are a radio DJ. Introduce "{song_title}" by {artist}.
-            Keep it short (10-30 words) and mention radio station name: "{brand}".              
+            Keep it short (10-30 words). You can mention radio station name: "{brand}".
+
+            Previous interactions context:
+            {history}
+
+            Make sure your introduction flows naturally from previous interactions.
             """
         )
 
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
         self.audio_files = self._load_audio_files()
-        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.9)  #0.3 30% chance to use a file
+        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.9)
 
     def _load_audio_files(self):
         """Load all available audio files from the metadata folder"""
@@ -81,14 +89,24 @@ class IntroductionTool:
                 logger.debug("Skipping introduction - invalid song title")
                 return None
 
+            # Get conversation history from memory
+            history = self.memory.load_memory_variables({}).get('history', '')
+
             # 3. Generate text
             logger.debug("Generating LLM introduction")
             prompt = self.intro_prompt_template.format(
                 song_title=title,
                 artist=artist,
-                brand=brand
+                brand=brand,
+                history=history
             )
             response = self.llm.invoke(prompt)
+
+            # Save this interaction to memory
+            self.memory.save_context(
+                {"input": f"Introducing {title} by {artist} for {brand}"},
+                {"output": response.content}
+            )
 
             # 4. Extract clean content
             if not response:

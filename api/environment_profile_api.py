@@ -2,7 +2,6 @@ import logging
 from typing import Dict, Any, List, Optional
 from api.broadcaster_client import BroadcasterAPIClient
 
-
 class EnvironmentProfileAPI:
     def __init__(self, config: Dict[str, Any] = None):
         self.logger = logging.getLogger(__name__)

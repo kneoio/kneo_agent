@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-# main.py - Entry point for the AI DJ Agent System
-
 import logging
 import argparse
 import threading
 import time
 
-from core.agent import AIDJAgent
 from core.config import load_config
 from core.logging_config import setup_logging
 from watcher.waker import Waker
 
 
 def run_scheduler(waker):
-    """Wrapper function to run the waker in a thread"""
     waker.run()
 
 
@@ -31,7 +27,6 @@ def main():
 
     waker = Waker(config)
 
-    # Start Waker in a separate thread
     waker_thread = threading.Thread(
         target=run_scheduler,
         args=(waker,),

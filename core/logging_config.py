@@ -1,16 +1,8 @@
-#!/usr/bin/env python3
-# core/logging_config.py - Logging configuration module
-
 import logging
 import colorlog
 
 
 def setup_logging(level=logging.INFO):
-    """Configure logging for the application with colored output.
-
-    Args:
-        level: The logging level to use (default: logging.INFO)
-    """
     handler = colorlog.StreamHandler()
     handler.setFormatter(colorlog.ColoredFormatter(
         "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s",

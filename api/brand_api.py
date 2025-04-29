@@ -1,28 +1,20 @@
-#!/usr/bin/env python3
 import logging
 from typing import Dict, Any, List, Optional
 from api.broadcaster_client import BroadcasterAPIClient
-from mock.simple_brand import SimpleBrand
 
 class BrandAPI:
     def __init__(self, config: Dict[str, Any] = None):
         self.logger = logging.getLogger(__name__)
-        self.api_client = BroadcasterAPIClient()  # Will use environment variables automatically
+        self.api_client = BroadcasterAPIClient()
 
     def get_all_brands(self) -> Dict[str, Any]:
-        """Get all brands with profiles from the API.
-
-        Returns the raw API response that can be used with BrandManager.from_api_response()
-        """
         response = self.api_client.get("radiostations")
         if not response or "payload" not in response:
             self.logger.error("Failed to retrieve brands or invalid response format")
-            # Return minimal valid structure for BrandManager to process
             return {"payload": {"viewData": {"entries": []}}}
         return response
 
     def get_brand(self, brand_identifier=None):
-        # If string identifier, create simple brand
         if isinstance(brand_identifier, str):
             from simple_brand import SimpleBrand
             return SimpleBrand(brand_identifier)
