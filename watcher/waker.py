@@ -4,6 +4,7 @@ import logging
 import threading
 from typing import Optional, Dict, List
 
+from api.broadcaster_client import BroadcasterAPIClient
 from core.agent import AIDJAgent
 
 
@@ -52,7 +53,8 @@ class Waker:
 
     def run_agent(self, station_name):
         logging.info(f"Starting agent thread for {station_name}")
-        agent = AIDJAgent(self.config, station_name)
+        api_client = BroadcasterAPIClient()
+        agent = AIDJAgent(self.config, station_name, api_client)
         agent.run()
 
         with self.agent_lock:

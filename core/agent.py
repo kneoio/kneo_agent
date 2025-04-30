@@ -5,8 +5,10 @@ from typing import Dict
 
 from api.broadcaster_client import BroadcasterAPIClient
 from api.conversation_memory_api import APIBackedConversationMemory
-from tools.broadcaster_tools import SoundFragmentTool, QueueTool
 from tools.interaction_tools import InteractionTool
+from tools.queue_tool import QueueTool
+from tools.sound_fragment_tool import SoundFragmentTool
+
 
 class AIDJAgent:
     def __init__(self, config: Dict, brand: str, api_client: BroadcasterAPIClient):

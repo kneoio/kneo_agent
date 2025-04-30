@@ -41,7 +41,6 @@ class SongQueueAPI:
         return songs
 
     def add_song(self, song_id: str, position: int = None, brand_id=None) -> bool:
-        """Add a song to the queue for a specific brand."""
         endpoint = "queue/add"
         data = {"song_id": song_id}
 
