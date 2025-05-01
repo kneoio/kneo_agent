@@ -23,24 +23,30 @@ class InteractionTool:
             api_key=os.getenv("ELEVENLABS_API_KEY")
         )
 
-        self.memory = memory  # Use the passed memory instance
+        self.memory = memory
 
         self.intro_prompt_template = PromptTemplate(
-            input_variables=["song_title", "artist", "brand", "history"],
+            input_variables=["song_title", "artist", "brand", "context", "listeners", "history"],
             template="""
             You are a radio DJ. Introduce "{song_title}" by {artist}.
             Keep it short (10-30 words). You can mention radio station name: "{brand}".
 
+            Context:
+            {context}
+
+            Listeners:
+            {listeners}
+            
             Previous interactions context:
             {history}
-
+            
             Make sure your introduction flows naturally from previous interactions.
             """
         )
 
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
         self.audio_files = self._load_audio_files()
-        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.9)
+        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.6)
 
     def _load_audio_files(self):
         """Load all available audio files from the metadata folder"""
@@ -55,7 +61,6 @@ class InteractionTool:
         return audio_files
 
     def _get_random_audio_file(self):
-        """Get a random pre-recorded introduction audio file"""
         if not self.audio_files:
             return None
 
@@ -90,6 +95,8 @@ class InteractionTool:
                 return None
 
             # Get conversation history from memory
+            listeners = self.memory.load_memory_variables({}).get('listeners', '')
+            context = self.memory.load_memory_variables({}).get('context', '')
             history = self.memory.load_memory_variables({}).get('history', '')
 
             # 3. Generate text
@@ -98,15 +105,17 @@ class InteractionTool:
                 song_title=title,
                 artist=artist,
                 brand=brand,
-                history=history
+                history=history,
+                context=context,
+                listeners=listeners
             )
             response = self.llm.invoke(prompt)
 
             # Save this interaction to memory
-            self.memory.save_context(
-                {"input": f"Introducing {title} by {artist} for {brand}"},
-                {"output": response.content}
-            )
+            #self.memory.save_context(
+            #    {"input": f"Introducing {title} by {artist} for {brand}"},
+            #    {"output": response.content}
+            #)
 
             # 4. Extract clean content
             if not response:
@@ -122,8 +131,14 @@ class InteractionTool:
 
             # 5. Generate TTS
             logger.debug("Calling ElevenLabs TTS API")
+
             audio = self.client.text_to_speech.convert(
-                voice_id="JBFqnCBsd6RMkjVDRZzb",
+                #voice_id="JBFqnCBsd6RMkjVDRZzb",
+                #voice_id="9BWtsMINqrJLrRacOk9x", #Aria
+                #voice_id="CwhRBWXzGAHq8TQ4Fs17", #Roger 1
+                #voice_id="IKne3meq5aSn9XLyUdCD", #Charlie
+                #voice_id="JBFqnCBsd6RMkjVDRZzb", #George
+                voice_id=" N2lVS1w4EtoT3dr4eOWO", #Callum
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
@@ -135,3 +150,25 @@ class InteractionTool:
         except Exception as e:
             logger.exception(f"Failed to create introduction: {str(e)}")
             return None
+
+        #- Sarah: EXAVITQu4vr4xnSDxMaL
+        #- Laura: FGY2WhTYpPnrIDTdsKH5
+        #- Charlie: IKne3meq5aSn9XLyUdCD
+        #- George: JBFqnCBsd6RMkjVDRZzb
+        #- Callum: N2lVS1w4EtoT3dr4eOWO
+        #- River: SAz9YHcvj6GT2YYXdXww
+        #- Liam: TX3LPaxmHKxFdv7VOQHJ
+        #- Charlotte: XB0fDUnXU5powFXDhCwa
+        #- Alice: Xb7hH8MSUJpSbSDYk0k2
+        #- Matilda: XrExE9yKIg1WjnnlVkGX
+        #- Will: bIHbv24MWmeRgasZH58o
+        #- Jessica: cgSgspJ2msm6clMCkdW9
+        #- Eric: cjVigY5qzO86Huf0OWal
+        #- Chris: iP95p4xoKVk53GoZ742B
+        #- Brian: nPczCjzI2devNBz1zQrb
+        #- Daniel: onwK4e9ZLuTAKqWW03F9
+        #- Lily: pFZP5JQG7iQjIQuC4Bku
+        #- Bill: pqHfZKP75CvOlQylNhV4
+        #- Grandpa  Spuds Oxley: NOpBlnGInO9m6vDvFkFC
+        #- Paulo PT: aLFUti4k8YKvtQGXv0UO
+        #- Lax2: l88WmPeLH7L0O0VA9lqm

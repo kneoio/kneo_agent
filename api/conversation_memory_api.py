@@ -10,12 +10,9 @@ class APIBackedConversationMemory(ConversationBufferMemory):
     api_client: Optional[object] = Field(default=None)
 
     def __init__(self, brand: str, api_client, *args, **kwargs):
-        # Initialize with brand in kwargs to satisfy Pydantic
         kwargs['brand'] = brand
         kwargs['api_client'] = api_client
         super().__init__(*args, **kwargs)
-
-        # Now set up the chat memory
         self.chat_memory = APIBackedChatMessageHistory(
             brand=brand,
             api_client=api_client
@@ -45,20 +42,32 @@ class APIBackedChatMessageHistory(BaseChatMessageHistory):
         self._save_to_api()
 
     def _save_to_api(self) -> None:
-        memory_data = {
+        if not self.messages:
+            return
+
+        last_message = self.messages[-1]
+
+        payload = {
             'brand': self.brand,
-            'history': [
-                {'type': type(msg).__name__, 'content': msg.content}
-                for msg in self.messages
-            ]
+            'messageType': type(last_message).__name__,
+            'content': {
+                'text': last_message.content,
+                'type': type(last_message).__name__
+            }
         }
-        self.api_client.post(f"memory/{self.brand}", memory_data)
+
+        try:
+            endpoint = "ai/memory/"
+            self.api_client.post(endpoint, payload)
+        except Exception:
+            pass
 
     def load_memory(self) -> None:
         response = self.api_client.get(f"ai/memory/{self.brand}")
-        if response and 'history' in response:
-            self.messages = [
-                HumanMessage(content=msg['content']) if msg['type'] == 'HumanMessage'
-                else AIMessage(content=msg['content'])
-                for msg in response['history']
-            ]
+        if response and 'content' in response:
+            if isinstance(response['content'], list):
+                self.messages = [
+                    HumanMessage(content=msg['text'])
+                    if msg['type'] == 'HumanMessage' else AIMessage(content=msg['text'])
+                    for msg in response['content']
+                ]

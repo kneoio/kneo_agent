@@ -14,13 +14,13 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.interval = 30
+        self.interval = 60
         self.config = config
         self.radio_station_name = None
         self.active_agents = {}
         self.agent_lock = threading.Lock()
 
-    def get_active_brands(self) -> Optional[List[Dict]]:
+    def get_available_brands(self) -> Optional[List[Dict]]:
         try:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
@@ -69,7 +69,7 @@ class Waker:
                 active_brands = list(self.active_agents.keys())
             logging.info(f"Waker tick ... Currently active brands: {active_brands}")
             try:
-                brands = self.get_active_brands()
+                brands = self.get_available_brands()
                 if brands:
                     for brand in brands:
                         station_name = brand.get("radioStationName")

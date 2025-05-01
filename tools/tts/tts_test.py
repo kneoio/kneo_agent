@@ -14,26 +14,26 @@ client = ElevenLabs(
 
 # DJ phrases list
 dj_phrases = [
-    "You're listening to the hottest beats online",
-    "Keep it locked right here",
-    "We're commercial-free for the next hour",
-    "Don't touch that dial",
-    "Text your requests now",
-    "Up next, another great track",
-    "You're in the mix",
-    "That throwback jam taking you back",
-    "We're keeping it hot with these tracks",
-    "Shout out to everyone tuning in",
-    "Taking you into the weekend with this next set",
-    "Don't forget to follow us online",
-    "This one's climbing the charts",
-    "Perfect vibes for your day",
-    "You heard it here first",
-    "Back-to-back hits coming your way",
-    "Let's slow things down",
-    "Thanks for joining the conversation",
-    "Stay tuned for more great music",
-    "Keeping the rhythm going all day long"
+ #   "You're listening to the hottest beats online",
+ #   "Keep it locked right here",
+ #   "We're commercial-free for the next hour",
+ #   "Don't touch that dial",
+ #   "Text your requests now",
+ #   "Up next, another great track",
+ #   "You're in the mix",
+ #   "That throwback jam taking you back",
+ #   "We're keeping it hot with these tracks",
+ #   "Shout out to everyone tuning in",
+ #   "Taking you into the weekend with this next set",
+ #   "Don't forget to follow us online",
+ #   "This one's climbing the charts",
+ #   "Perfect vibes for your day",
+ #   "You heard it here first",
+ #   "Back-to-back hits coming your way",
+ #   "Let's slow things down",
+ #   "Thanks for joining the conversation",
+ #   "Stay tuned for more great music",
+ #   "Keeping the rhythm going all day long"
 ]
 
 # Create metadata directory if it doesn't exist
