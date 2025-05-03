@@ -46,7 +46,7 @@ class InteractionTool:
 
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
         self.audio_files = self._load_audio_files()
-        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.6)
+        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.2)
 
     def _load_audio_files(self):
         """Load all available audio files from the metadata folder"""
@@ -138,7 +138,15 @@ class InteractionTool:
                 #voice_id="CwhRBWXzGAHq8TQ4Fs17", #Roger 1
                 #voice_id="IKne3meq5aSn9XLyUdCD", #Charlie
                 #voice_id="JBFqnCBsd6RMkjVDRZzb", #George
-                voice_id=" N2lVS1w4EtoT3dr4eOWO", #Callum
+                #voice_id=" N2lVS1w4EtoT3dr4eOWO", #Callum
+                #voice_id="SAz9YHcvj6GT2YYXdXww", #River  clean woman
+                #voice_id="TX3LPaxmHKxFdv7VOQHJ", #Liam 2
+                #voice_id="XB0fDUnXU5powFXDhCwa", #Charlotte 6
+                #voice_id="bIHbv24MWmeRgasZH58o", #Will
+                #voice_id="cjVigY5qzO86Huf0OWal", #Eric 2
+                #voice_id="iP95p4xoKVk53GoZ742B", #Chris 2
+                #voice_id="nPczCjzI2devNBz1zQrb", #Brian 1
+                voice_id="onwK4e9ZLuTAKqWW03F9", #Daniel
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
