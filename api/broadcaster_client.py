@@ -1,16 +1,13 @@
 import logging
-import os
 
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
 
 class BroadcasterAPIClient:
-    def __init__(self, base_url=None, api_key=None, timeout=None):
-        self.base_url = base_url or os.getenv("BROADCASTER_API_BASE_URL")
-        self.api_key = api_key or os.getenv("BROADCASTER_API_KEY")
-        self.timeout = timeout or int(os.getenv("BROADCASTER_API_TIMEOUT", "10"))
+    def __init__(self, config):
+        self.base_url = config.get("broadcaster").get("api_base_url")
+        self.api_key = config.get("broadcaster").get("api_key")
+        self.api_timeout = config.get("broadcaster").get("api_timeout")
         self.logger = logging.getLogger(__name__)
 
     def _get_headers(self):
@@ -27,7 +24,7 @@ class BroadcasterAPIClient:
                 url,
                 headers=self._get_headers(),
                 params=params,
-                timeout=self.timeout
+                timeout=self.api_timeout
             )
             response.raise_for_status()
             return response.json()
@@ -42,7 +39,7 @@ class BroadcasterAPIClient:
                 url,
                 headers=self._get_headers(),
                 json=data,
-                timeout=self.timeout
+                timeout=self.api_timeout
             )
             response.raise_for_status()
             return response.json()
@@ -57,7 +54,7 @@ class BroadcasterAPIClient:
                 url,
                 headers=self._get_headers(),
                 json=data,
-                timeout=self.timeout
+                timeout=self.api_timeout
             )
             response.raise_for_status()
             return response.json()
@@ -72,7 +69,7 @@ class BroadcasterAPIClient:
                 url,
                 headers=self._get_headers(),
                 params=params,
-                timeout=self.timeout
+                timeout=self.api_timeout
             )
             response.raise_for_status()
             return response.json()

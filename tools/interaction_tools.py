@@ -8,19 +8,16 @@ from langchain.prompts import PromptTemplate
 from langchain_anthropic import ChatAnthropic
 from langchain.memory import ConversationBufferMemory
 
-load_dotenv()
-
-
 class InteractionTool:
     def __init__(self, config, memory: ConversationBufferMemory):
         self.llm = ChatAnthropic(
             model_name="claude-3-sonnet-20240229",
             temperature=0.7,
-            api_key=os.getenv("ANTHROPIC_API_KEY", "")
+            api_key=config.get("claude").get("api_key")
         )
 
         self.client = ElevenLabs(
-            api_key=os.getenv("ELEVENLABS_API_KEY")
+            api_key = config.get("elevenlabs").get("api_key")
         )
 
         self.memory = memory

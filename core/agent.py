@@ -16,6 +16,7 @@ class AIDJAgent:
         self.api_client = api_client
         self.memory = APIBackedConversationMemory(
             brand=brand,
+            config=config,
             api_client=self.api_client
         )
         self.intro_tool = InteractionTool(config, self.memory)
@@ -34,7 +35,7 @@ class AIDJAgent:
         if not songs:
             print("No songs available")
             return
-
+        print(f"available {len(songs)}")
         song = random.choice(songs)
         song_uuid = song.get("id", str(uuid.uuid4()))
         details = song.get("soundFragmentDTO", {})
