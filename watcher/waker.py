@@ -54,7 +54,7 @@ class Waker:
     def run_agent(self, station_name):
         logging.info(f"Starting agent thread for {station_name}")
         api_client = BroadcasterAPIClient(self.config)
-        agent = AIDJAgent(self.config, station_name, api_client)
+        agent = AIDJAgent(self.config, station_name, "en", api_client)
         agent.run()
 
         with self.agent_lock:

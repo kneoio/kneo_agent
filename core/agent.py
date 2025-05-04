@@ -11,7 +11,7 @@ from tools.sound_fragment_tool import SoundFragmentTool
 
 
 class AIDJAgent:
-    def __init__(self, config: Dict, brand: str, api_client: BroadcasterAPIClient):
+    def __init__(self, config: Dict, brand: str, language: str, api_client: BroadcasterAPIClient):
         self.song_fetch_tool = SoundFragmentTool(config)
         self.api_client = api_client
         self.memory = APIBackedConversationMemory(
@@ -19,11 +19,12 @@ class AIDJAgent:
             config=config,
             api_client=self.api_client
         )
-        self.intro_tool = InteractionTool(config, self.memory)
+        self.intro_tool = InteractionTool(config, self.memory, language)
         self.broadcast_tool = QueueTool(config)
         self.min_broadcast_interval: int = 200  # seconds
         self.last_broadcast: float = 0.0
         self.brand = brand
+        self.language = language
 
     def run(self) -> None:
         print(f"Starting DJ Agent run for brand: {self.brand}")
