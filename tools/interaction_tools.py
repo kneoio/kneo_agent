@@ -93,7 +93,8 @@ class InteractionTool:
                 return None
 
             # Get conversation history from memory
-            listeners = self.memory.load_memory_variables({}).get('listeners', '')
+            # listeners = self.memory.load_memory_variables({}).get('listeners', '')
+            listeners = {"listeners": ["Aida", "Nuno"]}
             context = self.memory.load_memory_variables({}).get('context', '')
             history = self.memory.load_memory_variables({}).get('history', '')
 
@@ -143,10 +144,10 @@ class InteractionTool:
                 #voice_id="bIHbv24MWmeRgasZH58o", #Will
                 #voice_id="cjVigY5qzO86Huf0OWal", #Eric 2
                 #voice_id="iP95p4xoKVk53GoZ742B", #Chris 2
-                #voice_id="nPczCjzI2devNBz1zQrb", #Brian 1
+                voice_id="nPczCjzI2devNBz1zQrb", #Brian 1
                 #voice_id="onwK4e9ZLuTAKqWW03F9", #Daniel
                 #voice_id="aLFUti4k8YKvtQGXv0UO", #Paulo
-                voice_id="l88WmPeLH7L0O0VA9lqm", #Lax
+                #voice_id="l88WmPeLH7L0O0VA9lqm", #Lax 2
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
