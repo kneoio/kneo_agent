@@ -5,7 +5,7 @@ import threading
 from typing import Optional, Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
-from core.agent import AIDJAgent
+from agent.agent import AIDJAgent
 
 
 class Waker:
