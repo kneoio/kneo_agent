@@ -49,6 +49,6 @@ class SoundFragmentTool:
 
     @cached(expiration_time=300)
     def fetch_songs(self, brand: str) -> List[Dict[str, Any]]:
-        endpoint = f"{self.api_base_url}/{brand}/soundfragments/available-soundfragments"
+        endpoint = f"{self.api_base_url}/soundfragments/available-soundfragments?brand={brand}"
         response = self._make_request('GET', endpoint, content_type="application/json")
         return response.json()["payload"]["viewData"]["entries"] if response else []
