@@ -27,7 +27,7 @@ class Waker:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
             params = {
-                'status': ['ON_LINE', 'WARMING_UP']
+                'status': ['WAITING_FOR_CURATOR', 'ON_LINE', 'WARMING_UP']
             }
 
             response = requests.get(

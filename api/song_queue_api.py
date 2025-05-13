@@ -7,7 +7,7 @@ from models.song import Song
 class SongQueueAPI:
     def __init__(self, config: Dict[str, Any] = None):
         self.logger = logging.getLogger(__name__)
-        self.api_client = BroadcasterAPIClient()
+        self.api_client = BroadcasterAPIClient(config)
 
     def get_available_songs(self, limit=20, brand_id=None) -> List[Song]:
         params = {"limit": limit}
