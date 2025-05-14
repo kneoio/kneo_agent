@@ -4,13 +4,14 @@ import random
 from pathlib import Path
 
 from elevenlabs.client import ElevenLabs
-from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain_anthropic import ChatAnthropic
 
+from api.interaction_memory import InteractionMemory
+
 
 class InteractionTool:
-    def __init__(self, config, memory: ConversationBufferMemory, language="en"):
+    def __init__(self, config, memory: InteractionMemory, language="en"):
         self.llm = ChatAnthropic(
             model_name="claude-3-sonnet-20240229",
             temperature=0.7,
@@ -18,7 +19,7 @@ class InteractionTool:
         )
 
         self.client = ElevenLabs(
-            api_key = config.get("elevenlabs").get("api_key")
+            api_key=config.get("elevenlabs").get("api_key")
         )
 
         self.memory = memory
@@ -92,11 +93,9 @@ class InteractionTool:
                 logger.debug("Skipping introduction - invalid song title")
                 return None
 
-            # Get conversation history from memory
-            # listeners = self.memory.load_memory_variables({}).get('listeners', '')
-            listeners = {"listeners": ["Aida", "Nuno"]}
-            context = self.memory.load_memory_variables({}).get('context', '')
-            history = self.memory.load_memory_variables({}).get('history', '')
+            listeners = self.memory.get_messages('LISTENERS')
+            context = self.memory.get_messages('AUDIENCE_CONTEXT')
+            history = self.memory.get_messages('CONVERSATION_HISTORY')
 
             # 3. Generate text
             logger.debug("Generating LLM introduction")
@@ -110,12 +109,6 @@ class InteractionTool:
             )
             response = self.llm.invoke(prompt)
 
-            # Save this interaction to memory (consider if you need to adapt for language)
-            # self.memory.save_context(
-            #     {"input": f"Introducing {title} by {artist} for {brand} in {self.language}"},
-            #     {"output": response.content}
-            # )
-
             # 4. Extract clean content
             if not response:
                 logger.error("Empty response from LLM")
@@ -127,27 +120,28 @@ class InteractionTool:
 
             tts_text = response.content.split("{")[0].strip()
             logger.debug(f"Generated introduction text: {tts_text[:100]}...")
+            self.memory.add_messages({"input": tts_text})
 
             # 5. Generate TTS (consider using language-specific voices if available)
             logger.debug("Calling ElevenLabs TTS API")
 
             audio = self.client.text_to_speech.convert(
-                #voice_id="JBFqnCBsd6RMkjVDRZzb",
-                #voice_id="9BWtsMINqrJLrRacOk9x", #Aria
-                #voice_id="CwhRBWXzGAHq8TQ4Fs17", #Roger 1
-                #voice_id="IKne3meq5aSn9XLyUdCD", #Charlie
-                #voice_id="JBFqnCBsd6RMkjVDRZzb", #George
-                #voice_id=" N2lVS1w4EtoT3dr4eOWO", #Callum
-                #voice_id="SAz9YHcvj6GT2YYXdXww", #River  clean woman
-                #voice_id="TX3LPaxmHKxFdv7VOQHJ", #Liam 2
-                #voice_id="XB0fDUnXU5powFXDhCwa", #Charlotte 6
-                #voice_id="bIHbv24MWmeRgasZH58o", #Will
-                #voice_id="cjVigY5qzO86Huf0OWal", #Eric 2
-                #voice_id="iP95p4xoKVk53GoZ742B", #Chris 2
-                voice_id="nPczCjzI2devNBz1zQrb", #Brian 1
-                #voice_id="onwK4e9ZLuTAKqWW03F9", #Daniel
-                #voice_id="aLFUti4k8YKvtQGXv0UO", #Paulo
-                #voice_id="l88WmPeLH7L0O0VA9lqm", #Lax 2
+                # voice_id="JBFqnCBsd6RMkjVDRZzb",
+                # voice_id="9BWtsMINqrJLrRacOk9x", #Aria
+                # voice_id="CwhRBWXzGAHq8TQ4Fs17", #Roger 1
+                # voice_id="IKne3meq5aSn9XLyUdCD", #Charlie
+                # voice_id="JBFqnCBsd6RMkjVDRZzb", #George
+                # voice_id=" N2lVS1w4EtoT3dr4eOWO", #Callum
+                # voice_id="SAz9YHcvj6GT2YYXdXww", #River  clean woman
+                # voice_id="TX3LPaxmHKxFdv7VOQHJ", #Liam 2
+                # voice_id="XB0fDUnXU5powFXDhCwa", #Charlotte 6
+                # voice_id="bIHbv24MWmeRgasZH58o", #Will
+                # voice_id="cjVigY5qzO86Huf0OWal", #Eric 2
+                # voice_id="iP95p4xoKVk53GoZ742B", #Chris 2
+                voice_id="nPczCjzI2devNBz1zQrb",  # Brian 1
+                # voice_id="onwK4e9ZLuTAKqWW03F9", #Daniel
+                # voice_id="aLFUti4k8YKvtQGXv0UO", #Paulo
+                # voice_id="l88WmPeLH7L0O0VA9lqm", #Lax 2
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
@@ -160,24 +154,24 @@ class InteractionTool:
             logger.exception(f"Failed to create introduction: {str(e)}")
             return None
 
-        #- Sarah: EXAVITQu4vr4xnSDxMaL
-        #- Laura: FGY2WhTYpPnrIDTdsKH5
-        #- Charlie: IKne3meq5aSn9XLyUdCD
-        #- George: JBFqnCBsd6RMkjVDRZzb
-        #- Callum: N2lVS1w4EtoT3dr4eOWO
-        #- River: SAz9YHcvj6GT2YYXdXww
-        #- Liam: TX3LPaxmHKxFdv7VOQHJ
-        #- Charlotte: XB0fDUnXU5powFXDhCwa
-        #- Alice: Xb7hH8MSUJpSbSDYk0k2
-        #- Matilda: XrExE9yKIg1WjnnlVkGX
-        #- Will: bIHbv24MWmeRgasZH58o
-        #- Jessica: cgSgspJ2msm6clMCkdW9
-        #- Eric: cjVigY5qzO86Huf0OWal
-        #- Chris: iP95p4xoKVk53GoZ742B
-        #- Brian: nPczCjzI2devNBz1zQrb
-        #- Daniel: onwK4e9ZLuTAKqWW03F9
-        #- Lily: pFZP5JQG7iQjIQuC4Bku
-        #- Bill: pqHfZKP75CvOlQylNhV4
-        #- Grandpa  Spuds Oxley: NOpBlnGInO9m6vDvFkFC
-        #- Paulo PT: aLFUti4k8YKvtQGXv0UO
-        #- Lax2: l88WmPeLH7L0O0VA9lqm
+        # - Sarah: EXAVITQu4vr4xnSDxMaL
+        # - Laura: FGY2WhTYpPnrIDTdsKH5
+        # - Charlie: IKne3meq5aSn9XLyUdCD
+        # - George: JBFqnCBsd6RMkjVDRZzb
+        # - Callum: N2lVS1w4EtoT3dr4eOWO
+        # - River: SAz9YHcvj6GT2YYXdXww
+        # - Liam: TX3LPaxmHKxFdv7VOQHJ
+        # - Charlotte: XB0fDUnXU5powFXDhCwa
+        # - Alice: Xb7hH8MSUJpSbSDYk0k2
+        # - Matilda: XrExE9yKIg1WjnnlVkGX
+        # - Will: bIHbv24MWmeRgasZH58o
+        # - Jessica: cgSgspJ2msm6clMCkdW9
+        # - Eric: cjVigY5qzO86Huf0OWal
+        # - Chris: iP95p4xoKVk53GoZ742B
+        # - Brian: nPczCjzI2devNBz1zQrb
+        # - Daniel: onwK4e9ZLuTAKqWW03F9
+        # - Lily: pFZP5JQG7iQjIQuC4Bku
+        # - Bill: pqHfZKP75CvOlQylNhV4
+        # - Grandpa  Spuds Oxley: NOpBlnGInO9m6vDvFkFC
+        # - Paulo PT: aLFUti4k8YKvtQGXv0UO
+        # - Lax2: l88WmPeLH7L0O0VA9lqm

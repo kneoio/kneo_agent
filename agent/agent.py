@@ -4,7 +4,7 @@ import uuid
 from typing import Dict
 
 from api.broadcaster_client import BroadcasterAPIClient
-from api.conversation_memory_api import APIBackedConversationMemory
+from api.interaction_memory import InteractionMemory
 from tools.interaction_tools import InteractionTool
 from tools.queue_tool import QueueTool
 from tools.sound_fragment_tool import SoundFragmentTool
@@ -14,9 +14,8 @@ class AIDJAgent:
     def __init__(self, config: Dict, brand: str, language: str, api_client: BroadcasterAPIClient):
         self.song_fetch_tool = SoundFragmentTool(config)
         self.api_client = api_client
-        self.memory = APIBackedConversationMemory(
+        self.memory = InteractionMemory(
             brand=brand,
-            config=config,
             api_client=self.api_client
         )
         self.intro_tool = InteractionTool(config, self.memory, language)
@@ -28,10 +27,10 @@ class AIDJAgent:
 
     def run(self) -> None:
         print(f"Starting DJ Agent run for brand: {self.brand}")
-        self._attempt_broadcast()
+        self._feed_broadcast()
         print(f"DJ Agent run completed for brand: {self.brand}")
 
-    def _attempt_broadcast(self) -> None:
+    def _feed_broadcast(self) -> None:
         songs = self.song_fetch_tool.fetch_songs(self.brand)
         if not songs:
             print("No songs available")
