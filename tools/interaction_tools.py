@@ -12,6 +12,7 @@ from api.interaction_memory import InteractionMemory
 
 class InteractionTool:
     def __init__(self, config, memory: InteractionMemory, language="en"):
+        self.logger = logging.getLogger(__name__)
         self.llm = ChatAnthropic(
             model_name="claude-3-sonnet-20240229",
             temperature=0.7,
@@ -35,6 +36,8 @@ class InteractionTool:
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
         self.audio_files = self._load_audio_files()
         self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.2)
+        self.listeners = self.memory.get_messages('LISTENERS')
+        self.context = self.memory.get_messages('AUDIENCE_CONTEXT')
 
     def _load_language_data(self):
         filepath = self.locales_folder / f"{self.language}.json"
@@ -72,106 +75,101 @@ class InteractionTool:
             print(f"Error reading audio file {selected_file}: {e}")
             return None
 
+    def _generate_prompt(self, song_title, artist, brand, history, processed_context_info, processed_listeners_info):
+        return self.intro_prompt_template.format(
+            song_title=song_title,
+            artist=artist,
+            brand=brand,
+            history=history,
+            context=processed_context_info,
+            listeners=processed_listeners_info
+        )
+
+    def _preprocess_audience_data(self):
+        processed_listeners_info = "our awesome listeners"
+        if self.listeners and hasattr(self.listeners[0], 'content'):
+            try:
+                listeners_dict = json.loads(self.listeners[0].content)
+                listener_phrases = []
+                for name, details in listeners_dict.items():
+                    location = details.get('location')
+                    if location:
+                        city = location.split(',')[0].strip()
+                        listener_phrases.append(f"{name} in {city}")
+                    else:
+                        listener_phrases.append(name)
+
+                if listener_phrases:
+                    if len(listener_phrases) > 1:
+                        processed_listeners_info = ", ".join(listener_phrases[:-1]) + " and " + listener_phrases[-1]
+                    else:
+                        processed_listeners_info = listener_phrases[0]
+            except (json.JSONDecodeError, IndexError) as e:
+                self.logger.warning(f"Error processing listener data: {e}")
+
+        processed_context_info = "the unique music experience"
+        if self.context and hasattr(self.context[0], 'content'):
+            try:
+                context_dict = json.loads(self.context[0].content)
+                description = context_dict.get('description', '')
+                if description:
+                    processed_context_info = description
+            except (json.JSONDecodeError, IndexError) as e:
+                self.logger.warning(f"Error processing context data: {e}")
+
+        return processed_listeners_info, processed_context_info
+
     def create_introduction(self, title, artist, brand):
-        logger = logging.getLogger(__name__)
+        self.logger.debug(f"Starting introduction for: {title} by {artist} in {self.language}")
 
         try:
-            logger.debug(f"Starting introduction for: {title} by {artist} in {self.language}")
-
-            # 1. Try pre-recorded files first
             if self.audio_files:
                 if random.random() < self.use_file_probability:
-                    logger.debug(f"Attempting pre-recorded file (probability: {self.use_file_probability})")
+                    self.logger.debug(f"Attempting pre-recorded file (probability: {self.use_file_probability})")
                     audio = self._get_random_audio_file()
                     if audio:
-                        logger.info("Using pre-recorded audio introduction")
+                        self.logger.info("Using pre-recorded audio introduction")
                         return audio
-                    logger.warning("Pre-recorded audio file found but failed to load")
+                    self.logger.warning("Pre-recorded audio file found but failed to load")
 
-            # 2. Skip invalid songs
             if not title or title == "Unknown":
-                logger.debug("Skipping introduction - invalid song title")
+                self.logger.debug("Skipping introduction - invalid song title")
                 return None
 
-            listeners = self.memory.get_messages('LISTENERS')
-            context = self.memory.get_messages('AUDIENCE_CONTEXT')
             history = self.memory.get_messages('CONVERSATION_HISTORY')
 
-            # 3. Generate text
-            logger.debug("Generating LLM introduction")
-            prompt = self.intro_prompt_template.format(
-                song_title=title,
-                artist=artist,
-                brand=brand,
-                history=history,
-                context=context,
-                listeners=listeners
-            )
+            processed_listeners_info, processed_context_info = self._preprocess_audience_data()
+
+            self.logger.debug("Generating LLM introduction")
+            prompt = self._generate_prompt(title, artist, brand, history, processed_context_info,
+                                           processed_listeners_info)
+            print(f"prompt: {prompt}")
             response = self.llm.invoke(prompt)
 
-            # 4. Extract clean content
             if not response:
-                logger.error("Empty response from LLM")
+                self.logger.error("Empty response from LLM")
                 return None
 
             if not hasattr(response, 'content'):
-                logger.error(f"Malformed LLM response: {type(response)}")
+                self.logger.error(f"Malformed LLM response: {type(response)}")
                 return None
 
             tts_text = response.content.split("{")[0].strip()
-            logger.debug(f"Generated introduction text: {tts_text[:100]}...")
-            self.memory.add_messages({"input": tts_text})
+            self.logger.debug(f"Generated introduction text: {tts_text[:100]}...")
+            print(f"tts text: {tts_text}")
 
-            # 5. Generate TTS (consider using language-specific voices if available)
-            logger.debug("Calling ElevenLabs TTS API")
+            self.logger.debug("Calling ElevenLabs TTS API")
 
             audio = self.client.text_to_speech.convert(
-                # voice_id="JBFqnCBsd6RMkjVDRZzb",
-                # voice_id="9BWtsMINqrJLrRacOk9x", #Aria
-                # voice_id="CwhRBWXzGAHq8TQ4Fs17", #Roger 1
-                # voice_id="IKne3meq5aSn9XLyUdCD", #Charlie
-                # voice_id="JBFqnCBsd6RMkjVDRZzb", #George
-                # voice_id=" N2lVS1w4EtoT3dr4eOWO", #Callum
-                # voice_id="SAz9YHcvj6GT2YYXdXww", #River  clean woman
-                # voice_id="TX3LPaxmHKxFdv7VOQHJ", #Liam 2
-                # voice_id="XB0fDUnXU5powFXDhCwa", #Charlotte 6
-                # voice_id="bIHbv24MWmeRgasZH58o", #Will
-                # voice_id="cjVigY5qzO86Huf0OWal", #Eric 2
-                # voice_id="iP95p4xoKVk53GoZ742B", #Chris 2
-                voice_id="nPczCjzI2devNBz1zQrb",  # Brian 1
-                # voice_id="onwK4e9ZLuTAKqWW03F9", #Daniel
-                # voice_id="aLFUti4k8YKvtQGXv0UO", #Paulo
-                # voice_id="l88WmPeLH7L0O0VA9lqm", #Lax 2
+                voice_id="nPczCjzI2devNBz1zQrb",
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
             )
 
-            logger.info("Successfully generated TTS introduction")
+            self.logger.info("Successfully generated TTS introduction")
             return b''.join(audio)
 
         except Exception as e:
-            logger.exception(f"Failed to create introduction: {str(e)}")
+            self.logger.exception(f"Failed to create introduction: {str(e)}")
             return None
-
-        # - Sarah: EXAVITQu4vr4xnSDxMaL
-        # - Laura: FGY2WhTYpPnrIDTdsKH5
-        # - Charlie: IKne3meq5aSn9XLyUdCD
-        # - George: JBFqnCBsd6RMkjVDRZzb
-        # - Callum: N2lVS1w4EtoT3dr4eOWO
-        # - River: SAz9YHcvj6GT2YYXdXww
-        # - Liam: TX3LPaxmHKxFdv7VOQHJ
-        # - Charlotte: XB0fDUnXU5powFXDhCwa
-        # - Alice: Xb7hH8MSUJpSbSDYk0k2
-        # - Matilda: XrExE9yKIg1WjnnlVkGX
-        # - Will: bIHbv24MWmeRgasZH58o
-        # - Jessica: cgSgspJ2msm6clMCkdW9
-        # - Eric: cjVigY5qzO86Huf0OWal
-        # - Chris: iP95p4xoKVk53GoZ742B
-        # - Brian: nPczCjzI2devNBz1zQrb
-        # - Daniel: onwK4e9ZLuTAKqWW03F9
-        # - Lily: pFZP5JQG7iQjIQuC4Bku
-        # - Bill: pqHfZKP75CvOlQylNhV4
-        # - Grandpa  Spuds Oxley: NOpBlnGInO9m6vDvFkFC
-        # - Paulo PT: aLFUti4k8YKvtQGXv0UO
-        # - Lax2: l88WmPeLH7L0O0VA9lqm

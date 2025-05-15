@@ -1,76 +1,213 @@
+import json
+import logging
+import random
+from pathlib import Path
 from typing import List
-from typing import Sequence, Any, Dict
 
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.messages import AIMessage
-from langchain_core.messages import BaseMessage
-
-from api.broadcaster_client import BroadcasterAPIClient
+from elevenlabs.client import ElevenLabs
+from langchain.prompts import PromptTemplate
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import BaseMessage, AIMessage
 
 
-def _format_message_for_payload(message: BaseMessage, brand: str) -> Dict[str, Any] | None:
-    if not isinstance(message.content, str):
-        return None
-
-    payload_message_type: str = message.type.upper()
-
-    return {
-        "brand": brand,
-        "messageType": payload_message_type,
-        "content": {
-            "description": message.content
-        }
-    }
-
-
-class InteractionMemory(BaseChatMessageHistory):
-    def __init__(self, brand: str, api_client: BroadcasterAPIClient):
-        self.brand = brand,
+class InteractionMemory:
+    def __init__(self, api_client, brand):
         self.api_client = api_client
+        self.brand = brand
 
     def get_messages(self, memory_type: str) -> List[BaseMessage]:
-        response: Any = self.api_client.get(f"ai/memory/{self.brand}/{memory_type}")
-        if not isinstance(response, list):
+        try:
+            response_data = self.api_client.get(f"ai/memory/{self.brand}/{memory_type}")
+
+            if not isinstance(response_data, list):
+                print(f"Unexpected response format: {type(response_data)}")
+                return []
+
+            processed_messages: List[BaseMessage] = []
+            for item in response_data:
+                if not isinstance(item, dict):
+                    print(f"Skipping non-dict item: {item}")
+                    continue
+
+                message_type = item.get('memoryType')
+                content_data = item.get('content')
+
+                if isinstance(content_data, dict):
+                    json_content_string = json.dumps(content_data)
+                    processed_messages.append(AIMessage(content=json_content_string))
+                else:
+                    if isinstance(content_data, str):
+                        processed_messages.append(AIMessage(content=content_data))
+                    else:
+                        print(f"Skipping item with missing/invalid content type: {type(content_data)}, item: {item}")
+
+            return processed_messages
+
+        except Exception as e:
+            print(f"Error fetching messages: {str(e)}")
             return []
 
-        processed_messages: List[BaseMessage] = []
-        for item in response:
-            if not isinstance(item, dict):
-                continue
-            message_type: str | None = item.get('messageType')
-            content_data: Dict[str, Any] | None = item.get('content')
 
-            if isinstance(content_data, dict) and 'description' in content_data:
-                message_text: str = content_data['description']
-                if message_type in ['CONVERSATION_HISTORY']:
-                    processed_messages.append(AIMessage(content=message_text))
+class InteractionTool:
+    def __init__(self, config, memory: InteractionMemory, language="en"):
+        self.logger = logging.getLogger(__name__)
+        self.llm = ChatAnthropic(
+            model_name="claude-3-sonnet-20240229",
+            temperature=0.7,
+            api_key=config.get("claude").get("api_key")
+        )
 
-        return processed_messages
+        self.client = ElevenLabs(
+            api_key=config.get("elevenlabs").get("api_key")
+        )
 
-    def add_messages(self, messages: Sequence[BaseMessage]) -> None:
-        existing_messages: List[BaseMessage] = self.get_messages('CONVERSATION_HISTORY')
-        all_messages: List[BaseMessage] = list(existing_messages)
-        all_messages.extend(messages)
+        self.memory = memory
+        self.language = language
+        self.locales_folder = Path("prompt/interaction")
+        self.language_data = self._load_language_data()
 
-        payload_list: List[Dict[str, Any]] = [
-            formatted for msg in all_messages if (formatted := _format_message_for_payload(msg, self.brand)) is not None
-        ]
+        self.intro_prompt_template = PromptTemplate(
+            input_variables=["song_title", "artist", "brand", "context", "listeners", "history"],
+            template=self.language_data.get("intro_template", "Error: intro_template not found.")
+        )
 
-        if not payload_list:
-            return
+        self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
+        self.audio_files = self._load_audio_files()
+        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.2)
+        self.listeners = self.memory.get_messages('LISTENERS')
+        self.context = self.memory.get_messages('AUDIENCE_CONTEXT')
+
+    def _load_language_data(self):
+        filepath = self.locales_folder / f"{self.language}.json"
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            print(f"Warning: Language file '{filepath}' not found. Using default (English).")
+            return {}
+        except json.JSONDecodeError as e:
+            print(f"Error decoding language file '{filepath}': {e}. Using default (English).")
+            return {}
+
+    def _load_audio_files(self):
+        audio_files = []
+        metadata_path = Path(self.metadata_folder)
+
+        if metadata_path.exists() and metadata_path.is_dir():
+            for file in metadata_path.glob("*.mp3"):
+                audio_files.append(file)
+
+        print(f"Loaded {len(audio_files)} intro audio files from {self.metadata_folder}")
+        return audio_files
+
+    def _get_random_audio_file(self):
+        if not self.audio_files:
+            return None
+
+        selected_file = random.choice(self.audio_files)
 
         try:
-            response = self.api_client.post(
-                f"ai/memory/{self.brand}",
-                data=payload_list
+            with open(selected_file, "rb") as f:
+                return f.read()
+        except Exception as e:
+            print(f"Error reading audio file {selected_file}: {e}")
+            return None
+
+    def _generate_prompt(self, song_title, artist, brand, history, processed_context_info, processed_listeners_info):
+        return self.intro_prompt_template.format(
+            song_title=song_title,
+            artist=artist,
+            brand=brand,
+            history=history,
+            context=processed_context_info,
+            listeners=processed_listeners_info
+        )
+
+    def _preprocess_audience_data(self):
+        processed_listeners_info = "our awesome listeners"
+        if self.listeners and hasattr(self.listeners[0], 'content'):
+            try:
+                listeners_dict = json.loads(self.listeners[0].content)
+                listener_phrases = []
+                for name, details in listeners_dict.items():
+                    location = details.get('location')
+                    if location:
+                        city = location.split(',')[0].strip()
+                        listener_phrases.append(f"{name} in {city}")
+                    else:
+                        listener_phrases.append(name)
+
+                if listener_phrases:
+                    if len(listener_phrases) > 1:
+                        processed_listeners_info = ", ".join(listener_phrases[:-1]) + " and " + listener_phrases[-1]
+                    else:
+                        processed_listeners_info = listener_phrases[0]
+            except (json.JSONDecodeError, IndexError) as e:
+                self.logger.warning(f"Error processing listener data: {e}")
+
+        processed_context_info = "the unique music experience"
+        if self.context and hasattr(self.context[0], 'content'):
+            try:
+                context_dict = json.loads(self.context[0].content)
+                description = context_dict.get('description', '')
+                if description:
+                    processed_context_info = description
+            except (json.JSONDecodeError, IndexError) as e:
+                self.logger.warning(f"Error processing context data: {e}")
+
+        return processed_listeners_info, processed_context_info
+
+    def create_introduction(self, title, artist, brand):
+        self.logger.debug(f"Starting introduction for: {title} by {artist} in {self.language}")
+
+        try:
+            if self.audio_files:
+                if random.random() < self.use_file_probability:
+                    self.logger.debug(f"Attempting pre-recorded file (probability: {self.use_file_probability})")
+                    audio = self._get_random_audio_file()
+                    if audio:
+                        self.logger.info("Using pre-recorded audio introduction")
+                        return audio
+                    self.logger.warning("Pre-recorded audio file found but failed to load")
+
+            if not title or title == "Unknown":
+                self.logger.debug("Skipping introduction - invalid song title")
+                return None
+
+            history = self.memory.get_messages('CONVERSATION_HISTORY')
+
+            processed_listeners_info, processed_context_info = self._preprocess_audience_data()
+
+            self.logger.debug("Generating LLM introduction")
+            prompt = self._generate_prompt(title, artist, brand, history, processed_context_info,
+                                           processed_listeners_info)
+            print(f"prompt: {prompt}")
+            response = self.llm.invoke(prompt)
+
+            if not response:
+                self.logger.error("Empty response from LLM")
+                return None
+
+            if not hasattr(response, 'content'):
+                self.logger.error(f"Malformed LLM response: {type(response)}")
+                return None
+
+            tts_text = response.content.split("{")[0].strip()
+            self.logger.debug(f"Generated introduction text: {tts_text[:100]}...")
+            print(f"tts text: {tts_text}")
+
+            self.logger.debug("Calling ElevenLabs TTS API")
+
+            audio = self.client.text_to_speech.convert(
+                voice_id="nPczCjzI2devNBz1zQrb",
+                text=tts_text[:500],
+                model_id="eleven_multilingual_v2",
+                output_format="mp3_44100_128"
             )
-            response.raise_for_status()
-        except Exception:
-            pass
 
-    def clear(self) -> None:
-        try:
-            response: Any = self.api_client.delete(f"ai/memory/{self.brand}")
-            response.raise_for_status()
-        except Exception:
-            pass
+            self.logger.info("Successfully generated TTS introduction")
+            return b''.join(audio)
+
+        except Exception as e:
+            self.logger.exception(f"Failed to create introduction: {str(e)}")
+            return None
