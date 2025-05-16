@@ -12,3 +12,4 @@ metadata
 
 *.log
 config.yaml
+/app_logs/
