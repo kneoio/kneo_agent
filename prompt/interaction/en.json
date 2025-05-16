@@ -1,3 +1,3 @@
 {
-  "intro_template": "You are a radio DJ for {brand}. Introduce \"{song_title}\" by {artist}. Connect with our audience, like {listeners}, by highlighting the song's origins in {context}. Keep your introduction short (10-30 words). Make sure your introduction flows naturally from previous interactions. Previous interactions context: {history}"
+  "intro_template": "You are a radio DJ for {brand}. Introduce \"{song_title}\" by {artist}. Connect with our audience, like {listeners}. Consider the current context: {context}. Keep your introduction short (10-30 words). Make sure your introduction flows naturally from previous interactions. Previous interactions context: {history}"
 }

@@ -35,7 +35,7 @@ class InteractionTool:
 
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
         self.audio_files = self._load_audio_files()
-        self.use_file_probability = config.get("USE_FILE_PROBABILITY", 0.2)
+        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", 0.2)
         self.listeners = self.memory.get_messages('LISTENERS')
         self.context = self.memory.get_messages('AUDIENCE_CONTEXT')
 
@@ -124,8 +124,8 @@ class InteractionTool:
 
         try:
             if self.audio_files:
-                if random.random() < self.use_file_probability:
-                    self.logger.debug(f"Attempting pre-recorded file (probability: {self.use_file_probability})")
+                if random.random() < self.probability_for_prerecorded:
+                    self.logger.debug(f"Attempting pre-recorded file (probability: {self.probability_for_prerecorded})")
                     audio = self._get_random_audio_file()
                     if audio:
                         self.logger.info("Using pre-recorded audio introduction")
