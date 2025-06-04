@@ -23,7 +23,7 @@ class SoundFragmentTool:
         broadcaster = config.get("broadcaster", {})
         self.api_base_url = broadcaster.get("api_base_url")
         self.api_key = broadcaster.get("api_key")
-        self.api_timeout = broadcaster.get("api_timeout", 10)
+        self.api_timeout = broadcaster.get("api_timeout", 60)
 
     def _get_headers(self, content_type: str = None) -> Dict[str, str]:
         headers = {}
@@ -44,7 +44,11 @@ class SoundFragmentTool:
             )
             response.raise_for_status()
             return response
-        except requests.RequestException:
+        except requests.RequestException as e:
+            print(f"Request failed: {e}")  # Print the exception
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Response status: {e.response.status_code}")
+                print(f"Response content: {e.response.text}")
             return None
 
     @cached(expiration_time=300)
