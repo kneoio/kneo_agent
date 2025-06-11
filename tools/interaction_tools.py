@@ -19,7 +19,7 @@ class InteractionTool:
             api_key=config.get("claude").get("api_key")
         )
 
-        self.client = ElevenLabs(
+        self.ttsClient = ElevenLabs(
             api_key=config.get("elevenlabs").get("api_key")
         )
 
@@ -119,6 +119,23 @@ class InteractionTool:
 
         return processed_listeners_info, processed_context_info
 
+    def _save_introduction_to_history(self, title, artist, introduction_text):
+        try:
+            history_entry = {
+                "title": title,
+                "artist": artist,
+                "content": introduction_text
+            }
+
+            success = self.memory.store_conversation_history(history_entry)
+            if success:
+                self.logger.info(f"Successfully saved introduction to history for '{title}' by {artist}")
+            else:
+                self.logger.warning(f"Failed to save introduction to history for '{title}' by {artist}")
+
+        except Exception as e:
+            self.logger.error(f"Error saving introduction to history: {str(e)}")
+
     def create_introduction(self, title, artist, brand):
         self.logger.debug(f"Starting introduction for: {title} by {artist} in {self.language}")
 
@@ -158,9 +175,11 @@ class InteractionTool:
             self.logger.debug(f"Generated introduction text: {tts_text[:100]}...")
             print(f"tts text: {tts_text}")
 
+            self._save_introduction_to_history(title, artist, tts_text)
+
             self.logger.debug("Calling ElevenLabs TTS API")
 
-            audio = self.client.text_to_speech.convert(
+            audio = self.ttsClient.text_to_speech.convert(
                 voice_id="nPczCjzI2devNBz1zQrb",
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",

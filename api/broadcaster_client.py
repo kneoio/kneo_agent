@@ -1,5 +1,5 @@
 import logging
-
+import json
 import requests
 
 
@@ -60,6 +60,26 @@ class BroadcasterAPIClient:
             return response.json()
         except requests.exceptions.RequestException as e:
             self.logger.error(f"API PUT request failed: {e}")
+            return None
+
+    def patch(self, endpoint, data):
+        url = f"{self.base_url}/{endpoint}"
+        try:
+            response = requests.patch(
+                url,
+                headers=self._get_headers(),
+                json=data,
+                timeout=self.api_timeout
+            )
+            response.raise_for_status()
+            try:
+                return response.json()
+            except json.JSONDecodeError:
+                self.logger.info(
+                    f"API PATCH request to {url} successful (Status: {response.status_code}), but no JSON content.")
+                return {}
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"API PATCH request failed: {e}")
             return None
 
     def delete(self, endpoint, params=None):
