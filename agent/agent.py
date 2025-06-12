@@ -1,7 +1,7 @@
 import random
 import re
 import uuid
-from typing import Dict
+from typing import Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
 from api.interaction_memory import InteractionMemory
@@ -28,6 +28,9 @@ class AIDJAgent:
         self.last_broadcast: float = 0.0
         self.language = language
 
+        self._played_songs_history: List[str] = []
+        self._cooldown_songs_count: int = self.agent_config.get('songCooldown', 4)
+
     def run(self) -> None:
         print(f"Starting DJ Agent run for brand: {self.brand}")
         print(f"Agent name: {self.agent_config.get('name', 'Unknown')}")
@@ -41,13 +44,27 @@ class AIDJAgent:
             print("No songs available")
             return
         print(f"available {len(songs)}")
-        song = random.choice(songs)
+
+        playable_songs = [
+            song for song in songs
+            if song.get("id") not in self._played_songs_history
+        ]
+
+        if not playable_songs:
+            print("All available songs are currently in cooldown. Choosing randomly from all songs.")
+            song = random.choice(songs)
+        else:
+            song = random.choice(playable_songs)
+
         song_uuid = song.get("id", str(uuid.uuid4()))
         details = song.get("soundFragmentDTO", {})
         title = re.sub(r'^[^a-zA-Z]*', '', details.get("title", ""))
         artist = details.get("artist", "")
 
-        # Pass agent configuration to the introduction tool
+        self._played_songs_history.append(song_uuid)
+        if len(self._played_songs_history) > self._cooldown_songs_count:
+            self._played_songs_history.pop(0)
+
         audio_data = self.intro_tool.create_introduction(
             title,
             artist,

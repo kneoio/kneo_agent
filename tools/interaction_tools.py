@@ -10,6 +10,11 @@ from langchain_anthropic import ChatAnthropic
 from api.interaction_memory import InteractionMemory
 
 
+def _parse_memory_payload(payload):
+    if isinstance(payload, list) and len(payload) > 0:
+        return payload[0].content
+    return payload
+
 class InteractionTool:
     def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None):
         self.logger = logging.getLogger(__name__)
@@ -31,15 +36,15 @@ class InteractionTool:
         self.intro_prompt_template = PromptTemplate(
             input_variables=["song_title", "artist", "brand", "context", "listeners", "history"],
             template=self.agent_config.get('mainPrompt',
-                                                self.language_data.get("intro_template",
-                                                                       "Error: intro_template not found."))
+                                           self.language_data.get("intro_template",
+                                                                  "Error: intro_template not found."))
         )
 
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
         self.audio_files = self._load_audio_files()
-        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", 0.2)
-        self.listeners = self.memory.get_messages('LISTENERS')
-        self.context = self.memory.get_messages('AUDIENCE_CONTEXT')
+        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", 0.3)
+        self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENERS'))
+        self.context = _parse_memory_payload(self.memory.get_messages('AUDIENCE_CONTEXT'))
 
     def _load_language_data(self):
         filepath = self.locales_folder / f"{self.language}.json"
