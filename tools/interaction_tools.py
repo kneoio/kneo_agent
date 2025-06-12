@@ -42,7 +42,7 @@ class InteractionTool:
 
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
         self.audio_files = self._load_audio_files()
-        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", 0.3)
+        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", 0.4)
         self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENERS'))
         self.context = _parse_memory_payload(self.memory.get_messages('AUDIENCE_CONTEXT'))
 
