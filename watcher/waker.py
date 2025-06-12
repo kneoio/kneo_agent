@@ -51,10 +51,11 @@ class Waker:
             logging.error(f"Unexpected error: {e}")
             return None
 
-    def run_agent(self, station_name):
+    def run_agent(self, brand_config):
+        station_name = brand_config.get('radioStationName')
         logging.info(f"Starting agent thread for {station_name}")
         api_client = BroadcasterAPIClient(self.config)
-        agent = AIDJAgent(self.config, station_name, "en", api_client)
+        agent = AIDJAgent(self.config, brand_config, "en", api_client)
         agent.run()
 
         with self.agent_lock:
@@ -79,7 +80,7 @@ class Waker:
                                 logging.info(f"Creating new agent for {station_name}")
                                 agent_thread = threading.Thread(
                                     target=self.run_agent,
-                                    args=(station_name,),
+                                    args=(brand,),  # Pass the entire brand object
                                     daemon=True
                                 )
                                 self.active_agents[station_name] = agent_thread

@@ -11,22 +11,27 @@ from tools.sound_fragment_tool import SoundFragmentTool
 
 
 class AIDJAgent:
-    def __init__(self, config: Dict, brand: str, language: str, api_client: BroadcasterAPIClient):
+    def __init__(self, config: Dict, brand_config: Dict, language: str, api_client: BroadcasterAPIClient):
+        self.brand_config = brand_config
+        self.brand = brand_config.get('radioStationName')
+        self.agent_config = brand_config.get('agent', {})
+
         self.song_fetch_tool = SoundFragmentTool(config)
         self.api_client = api_client
         self.memory = InteractionMemory(
-            brand=brand,
+            brand=self.brand,
             api_client=self.api_client
         )
-        self.intro_tool = InteractionTool(config, self.memory, language)
+        self.intro_tool = InteractionTool(config, self.memory, language, self.agent_config)
         self.broadcast_tool = QueueTool(config)
         self.min_broadcast_interval: int = 200  # seconds
         self.last_broadcast: float = 0.0
-        self.brand = brand
         self.language = language
 
     def run(self) -> None:
         print(f"Starting DJ Agent run for brand: {self.brand}")
+        print(f"Agent name: {self.agent_config.get('name', 'Unknown')}")
+        print(f"Preferred voice: {self.agent_config.get('preferredVoice', 'Default')}")
         self._feed_broadcast()
         print(f"DJ Agent run completed for brand: {self.brand}")
 
@@ -42,7 +47,13 @@ class AIDJAgent:
         title = re.sub(r'^[^a-zA-Z]*', '', details.get("title", ""))
         artist = details.get("artist", "")
 
-        audio_data = self.intro_tool.create_introduction(title, artist, self.brand)
+        # Pass agent configuration to the introduction tool
+        audio_data = self.intro_tool.create_introduction(
+            title,
+            artist,
+            self.brand,
+            agent_config=self.agent_config
+        )
 
         if audio_data:
             if self.broadcast_tool.send_to_broadcast(self.brand, song_uuid, audio_data):

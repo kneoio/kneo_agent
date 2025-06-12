@@ -11,7 +11,7 @@ from api.interaction_memory import InteractionMemory
 
 
 class InteractionTool:
-    def __init__(self, config, memory: InteractionMemory, language="en"):
+    def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None):
         self.logger = logging.getLogger(__name__)
         self.llm = ChatAnthropic(
             model_name="claude-3-sonnet-20240229",
@@ -25,12 +25,14 @@ class InteractionTool:
 
         self.memory = memory
         self.language = language
+        self.agent_config = agent_config or {}
         self.locales_folder = Path("prompt/interaction")
         self.language_data = self._load_language_data()
-
         self.intro_prompt_template = PromptTemplate(
             input_variables=["song_title", "artist", "brand", "context", "listeners", "history"],
-            template=self.language_data.get("intro_template", "Error: intro_template not found.")
+            template=self.agent_config.get('mainPrompt',
+                                                self.language_data.get("intro_template",
+                                                                       "Error: intro_template not found."))
         )
 
         self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
@@ -75,50 +77,6 @@ class InteractionTool:
             print(f"Error reading audio file {selected_file}: {e}")
             return None
 
-    def _generate_prompt(self, song_title, artist, brand, history, processed_context_info, processed_listeners_info):
-        return self.intro_prompt_template.format(
-            song_title=song_title,
-            artist=artist,
-            brand=brand,
-            history=history,
-            context=processed_context_info,
-            listeners=processed_listeners_info
-        )
-
-    def _preprocess_audience_data(self):
-        processed_listeners_info = "our awesome listeners"
-        if self.listeners and hasattr(self.listeners[0], 'content'):
-            try:
-                listeners_dict = json.loads(self.listeners[0].content)
-                listener_phrases = []
-                for name, details in listeners_dict.items():
-                    location = details.get('location')
-                    if location:
-                        city = location.split(',')[0].strip()
-                        listener_phrases.append(f"{name} in {city}")
-                    else:
-                        listener_phrases.append(name)
-
-                if listener_phrases:
-                    if len(listener_phrases) > 1:
-                        processed_listeners_info = ", ".join(listener_phrases[:-1]) + " and " + listener_phrases[-1]
-                    else:
-                        processed_listeners_info = listener_phrases[0]
-            except (json.JSONDecodeError, IndexError) as e:
-                self.logger.warning(f"Error processing listener data: {e}")
-
-        processed_context_info = "the unique music experience"
-        if self.context and hasattr(self.context[0], 'content'):
-            try:
-                context_dict = json.loads(self.context[0].content)
-                description = context_dict.get('description', '')
-                if description:
-                    processed_context_info = description
-            except (json.JSONDecodeError, IndexError) as e:
-                self.logger.warning(f"Error processing context data: {e}")
-
-        return processed_listeners_info, processed_context_info
-
     def _save_introduction_to_history(self, title, artist, introduction_text):
         try:
             history_entry = {
@@ -136,8 +94,12 @@ class InteractionTool:
         except Exception as e:
             self.logger.error(f"Error saving introduction to history: {str(e)}")
 
-    def create_introduction(self, title, artist, brand):
+    def create_introduction(self, title, artist, brand, agent_config=None):
+        current_agent_config = agent_config or self.agent_config
+
         self.logger.debug(f"Starting introduction for: {title} by {artist} in {self.language}")
+        if current_agent_config.get('name'):
+            self.logger.debug(f"Using agent: {current_agent_config['name']}")
 
         try:
             if self.audio_files:
@@ -153,14 +115,17 @@ class InteractionTool:
                 self.logger.debug("Skipping introduction - invalid song title")
                 return None
 
-            history = self.memory.get_messages('CONVERSATION_HISTORY')
+            prompt = self.intro_prompt_template.format(
+                song_title=title,
+                artist=artist,
+                brand=brand,
+                history=self.memory.get_messages('CONVERSATION_HISTORY'),
+                context=self.context,
+                listeners=self.listeners
+            )
 
-            processed_listeners_info, processed_context_info = self._preprocess_audience_data()
+            print(f"generated prompt : {prompt}")
 
-            self.logger.debug("Generating LLM introduction")
-            prompt = self._generate_prompt(title, artist, brand, history, processed_context_info,
-                                           processed_listeners_info)
-            print(f"prompt: {prompt}")
             response = self.llm.invoke(prompt)
 
             if not response:
@@ -176,17 +141,18 @@ class InteractionTool:
             print(f"tts text: {tts_text}")
 
             self._save_introduction_to_history(title, artist, tts_text)
-
             self.logger.debug("Calling ElevenLabs TTS API")
 
+            voice_id = current_agent_config.get('preferredVoice', 'nPczCjzI2devNBz1zQrb')
+
             audio = self.ttsClient.text_to_speech.convert(
-                voice_id="nPczCjzI2devNBz1zQrb",
+                voice_id=voice_id,
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
             )
 
-            self.logger.info("Successfully generated TTS introduction")
+            self.logger.info(f"Successfully generated TTS introduction using voice: {voice_id}")
             return b''.join(audio)
 
         except Exception as e:

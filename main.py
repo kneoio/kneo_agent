@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import logging
-import argparse
 import threading
 import time
 import os
@@ -12,16 +11,13 @@ from watcher.waker import Waker
 
 
 def run_scheduler(waker):
-     if waker:
-         waker.run()
+    if waker:
+        waker.run()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AI DJ Agent System")
-    parser.add_argument("--config", default="config.yaml", help="Path to configuration file")
-    args = parser.parse_args()
-
-    config = load_config(args.config)
+    config_file_path = "config.yaml"
+    config = load_config(config_file_path)
 
     log_directory_from_config = config.get("logging", {}).get("directory", "default_logs")
 
@@ -51,7 +47,7 @@ def main():
         logger.info("Starting scheduler thread.")
         waker_thread.start()
     else:
-         logger.error("Waker could not be initialized, scheduler thread not started.")
+        logger.error("Waker could not be initialized, scheduler thread not started.")
 
 
     logger.info("Main thread is now waiting. Press Ctrl+C to exit.")
