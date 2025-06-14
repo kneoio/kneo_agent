@@ -2,11 +2,9 @@
 import logging
 import threading
 import time
-import os
 
 from core.config import load_config
 from core.logging_config import setup_logging
-
 from watcher.waker import Waker
 
 

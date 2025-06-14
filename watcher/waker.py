@@ -6,6 +6,7 @@ from typing import Optional, Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
 from agent.agent import AIDJAgent
+from cnst.brand_status import BrandStatus
 
 
 class Waker:
@@ -27,7 +28,12 @@ class Waker:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
             params = {
-                'status': ['WAITING_FOR_CURATOR', 'ON_LINE', 'WARMING_UP']
+                'status': [
+                    BrandStatus.WAITING_FOR_CURATOR.value,
+                    BrandStatus.ON_LINE.value,
+                    BrandStatus.WARMING_UP.value,
+                    BrandStatus.IDLE.value
+                ]
             }
 
             response = requests.get(
@@ -80,7 +86,7 @@ class Waker:
                                 logging.info(f"Creating new agent for {station_name}")
                                 agent_thread = threading.Thread(
                                     target=self.run_agent,
-                                    args=(brand,),  # Pass the entire brand object
+                                    args=(brand,),
                                     daemon=True
                                 )
                                 self.active_agents[station_name] = agent_thread

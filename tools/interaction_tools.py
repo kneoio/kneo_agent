@@ -19,7 +19,7 @@ class InteractionTool:
     def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None):
         self.logger = logging.getLogger(__name__)
         self.llm = ChatAnthropic(
-            model_name="claude-3-sonnet-20240229",
+            model_name=config.get("claude").get("model"),
             temperature=0.7,
             api_key=config.get("claude").get("api_key")
         )

@@ -8,7 +8,6 @@ class EnvironmentProfileAPI:
         self.api_client = BroadcasterAPIClient()
 
     def get_profiles(self) -> List[Dict[str, Any]]:
-        """Get all available profiles"""
         endpoint = "profiles"
         response = self.api_client.get(endpoint)
         if response and "payload" in response:
@@ -16,7 +15,6 @@ class EnvironmentProfileAPI:
         return []
 
     def get_station_profile(self, station_id: str) -> Optional[Dict[str, Any]]:
-        """Get the profile for a specific radio station"""
         endpoint = f"radiostations/{station_id}"
         response = self.api_client.get(endpoint)
         if response and "payload" in response:
@@ -24,7 +22,6 @@ class EnvironmentProfileAPI:
         return None
 
     def get_profile(self, profile_id: str) -> Optional[Dict[str, Any]]:
-        """Get a specific profile by ID"""
         endpoint = f"radiostations/{profile_id}"
         response = self.api_client.get(endpoint)
         if response and "payload" in response:
@@ -32,7 +29,6 @@ class EnvironmentProfileAPI:
         return None
 
     def create_profile(self, profile_data: Dict[str, Any]) -> bool:
-        """Create a new profile"""
         endpoint = "profiles"
         response = self.api_client.post(endpoint, profile_data)
         if response and response.get("success"):
@@ -41,7 +37,6 @@ class EnvironmentProfileAPI:
         return False
 
     def update_profile(self, profile_id: str, profile_data: Dict[str, Any]) -> bool:
-        """Update an existing profile"""
         endpoint = f"profiles/{profile_id}"
         response = self.api_client.put(endpoint, profile_data)
         if response and response.get("success"):
@@ -59,7 +54,6 @@ class EnvironmentProfileAPI:
         return False
 
     def assign_profile_to_station(self, station_id: str, profile_id: str) -> bool:
-        """Assign a profile to a radio station"""
         endpoint = f"radiostations/{station_id}/profile"
         data = {"profileId": profile_id}
         response = self.api_client.put(endpoint, data)
