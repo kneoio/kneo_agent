@@ -49,13 +49,12 @@ class InteractionTool:
 
         self.audio_files = self._load_audio_files()
         talkativity_value = self.agent_config.get("talkativity")
+        self.logger.info(f"Agent talkativity from agent_config: {self.agent_config.get('talkativity')}")
         if isinstance(talkativity_value, (int, float)):
             self.probability_for_prerecorded = 1.0 - talkativity_value
         else:
             self.logger.warning(f"Invalid or missing 'talkativity' ({talkativity_value}), defaulting pre-recorded probability to 0.5 (50% chance)")
             self.probability_for_prerecorded = 0.5
-        self.logger.info(f"Agent talkativity from agent_config: {self.agent_config.get('talkativity')}")
-        self.logger.info(f"Final probability_for_prerecorded: {self.probability_for_prerecorded}, Type: {type(self.probability_for_prerecorded)}")
         self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENERS'))
         self.context = _parse_memory_payload(self.memory.get_messages('AUDIENCE_CONTEXT'))
 
@@ -164,8 +163,6 @@ class InteractionTool:
                         self.logger.info("Using pre-recorded audio introduction")
                         return audio, "Used pre-recorded audio"
                     self.logger.warning("Pre-recorded audio file found but failed to load, attempting TTS.")
-                    # If pre-recorded fails, we continue to TTS attempt, so don't return yet.
-                    # The reason for *not* playing directly will be determined by subsequent steps.
 
             if not title or title == "Unknown":
                 reason = "Skipped: Invalid song title"
@@ -197,7 +194,7 @@ class InteractionTool:
 
             tts_text = response.content.split("{")[0].strip()
             
-            if not tts_text: # Added check for empty TTS text
+            if not tts_text:
                 reason = "Skipped: LLM generated empty text for TTS"
                 self.logger.warning(reason)
                 return None, reason
