@@ -1,3 +1,4 @@
+import logging
 import random
 import re
 import uuid
@@ -12,6 +13,7 @@ from tools.sound_fragment_tool import SoundFragmentTool
 
 class AIDJAgent:
     def __init__(self, config: Dict, brand_config: Dict, language: str, api_client: BroadcasterAPIClient):
+        self.logger = logging.getLogger(__name__)
         self.brand_config = brand_config
         self.brand = brand_config.get('radioStationName')
         self.agent_config = brand_config.get('agent', {})
@@ -32,18 +34,18 @@ class AIDJAgent:
         self._cooldown_songs_count: int = self.agent_config.get('songCooldown', 4)
 
     def run(self) -> None:
-        print(f"Starting DJ Agent run for brand: {self.brand}")
-        print(f"Agent name: {self.agent_config.get('name', 'Unknown')}")
-        print(f"Preferred voice: {self.agent_config.get('preferredVoice', 'Default')}")
+        self.logger.info(f"Starting DJ Agent run for brand: {self.brand}")
+        self.logger.info(f"Agent name: {self.agent_config.get('name', 'Unknown')}")
+        self.logger.info(f"Preferred voice: {self.agent_config.get('preferredVoice', 'Default')}")
         self._feed_broadcast()
-        print(f"DJ Agent run completed for brand: {self.brand}")
+        self.logger.info(f"DJ Agent run completed for brand: {self.brand}")
 
     def _feed_broadcast(self) -> None:
         songs = self.song_fetch_tool.fetch_songs(self.brand)
         if not songs:
-            print("No songs available")
+            self.logger.warning("No songs available")
             return
-        print(f"available {len(songs)}")
+        self.logger.info(f"available {len(songs)}")
 
         playable_songs = [
             song for song in songs
@@ -51,7 +53,7 @@ class AIDJAgent:
         ]
 
         if not playable_songs:
-            print("All available songs are currently in cooldown. Choosing randomly from all songs.")
+            self.logger.info("All available songs are currently in cooldown. Choosing randomly from all songs.")
             song = random.choice(songs)
         else:
             song = random.choice(playable_songs)
@@ -65,7 +67,8 @@ class AIDJAgent:
         if len(self._played_songs_history) > self._cooldown_songs_count:
             self._played_songs_history.pop(0)
 
-        audio_data = self.intro_tool.create_introduction(
+        # Unpack the audio data and the reason string
+        audio_data, intro_reason = self.intro_tool.create_introduction(
             title,
             artist,
             self.brand,
@@ -73,8 +76,12 @@ class AIDJAgent:
         )
 
         if audio_data:
+            # We have audio data, log the success reason from create_introduction (which already logs it)
+            # and then broadcast. The intro_tool's own logging is usually sufficient here.
+            # self.logger.info(f"Introduction created: {intro_reason}") # Optional: if you want to log it here too
             if self.broadcast_tool.send_to_broadcast(self.brand, song_uuid, audio_data):
-                print(f"Broadcasted: {title} by {artist}")
+                self.logger.info(f"Broadcasted with intro: {title} by {artist}")
         else:
+            # No audio_data, use the reason string in the log
             if self.broadcast_tool.send_to_broadcast(self.brand, song_uuid, None):
-                print(f"Playing directly: {title}")
+                self.logger.info(f"Playing directly: {title} (Reason: {intro_reason})")

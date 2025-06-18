@@ -48,7 +48,14 @@ class InteractionTool:
         self.metadata_folder.mkdir(parents=True, exist_ok=True)
 
         self.audio_files = self._load_audio_files()
-        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", agent_config.get("talkativity"))
+        talkativity_value = self.agent_config.get("talkativity")
+        if isinstance(talkativity_value, (int, float)):
+            self.probability_for_prerecorded = 1.0 - talkativity_value
+        else:
+            self.logger.warning(f"Invalid or missing 'talkativity' ({talkativity_value}), defaulting pre-recorded probability to 0.5 (50% chance)")
+            self.probability_for_prerecorded = 0.5
+        self.logger.info(f"Agent talkativity from agent_config: {self.agent_config.get('talkativity')}")
+        self.logger.info(f"Final probability_for_prerecorded: {self.probability_for_prerecorded}, Type: {type(self.probability_for_prerecorded)}")
         self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENERS'))
         self.context = _parse_memory_payload(self.memory.get_messages('AUDIENCE_CONTEXT'))
 
@@ -58,10 +65,10 @@ class InteractionTool:
             with open(filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except FileNotFoundError:
-            print(f"Warning: Language file '{filepath}' not found. Using default (English).")
+            self.logger.warning(f"Language file '{filepath}' not found. Using default (English).")
             return {}
         except json.JSONDecodeError as e:
-            print(f"Error decoding language file '{filepath}': {e}. Using default (English).")
+            self.logger.error(f"Error decoding language file '{filepath}': {e}. Using default (English).")
             return {}
 
     def _load_audio_files(self):
@@ -77,7 +84,7 @@ class InteractionTool:
             for file in self.metadata_folder.glob("*.mp3"):
                 audio_files.append(file)
 
-        print(f"Loaded {len(audio_files)} intro audio files from {self.metadata_folder}")
+        self.logger.info(f"Loaded {len(audio_files)} intro audio files from {self.metadata_folder}")
         return audio_files
 
     def _generate_filler_files(self):
@@ -121,7 +128,7 @@ class InteractionTool:
             with open(selected_file, "rb") as f:
                 return f.read()
         except Exception as e:
-            print(f"Error reading audio file {selected_file}: {e}")
+            self.logger.error(f"Error reading audio file {selected_file}: {e}")
             return None
 
     def _save_introduction_to_history(self, title, artist, introduction_text):
@@ -155,12 +162,15 @@ class InteractionTool:
                     audio = self._get_random_audio_file()
                     if audio:
                         self.logger.info("Using pre-recorded audio introduction")
-                        return audio
-                    self.logger.warning("Pre-recorded audio file found but failed to load")
+                        return audio, "Used pre-recorded audio"
+                    self.logger.warning("Pre-recorded audio file found but failed to load, attempting TTS.")
+                    # If pre-recorded fails, we continue to TTS attempt, so don't return yet.
+                    # The reason for *not* playing directly will be determined by subsequent steps.
 
             if not title or title == "Unknown":
-                self.logger.debug("Skipping introduction - invalid song title")
-                return None
+                reason = "Skipped: Invalid song title"
+                self.logger.debug(reason)
+                return None, reason
 
             prompt = self.intro_prompt_template.format(
                 song_title=title,
@@ -171,37 +181,54 @@ class InteractionTool:
                 listeners=self.listeners
             )
 
-            print(f"generated prompt : {prompt}")
+            self.logger.debug(f"Generated prompt: {prompt}")
 
             response = self.llm.invoke(prompt)
 
             if not response:
-                self.logger.error("Empty response from LLM")
-                return None
+                reason = "Skipped: Empty response from LLM"
+                self.logger.error(reason)
+                return None, reason
 
             if not hasattr(response, 'content'):
-                self.logger.error(f"Malformed LLM response: {type(response)}")
-                return None
+                reason = f"Skipped: Malformed LLM response (type: {type(response)})"
+                self.logger.error(reason)
+                return None, reason
 
             tts_text = response.content.split("{")[0].strip()
+            
+            if not tts_text: # Added check for empty TTS text
+                reason = "Skipped: LLM generated empty text for TTS"
+                self.logger.warning(reason)
+                return None, reason
+
             self.logger.debug(f"Generated introduction text: {tts_text[:100]}...")
-            print(f"tts text: {tts_text}")
+            self.logger.debug(f"TTS text: {tts_text}")
 
             self._save_introduction_to_history(title, artist, tts_text)
             self.logger.debug("Calling ElevenLabs TTS API")
 
             voice_id = current_agent_config.get('preferredVoice', 'nPczCjzI2devNBz1zQrb')
 
-            audio = self.ttsClient.text_to_speech.convert(
+            audio_stream = self.ttsClient.text_to_speech.convert( # Renamed 'audio' to 'audio_stream' to avoid confusion before join
                 voice_id=voice_id,
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
             )
+            
+            final_audio = b''.join(audio_stream) # Join the stream into bytes
 
-            self.logger.info(f"Successfully generated TTS introduction using voice: {voice_id}")
-            return b''.join(audio)
+            if not final_audio: # Check if TTS returned empty audio
+                reason = "Skipped: TTS conversion resulted in empty audio"
+                self.logger.warning(reason)
+                return None, reason
+
+            reason = f"Successfully generated TTS introduction using voice: {voice_id}"
+            self.logger.info(reason)
+            return final_audio, reason
 
         except Exception as e:
-            self.logger.exception(f"Failed to create introduction: {str(e)}")
-            return None
+            reason = f"Skipped: Failed to create introduction due to an exception: {str(e)}"
+            self.logger.exception(reason) # Use .exception to include stack trace
+            return None, reason
