@@ -4,15 +4,12 @@ import os
 import time
 import random
 
-# Load environment variables
 load_dotenv()
 
-# Initialize ElevenLabs client
 client = ElevenLabs(
     api_key=os.getenv("ELEVENLABS_API_KEY")
 )
 
-# DJ phrases list
 dj_phrases = [
  #   "You're listening to the hottest beats online",
  #   "Keep it locked right here",
@@ -36,26 +33,24 @@ dj_phrases = [
  #   "Keeping the rhythm going all day long"
 ]
 
-# Create metadata directory if it doesn't exist
+
 metadata_dir = "metadata"
 if not os.path.exists(metadata_dir):
     os.makedirs(metadata_dir)
 
-# Get all available voices
+
 voice_response = client.voices.get_all()
 print("Available voices:")
 for voice in voice_response.voices:
     print(f"- {voice.name}: {voice.voice_id}")
 
-# Use the first available voice or fallback to a specific voice ID
 selected_voice_id = "JBFqnCBsd6RMkjVDRZzb"
 print(f"Selected voice ID: {selected_voice_id}")
 
-# Generate and save each phrase as an MP3 file
+
 for i, phrase in enumerate(dj_phrases):
     file_name = f"{metadata_dir}/dj_phrase_{i + 1}.mp3"
 
-    # Skip if the file already exists (to save API calls)
     if os.path.exists(file_name):
         print(f"File {file_name} already exists, skipping...")
         continue
@@ -63,7 +58,6 @@ for i, phrase in enumerate(dj_phrases):
     print(f"Converting phrase {i + 1}/{len(dj_phrases)}: '{phrase}'")
 
     try:
-        # Convert text to speech
         audio = client.text_to_speech.convert(
             text=phrase,
             voice_id=selected_voice_id,
@@ -71,14 +65,13 @@ for i, phrase in enumerate(dj_phrases):
             output_format="mp3_44100_128",
         )
 
-        # Save the audio file
         with open(file_name, "wb") as f:
             for chunk in audio:
                 f.write(chunk)
 
         print(f"Audio saved to {file_name}")
 
-        # Add a small delay to avoid rate limits
+
         time.sleep(1)
 
     except Exception as e:
@@ -86,8 +79,6 @@ for i, phrase in enumerate(dj_phrases):
 
 print("\nAll phrases converted successfully!")
 
-
-# Function to get a random DJ phrase file
 def get_random_dj_phrase():
     phrase_files = [f for f in os.listdir(metadata_dir) if f.startswith("dj_phrase_") and f.endswith(".mp3")]
     if phrase_files:
@@ -95,6 +86,5 @@ def get_random_dj_phrase():
     return None
 
 
-# Example usage
 print("\nExample of using the cached audio files:")
 print(f"Random DJ phrase file: {get_random_dj_phrase()}")

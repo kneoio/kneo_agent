@@ -1,3 +1,5 @@
+# tools/interaction_tools.py
+
 import json
 import logging
 import random
@@ -15,8 +17,9 @@ def _parse_memory_payload(payload):
         return payload[0].content
     return payload
 
+
 class InteractionTool:
-    def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None):
+    def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None, radio_station_name=None):
         self.logger = logging.getLogger(__name__)
         self.llm = ChatAnthropic(
             model_name=config.get("claude").get("model"),
@@ -31,6 +34,7 @@ class InteractionTool:
         self.memory = memory
         self.language = language
         self.agent_config = agent_config or {}
+        self.radio_station_name = radio_station_name or "default"
         self.locales_folder = Path("prompt/interaction")
         self.language_data = self._load_language_data()
         self.intro_prompt_template = PromptTemplate(
@@ -40,9 +44,11 @@ class InteractionTool:
                                                                   "Error: intro_template not found."))
         )
 
-        self.metadata_folder = config.get("METADATA_FOLDER", "metadata/prologue/JBFqnCBsd6RMkjVDRZzb")
+        self.metadata_folder = Path("metadata") / self.radio_station_name
+        self.metadata_folder.mkdir(parents=True, exist_ok=True)
+
         self.audio_files = self._load_audio_files()
-        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", 0.4)
+        self.probability_for_prerecorded = config.get("USE_FILE_PROBABILITY", agent_config.get("talkativity"))
         self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENERS'))
         self.context = _parse_memory_payload(self.memory.get_messages('AUDIENCE_CONTEXT'))
 
@@ -60,19 +66,55 @@ class InteractionTool:
 
     def _load_audio_files(self):
         audio_files = []
-        metadata_path = Path(self.metadata_folder)
+        if self.metadata_folder.exists() and self.metadata_folder.is_dir():
+            for file in self.metadata_folder.glob("*.mp3"):
+                audio_files.append(file)
 
-        if metadata_path.exists() and metadata_path.is_dir():
-            for file in metadata_path.glob("*.mp3"):
+        if not audio_files and self.agent_config.get('fillers'):
+            self.logger.info(f"No audio files found for {self.radio_station_name}. Generating fillers...")
+            self._generate_filler_files()
+            # Reload after generation
+            for file in self.metadata_folder.glob("*.mp3"):
                 audio_files.append(file)
 
         print(f"Loaded {len(audio_files)} intro audio files from {self.metadata_folder}")
         return audio_files
 
+    def _generate_filler_files(self):
+        fillers = self.agent_config.get('fillers', [])
+
+        if not fillers:
+            self.logger.warning("No fillers found in agent configuration")
+            return
+
+        self.logger.info(f"Generating {len(fillers)} filler files for {self.radio_station_name}")
+
+        for i, filler_prompt in enumerate(fillers):
+            try:
+                file_name = self.metadata_folder / f"filler_{i + 1:02d}.mp3"
+                if file_name.exists():
+                    self.logger.debug(f"Filler file {file_name} already exists, skipping")
+                    continue
+
+                self.logger.debug(f"Generating filler {i + 1}/{len(fillers)}: {filler_prompt}")
+                effect = self.ttsClient.text_to_sound_effects.convert(
+                    text=filler_prompt,
+                )
+                with open(file_name, "wb") as f:
+                    for chunk in effect:
+                        f.write(chunk)
+
+                self.logger.info(f"Generated filler audio: {file_name}")
+
+            except Exception as e:
+                self.logger.error(f"Failed to generate filler {i + 1} ({filler_prompt}): {str(e)}")
+                continue
+
+        self.logger.info(f"Finished generating filler files for {self.radio_station_name}")
+
     def _get_random_audio_file(self):
         if not self.audio_files:
             return None
-
         selected_file = random.choice(self.audio_files)
 
         try:
@@ -154,7 +196,6 @@ class InteractionTool:
                 voice_id=voice_id,
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
-                #model_id="eleven_v3",
                 output_format="mp3_44100_128"
             )
 

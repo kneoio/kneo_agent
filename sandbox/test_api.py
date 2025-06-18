@@ -4,18 +4,15 @@ import os
 from api.song_queue_api import SongQueueAPI
 from api.broadcaster_client import BroadcasterAPIClient
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Test parameters
 BRAND_ID = 'hartman-torres'
 LIMIT = 10
-SONG_ID = 'song1'  # Will need a valid ID from get_available_songs
+SONG_ID = 'song1'
 
 
 def test_api_connection():
-    # Check environment variables
     api_key = os.getenv("BROADCASTER_API_KEY")
     base_url = os.getenv("BROADCASTER_API_BASE_URL")
 

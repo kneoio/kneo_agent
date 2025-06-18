@@ -22,7 +22,7 @@ class AIDJAgent:
             brand=self.brand,
             api_client=self.api_client
         )
-        self.intro_tool = InteractionTool(config, self.memory, language, self.agent_config)
+        self.intro_tool = InteractionTool(config, self.memory, language, self.agent_config, self.brand)
         self.broadcast_tool = QueueTool(config)
         self.min_broadcast_interval: int = 200  # seconds
         self.last_broadcast: float = 0.0
