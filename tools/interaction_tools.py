@@ -33,15 +33,11 @@ class InteractionTool:
 
         self.memory = memory
         self.language = language
-        self.agent_config = agent_config or {}
-        self.radio_station_name = radio_station_name or "default"
-        self.locales_folder = Path("prompt/interaction")
-        self.language_data = self._load_language_data()
+        self.agent_config = agent_config
+        self.radio_station_name = radio_station_name
         self.intro_prompt_template = PromptTemplate(
             input_variables=["song_title", "artist", "brand", "context", "listeners", "history"],
-            template=self.agent_config.get('mainPrompt',
-                                           self.language_data.get("intro_template",
-                                                                  "Error: intro_template not found."))
+            template=self.agent_config["mainPrompt"]
         )
 
         self.metadata_folder = Path("metadata") / self.radio_station_name
@@ -55,20 +51,8 @@ class InteractionTool:
         else:
             self.logger.warning(f"Invalid or missing 'talkativity' ({talkativity_value}), defaulting pre-recorded probability to 0.5 (50% chance)")
             self.probability_for_prerecorded = 0.5
-        self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENERS'))
+        self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENER_CONTEXTS'))
         self.context = _parse_memory_payload(self.memory.get_messages('AUDIENCE_CONTEXT'))
-
-    def _load_language_data(self):
-        filepath = self.locales_folder / f"{self.language}.json"
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except FileNotFoundError:
-            self.logger.warning(f"Language file '{filepath}' not found. Using default (English).")
-            return {}
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error decoding language file '{filepath}': {e}. Using default (English).")
-            return {}
 
     def _load_audio_files(self):
         audio_files = []
@@ -169,11 +153,22 @@ class InteractionTool:
                 self.logger.debug(reason)
                 return None, reason
 
+            # Log all prompt variables
+            history_messages = self.memory.get_messages('CONVERSATION_HISTORY')
+            print(f"=== PROMPT VARIABLES ===")
+            print(f"song_title: {title}")
+            print(f"artist: {artist}")
+            print(f"brand: {brand}")
+            print(f"history: {history_messages}")
+            print(f"context: {self.context}")
+            print(f"listeners: {self.listeners}")
+            print(f"=== END PROMPT VARIABLES ===")
+
             prompt = self.intro_prompt_template.format(
                 song_title=title,
                 artist=artist,
                 brand=brand,
-                history=self.memory.get_messages('CONVERSATION_HISTORY'),
+                history=history_messages,
                 context=self.context,
                 listeners=self.listeners
             )

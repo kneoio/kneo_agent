@@ -36,7 +36,7 @@ class AIDJAgent:
     def run(self) -> None:
         self.logger.info(f"Starting DJ Agent run for brand: {self.brand}")
         self.logger.info(f"Agent name: {self.agent_config.get('name', 'Unknown')}")
-        self.logger.info(f"Preferred voice: {self.agent_config.get('preferredVoice', 'Default')}")
+
         self._feed_broadcast()
         self.logger.info(f"DJ Agent run completed for brand: {self.brand}")
 
