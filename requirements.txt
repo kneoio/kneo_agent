@@ -16,6 +16,9 @@ langchain>=0.1.0
 # ElevenLabs
 elevenlabs>=1.54.0
 
+# Google tts
+google-cloud-texttospeech>=2.17.0
+
 # Testing
 pytest>=7.0.0
 pytest-mock>=3.7.0
