@@ -1,5 +1,5 @@
 # tools/interaction_tools.py
-
+import json
 import logging
 import random
 from pathlib import Path
@@ -108,16 +108,12 @@ class InteractionTool:
                 self.logger.debug(reason)
                 return None, reason
 
-            # Get all memory data in a single request
             memory_data = self.memory.get_all_memory_data()
-            
-            # Extract data from the response
             instant_message = memory_data.get('message', {})
             history_messages = memory_data.get('introductions', [])
             listeners = memory_data.get('listeners', [])
             environment = memory_data.get('environment', [])
-            
-            # Log the data being used
+
             print(f"=== PROMPT VARIABLES ===")
             print(f"song_title: {title}")
             print(f"artist: {artist}")
