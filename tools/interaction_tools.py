@@ -12,12 +12,6 @@ from langchain_anthropic import ChatAnthropic
 from api.interaction_memory import InteractionMemory
 
 
-def _parse_memory_payload(payload):
-    if isinstance(payload, list) and len(payload) > 0:
-        return payload[0].content
-    return payload
-
-
 class InteractionTool:
     def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None, radio_station_name=None):
         self.logger = logging.getLogger(__name__)
@@ -36,7 +30,7 @@ class InteractionTool:
         self.agent_config = agent_config
         self.radio_station_name = radio_station_name
         self.intro_prompt_template = PromptTemplate(
-            input_variables=["song_title", "artist", "brand", "context", "listeners", "history"],
+            input_variables=["song_title", "artist", "brand", "context", "listeners", "history", "instant_message"],
             template=self.agent_config["mainPrompt"]
         )
 
@@ -51,8 +45,6 @@ class InteractionTool:
         else:
             self.logger.warning(f"Invalid or missing 'talkativity' ({talkativity_value}), defaulting pre-recorded probability to 0.5 (50% chance)")
             self.probability_for_prerecorded = 0.5
-        self.listeners = _parse_memory_payload(self.memory.get_messages('LISTENER_CONTEXTS'))
-        self.context = _parse_memory_payload(self.memory.get_messages('AUDIENCE_CONTEXT'))
 
     def _load_audio_files(self):
         audio_files = []
@@ -153,24 +145,34 @@ class InteractionTool:
                 self.logger.debug(reason)
                 return None, reason
 
-            # Log all prompt variables
-            history_messages = self.memory.get_messages('CONVERSATION_HISTORY')
+            # Get all memory data in a single request
+            memory_data = self.memory.get_all_memory_data()
+            
+            # Extract data from the response
+            instant_message = memory_data.get('message', {})
+            history_messages = memory_data.get('introductions', [])
+            listeners = memory_data.get('listeners', [])
+            environment = memory_data.get('environment', [])
+            
+            # Log the data being used
             print(f"=== PROMPT VARIABLES ===")
             print(f"song_title: {title}")
             print(f"artist: {artist}")
             print(f"brand: {brand}")
             print(f"history: {history_messages}")
-            print(f"context: {self.context}")
-            print(f"listeners: {self.listeners}")
+            print(f"environment: {environment}")
+            print(f"listeners: {listeners}")
+            print(f"instant_message: {instant_message}")
             print(f"=== END PROMPT VARIABLES ===")
 
             prompt = self.intro_prompt_template.format(
                 song_title=title,
                 artist=artist,
                 brand=brand,
-                history=history_messages,
-                context=self.context,
-                listeners=self.listeners
+                history=json.dumps(history_messages),
+                context=json.dumps(environment),
+                listeners=json.dumps(listeners),
+                instant_message=json.dumps(instant_message)
             )
 
             self.logger.debug(f"Generated prompt: {prompt}")

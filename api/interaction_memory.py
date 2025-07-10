@@ -50,3 +50,56 @@ class InteractionMemory:
 
     def store_conversation_history(self, content: Union[str, Dict]) -> bool:
         return self.store_memory('CONVERSATION_HISTORY', content)
+
+    def get_all_memory_data(self) -> Dict[str, Any]:
+        """
+        Fetches all memory data in a single request.
+        Returns a dictionary with the structure:
+        {
+            'message': Dict,
+            'introductions': List[Dict],
+            'listeners': List[Dict],
+            'environment': List[Dict]
+        }
+        """
+        try:
+            response = self.api_client.get(
+                f"ai/memory/{self.brand}",
+                params={
+                    'type': [
+                        'LISTENER_CONTEXTS',
+                        'INSTANT_MESSAGE',
+                        'CONVERSATION_HISTORY',
+                        'AUDIENCE_CONTEXT'
+                    ]
+                }
+            )
+            
+            # Initialize default structure in case some fields are missing
+            result = {
+                'message': {},
+                'introductions': [],
+                'listeners': [],
+                'environment': []
+            }
+            
+            # Update with actual data from response
+            if isinstance(response, dict):
+                result.update({
+                    'message': response.get('message', {}),
+                    'introductions': response.get('introductions', []),
+                    'listeners': response.get('listeners', []),
+                    'environment': response.get('environment', [])
+                })
+                
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching all memory data: {e}")
+            # Return empty structure on error
+            return {
+                'message': {},
+                'introductions': [],
+                'listeners': [],
+                'environment': []
+            }
