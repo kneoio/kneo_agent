@@ -43,6 +43,14 @@ class InteractionMemory:
     def store_conversation_history(self, content: Union[str, Dict]) -> bool:
         return self.store_memory('CONVERSATION_HISTORY', content)
 
+    def reset_messages(self) -> Dict[str, int]:
+        try:
+            response = self.api_client.patch(f"ai/memory/messages/reset/{self.brand}")
+            return response
+        except Exception as e:
+            self.logger.error(f"Error resetting messages for brand {self.brand}: {e}")
+            return {"removedCount": 0}
+
     def get_all_memory_data(self) -> Dict[str, Any]:
         try:
             response = self.api_client.get(

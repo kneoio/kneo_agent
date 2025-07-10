@@ -138,6 +138,11 @@ class InteractionTool:
 
             response = self.llm.invoke(prompt)
 
+            if instant_message:
+                self.logger.info("Instant message was used in prompt, resetting instant messages")
+                reset_result = self.memory.reset_messages()
+                self.logger.debug(f"Reset instant messages result: {reset_result}")
+
             if not response:
                 reason = "Skipped: Empty response from LLM"
                 self.logger.error(reason)
