@@ -1,6 +1,5 @@
 # tools/interaction_tools.py
 
-import json
 import logging
 import random
 from pathlib import Path
@@ -10,6 +9,7 @@ from langchain.prompts import PromptTemplate
 from langchain_anthropic import ChatAnthropic
 
 from api.interaction_memory import InteractionMemory
+from tools.filler_generator import FillerGenerator
 
 
 class InteractionTool:
@@ -35,7 +35,7 @@ class InteractionTool:
         )
 
         self.metadata_folder = Path("metadata") / self.radio_station_name
-        self.metadata_folder.mkdir(parents=True, exist_ok=True)
+        self.filler_generator = FillerGenerator(self.ttsClient, self.metadata_folder)
 
         self.audio_files = self._load_audio_files()
         talkativity_value = self.agent_config.get("talkativity")
@@ -43,58 +43,21 @@ class InteractionTool:
         if isinstance(talkativity_value, (int, float)):
             self.probability_for_prerecorded = 1.0 - talkativity_value
         else:
-            self.logger.warning(f"Invalid or missing 'talkativity' ({talkativity_value}), defaulting pre-recorded probability to 0.5 (50% chance)")
+            self.logger.warning(
+                f"Invalid or missing 'talkativity' ({talkativity_value}), defaulting pre-recorded probability to 0.5 (50% chance)")
             self.probability_for_prerecorded = 0.5
 
     def _load_audio_files(self):
-        audio_files = []
-        if self.metadata_folder.exists() and self.metadata_folder.is_dir():
-            for file in self.metadata_folder.glob("*.mp3"):
-                audio_files.append(file)
+        audio_files = self.filler_generator.load_audio_files()
 
         if not audio_files and self.agent_config.get('fillers'):
             self.logger.info(f"No audio files found for {self.radio_station_name}. Generating fillers...")
-            self._generate_filler_files()
-            # Reload after generation
-            for file in self.metadata_folder.glob("*.mp3"):
-                audio_files.append(file)
+            self.filler_generator.generate_filler_files(self.agent_config.get('fillers'))
+            audio_files = self.filler_generator.load_audio_files()
 
-        self.logger.info(f"Loaded {len(audio_files)} intro audio files from {self.metadata_folder}")
         return audio_files
 
-    def _generate_filler_files(self):
-        fillers = self.agent_config.get('fillers', [])
-
-        if not fillers:
-            self.logger.warning("No fillers found in agent configuration")
-            return
-
-        self.logger.info(f"Generating {len(fillers)} filler files for {self.radio_station_name}")
-
-        for i, filler_prompt in enumerate(fillers):
-            try:
-                file_name = self.metadata_folder / f"filler_{i + 1:02d}.mp3"
-                if file_name.exists():
-                    self.logger.debug(f"Filler file {file_name} already exists, skipping")
-                    continue
-
-                self.logger.debug(f"Generating filler {i + 1}/{len(fillers)}: {filler_prompt}")
-                effect = self.ttsClient.text_to_sound_effects.convert(
-                    text=filler_prompt,
-                )
-                with open(file_name, "wb") as f:
-                    for chunk in effect:
-                        f.write(chunk)
-
-                self.logger.info(f"Generated filler audio: {file_name}")
-
-            except Exception as e:
-                self.logger.error(f"Failed to generate filler {i + 1} ({filler_prompt}): {str(e)}")
-                continue
-
-        self.logger.info(f"Finished generating filler files for {self.radio_station_name}")
-
-    def _get_random_audio_file(self):
+    def _get_random_prerecorded(self):
         if not self.audio_files:
             return None
         selected_file = random.choice(self.audio_files)
@@ -134,7 +97,7 @@ class InteractionTool:
             if self.audio_files:
                 if random.random() < self.probability_for_prerecorded:
                     self.logger.debug(f"Attempting pre-recorded file (probability: {self.probability_for_prerecorded})")
-                    audio = self._get_random_audio_file()
+                    audio = self._get_random_prerecorded()
                     if audio:
                         self.logger.info("Using pre-recorded audio introduction")
                         return audio, "Used pre-recorded audio"
@@ -190,7 +153,7 @@ class InteractionTool:
                 return None, reason
 
             tts_text = response.content.split("{")[0].strip()
-            
+
             if not tts_text:
                 reason = "Skipped: LLM generated empty text for TTS"
                 self.logger.warning(reason)
@@ -204,16 +167,16 @@ class InteractionTool:
 
             voice_id = current_agent_config.get('preferredVoice', 'nPczCjzI2devNBz1zQrb')
 
-            audio_stream = self.ttsClient.text_to_speech.convert( # Renamed 'audio' to 'audio_stream' to avoid confusion before join
+            audio_stream = self.ttsClient.text_to_speech.convert(
                 voice_id=voice_id,
                 text=tts_text[:500],
                 model_id="eleven_multilingual_v2",
                 output_format="mp3_44100_128"
             )
-            
-            final_audio = b''.join(audio_stream) # Join the stream into bytes
 
-            if not final_audio: # Check if TTS returned empty audio
+            final_audio = b''.join(audio_stream)
+
+            if not final_audio:
                 reason = "Skipped: TTS conversion resulted in empty audio"
                 self.logger.warning(reason)
                 return None, reason
@@ -224,5 +187,5 @@ class InteractionTool:
 
         except Exception as e:
             reason = f"Skipped: Failed to create introduction due to an exception: {str(e)}"
-            self.logger.exception(reason) # Use .exception to include stack trace
+            self.logger.exception(reason)
             return None, reason
