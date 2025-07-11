@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, Any, List, Optional
 from api.broadcaster_client import BroadcasterAPIClient
+from models.brand import Profile
+
 
 class BrandAPI:
     def __init__(self, config: Dict[str, Any] = None):
@@ -14,36 +16,13 @@ class BrandAPI:
             return {"payload": {"viewData": {"entries": []}}}
         return response
 
-    def get_brand(self, brand_identifier=None):
-        if isinstance(brand_identifier, str):
-            from simple_brand import SimpleBrand
-            return SimpleBrand(brand_identifier)
-        return None
-
-#    def get_brand(self, brand_id: str) -> Optional[Brand]:
-#        """Get details for a specific brand as a Brand object."""
-#        response = self.api_client.get(f"brands/{brand_id}")
-#        if not response or "brand" not in response:
-#            self.logger.error(f"Failed to retrieve brand {brand_id}")
-#            return None
-
-#       brand_data = response.get("brand")
-#       # Get profile data
-#        profile_data = self.get_brand_profile(brand_id)
-#        if profile_data:
-#            brand_data["profile"] = profile_data
-
- #       return Brand.from_dict(brand_data)
-
     def get_brand_profile(self, brand_id: str) -> Optional[Dict[str, Any]]:
-        """Get current profile for a brand."""
         response = self.api_client.get(f"brands/{brand_id}/profile")
         if response and "profile" in response:
             return response.get("profile")
         return None
 
     def update_brand_profile(self, brand_id: str, profile_id: str) -> bool:
-        """Update a brand's profile."""
         response = self.api_client.post(
             f"brands/{brand_id}/profile",
             data={"profileId": profile_id}
@@ -56,7 +35,6 @@ class BrandAPI:
         return success
 
     def get_available_profiles(self) -> List[Profile]:
-        """Get all available profiles."""
         response = self.api_client.get("profiles")
         profiles = []
 

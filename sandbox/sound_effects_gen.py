@@ -1,9 +1,7 @@
 # sandbox/sound_effects_gen.py
 
 import os
-
 from elevenlabs import ElevenLabs
-
 from core.config import load_config
 
 config_file_path = "../config.yaml"

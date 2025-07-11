@@ -15,7 +15,7 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.interval = 60
+        self.interval = 150
         self.config = config
         self.radio_station_name = None
         self.active_agents = {}

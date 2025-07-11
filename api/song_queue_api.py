@@ -57,7 +57,6 @@ class SongQueueAPI:
         return False
 
     def get_current_song(self, brand_id=None) -> Optional[Song]:
-        """Get the currently playing song for a specific brand."""
         endpoint = "queue/current"
         params = {}
 
