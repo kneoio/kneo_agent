@@ -28,9 +28,10 @@ class InteractionTool:
         self.memory = memory
         self.language = language
         self.agent_config = agent_config
+        self.ai_dj_name = self.agent_config["name"]
         self.radio_station_name = radio_station_name
         self.intro_prompt_template = PromptTemplate(
-            input_variables=["song_title", "artist", "brand", "context", "listeners", "history", "instant_message"],
+            input_variables=["ai_dj_name", "song_title", "artist", "brand", "context", "listeners", "history", "instant_message", "events"],
             template=self.agent_config["mainPrompt"]
         )
 
@@ -109,12 +110,15 @@ class InteractionTool:
                 return None, reason
 
             memory_data = self.memory.get_all_memory_data()
-            instant_message = memory_data.get('message', {})
+            instant_message = memory_data.get('messages', [])
             history_messages = memory_data.get('introductions', [])
             listeners = memory_data.get('listeners', [])
             environment = memory_data.get('environment', [])
+            events = memory_data.get('events', [])
+            event_ids = memory_data.get('event_ids', [])
 
             print(f"=== PROMPT VARIABLES ===")
+            print(f"ai_dj_name: {self.ai_dj_name}")
             print(f"song_title: {title}")
             print(f"artist: {artist}")
             print(f"brand: {brand}")
@@ -122,16 +126,19 @@ class InteractionTool:
             print(f"environment: {environment}")
             print(f"listeners: {listeners}")
             print(f"instant_message: {instant_message}")
+            print(f"events: {events}")
             print(f"=== END PROMPT VARIABLES ===")
 
             prompt = self.intro_prompt_template.format(
+                ai_dj_name=self.ai_dj_name,
                 song_title=title,
                 artist=artist,
                 brand=brand,
                 history=json.dumps(history_messages),
                 context=json.dumps(environment),
                 listeners=json.dumps(listeners),
-                instant_message=json.dumps(instant_message)
+                instant_message=json.dumps(instant_message),
+                events=json.dumps(events)
             )
 
             self.logger.debug(f"Generated prompt: {prompt}")
@@ -142,6 +149,12 @@ class InteractionTool:
                 self.logger.info("Instant message was used in prompt, resetting instant messages")
                 reset_result = self.memory.reset_messages()
                 self.logger.debug(f"Reset instant messages result: {reset_result}")
+
+            if events and event_ids:
+                self.logger.info(f"Events were used in prompt, resetting {len(event_ids)} specific events")
+                for event_id in event_ids:
+                    reset_result = self.memory.reset_event_by_id(event_id)
+                    self.logger.debug(f"Reset event {event_id} result: {reset_result}")
 
             if not response:
                 reason = "Skipped: Empty response from LLM"

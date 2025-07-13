@@ -45,10 +45,25 @@ class InteractionMemory:
 
     def reset_messages(self) -> Dict[str, int]:
         try:
-            response = self.api_client.patch(f"ai/memory/messages/reset/{self.brand}")
+            response = self.api_client.patch(f"ai/memory/reset/{self.brand}/INSTANT_MESSAGE", data={})
             return response
         except Exception as e:
             self.logger.error(f"Error resetting messages for brand {self.brand}: {e}")
+            return {"removedCount": 0}
+
+    def reset_events(self) -> Dict[str, int]:
+        try:
+            response = self.api_client.patch(f"ai/memory/reset/{self.brand}/EVENT", data={})
+            return response
+        except Exception as e:
+            self.logger.error(f"Error resetting events for brand {self.brand}: {e}")
+            return {"removedCount": 0}
+
+    def reset_event_by_id(self, event_id: str) -> Dict[str, int]:
+        try:
+            return self.api_client.patch(f"ai/memory/reset/{self.brand}/EVENT?id={event_id}", data={})
+        except Exception as e:
+            self.logger.error(f"Error resetting event {event_id} for brand {self.brand}: {e}")
             return {"removedCount": 0}
 
     def get_all_memory_data(self) -> Dict[str, Any]:
@@ -57,27 +72,44 @@ class InteractionMemory:
                 f"ai/memory/{self.brand}",
                 params={
                     'type': [
-                        'LISTENER_CONTEXTS',
+                        'LISTENER_CONTEXT',
                         'INSTANT_MESSAGE',
                         'CONVERSATION_HISTORY',
-                        'AUDIENCE_CONTEXT'
+                        'AUDIENCE_CONTEXT',
+                        'EVENT'
                     ]
                 }
             )
 
             result = {
-                'message': {},
+                'messages': {},
                 'introductions': [],
                 'listeners': [],
-                'environment': []
+                'environment': [],
+                'events': [],
+                'event_ids': []
             }
 
             if isinstance(response, dict):
+                events_data = response.get('events', [])
+                events_content = []
+                event_ids = []
+
+                for event in events_data:
+                    if isinstance(event, dict) and 'id' in event and 'content' in event:
+                        events_content.append(event['content'])
+                        event_ids.append(event['id'])
+                    else:
+                        # Fallback for events without ID structure
+                        events_content.append(event)
+
                 result.update({
-                    'message': response.get('message', {}),
+                    'messages': response.get('messages', {}),
                     'introductions': response.get('introductions', []),
                     'listeners': response.get('listeners', []),
-                    'environment': response.get('environment', [])
+                    'environment': response.get('environment', []),
+                    'events': events_content,
+                    'event_ids': event_ids
                 })
 
             return result
@@ -85,8 +117,10 @@ class InteractionMemory:
         except Exception as e:
             self.logger.error(f"Error fetching all memory data: {e}")
             return {
-                'message': {},
+                'messages': {},
                 'introductions': [],
                 'listeners': [],
-                'environment': []
+                'environment': [],
+                'events': [],
+                'event_ids': []
             }
