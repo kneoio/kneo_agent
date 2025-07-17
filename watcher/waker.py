@@ -15,11 +15,17 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.interval = 90
+        self.base_interval = 90
+        self.current_interval = self.base_interval
+        self.min_interval = 30
+        self.max_interval = 300
+        self.backoff_factor = 1.5
+        self.activity_threshold = 300  # after 5m it will start to slow down
         self.config = config
         self.radio_station_name = None
         self.active_agents = {}
         self.agent_lock = threading.Lock()
+        self.last_activity_time = time.time()
 
     def get_available_brands(self) -> Optional[List[Dict]]:
         try:
@@ -57,6 +63,20 @@ class Waker:
             logging.error(f"Unexpected error: {e}")
             return None
 
+    def update_interval(self, had_activity: bool):
+        if had_activity:
+            self.current_interval = self.base_interval
+            self.last_activity_time = time.time()
+        else:
+            time_since_activity = time.time() - self.last_activity_time
+            if time_since_activity > self.activity_threshold:
+                self.current_interval = min(
+                    self.current_interval * self.backoff_factor,
+                    self.max_interval
+                )
+            else:
+                self.current_interval = self.base_interval
+
     def run_agent(self, brand_config):
         station_name = brand_config.get('radioStationName')
         logging.info(f"Starting agent thread for {station_name}")
@@ -75,6 +95,9 @@ class Waker:
             with self.agent_lock:
                 active_brands = list(self.active_agents.keys())
             logging.info(f"Waker tick ... Currently active brands: {active_brands}")
+
+            had_activity = False
+
             try:
                 brands = self.get_available_brands()
                 if brands:
@@ -91,6 +114,7 @@ class Waker:
                                 )
                                 self.active_agents[station_name] = agent_thread
                                 agent_thread.start()
+                                had_activity = True
                             else:
                                 logging.info(f"Agent for {station_name} already running")
                 else:
@@ -98,7 +122,9 @@ class Waker:
             except Exception as e:
                 logging.error(f"Waker error: {e}")
 
+            self.update_interval(had_activity)
+
             with self.agent_lock:
                 active_brands = list(self.active_agents.keys())
-            logging.info(f"Sleeping for {self.interval} seconds. Active brands: {active_brands}")
-            time.sleep(self.interval)
+            logging.info(f"Sleeping for {self.current_interval} seconds. Active brands: {active_brands}")
+            time.sleep(self.current_interval)
