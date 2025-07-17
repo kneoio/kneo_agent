@@ -32,7 +32,7 @@ class InteractionTool:
         self.radio_station_name = radio_station_name
         self.intro_prompt_template = PromptTemplate(
             input_variables=["ai_dj_name", "song_title", "artist", "brand", "context", "listeners", "history", "instant_message", "events"],
-            template=self.agent_config["mainPrompt"]
+            template=self.agent_config["prompt"]
         )
 
         self.metadata_folder = Path("metadata") / self.radio_station_name
