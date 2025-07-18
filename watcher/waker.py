@@ -77,6 +77,19 @@ class Waker:
             else:
                 self.current_interval = self.base_interval
 
+    def cleanup_agents(self, available_brands: List[Dict]):
+        available_stations = {brand.get('radioStationName') for brand in available_brands}
+
+        with self.agent_lock:
+            agents_to_remove = []
+            for station_name, thread in self.active_agents.items():
+                if not thread.is_alive() or station_name not in available_stations:
+                    agents_to_remove.append(station_name)
+
+            for station_name in agents_to_remove:
+                del self.active_agents[station_name]
+                logging.info(f"Cleaned up agent for {station_name}")
+
     def run_agent(self, brand_config):
         station_name = brand_config.get('radioStationName')
         logging.info(f"Starting agent thread for {station_name}")
@@ -101,6 +114,9 @@ class Waker:
             try:
                 brands = self.get_available_brands()
                 if brands:
+                    # Clean up dead/orphaned agents
+                    self.cleanup_agents(brands)
+
                     for brand in brands:
                         station_name = brand.get("radioStationName")
 
@@ -119,6 +135,8 @@ class Waker:
                                 logging.info(f"Agent for {station_name} already running")
                 else:
                     logging.info("No matching brands found")
+                    # Clean if no brands are available
+                    self.cleanup_agents([])
             except Exception as e:
                 logging.error(f"Waker error: {e}")
 
