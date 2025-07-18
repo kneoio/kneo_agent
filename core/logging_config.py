@@ -12,7 +12,7 @@ def setup_logging(console_level=logging.INFO, file_level=logging.DEBUG, log_dire
 
     console_handler = colorlog.StreamHandler()
     console_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         log_colors={
             'DEBUG': 'cyan', 'INFO': 'green', 'WARNING': 'yellow',
@@ -40,7 +40,7 @@ def setup_logging(console_level=logging.INFO, file_level=logging.DEBUG, log_dire
         backupCount=rotate_backup_count,
         encoding='utf-8'
     )
-    file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(file_formatter)
     file_handler.setLevel(file_level)
     root_logger.addHandler(file_handler)
