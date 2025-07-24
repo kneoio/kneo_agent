@@ -174,9 +174,16 @@ class InteractionTool:
                 return None, reason
 
             if "copyright" in tts_text.lower():
-                reason = "Skipped: TTS text contains copyright-related content"
+                reason = "TTS text contains copyright-related content, using pre-recorded audio instead"
                 self.logger.warning(reason)
-                return None, reason
+                audio = self._get_random_prerecorded()
+                if audio:
+                    self.logger.info("Using pre-recorded audio due to copyright content")
+                    return audio, reason
+                else:
+                    reason = "Skipped: TTS text contains copyright-related content and no pre-recorded audio available"
+                    self.logger.warning(reason)
+                    return None, reason
 
             self.logger.debug(f"Generated introduction text: {tts_text[:100]}...")
             self.logger.debug(f"TTS text: {tts_text}")
