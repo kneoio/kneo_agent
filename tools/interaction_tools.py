@@ -173,6 +173,11 @@ class InteractionTool:
                 self.logger.warning(reason)
                 return None, reason
 
+            if "copyright" in tts_text.lower():
+                reason = "Skipped: TTS text contains copyright-related content"
+                self.logger.warning(reason)
+                return None, reason
+
             self.logger.debug(f"Generated introduction text: {tts_text[:100]}...")
             self.logger.debug(f"TTS text: {tts_text}")
 
