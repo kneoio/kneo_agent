@@ -15,6 +15,10 @@ from tools.filler_generator import FillerGenerator
 class InteractionTool:
     def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None, radio_station_name=None):
         self.logger = logging.getLogger(__name__)
+
+        # Get the shared AI logger for both prompts and outputs
+        self.ai_logger = logging.getLogger('tools.interaction_tools.ai')
+
         self.llm = ChatAnthropic(
             model_name=config.get("claude").get("model"),
             temperature=0.7,
@@ -31,7 +35,8 @@ class InteractionTool:
         self.ai_dj_name = self.agent_config["name"]
         self.radio_station_name = radio_station_name
         self.intro_prompt_template = PromptTemplate(
-            input_variables=["ai_dj_name", "song_title", "artist", "brand", "context", "listeners", "history", "instant_message", "events"],
+            input_variables=["ai_dj_name", "song_title", "artist", "brand", "context", "listeners", "history",
+                             "instant_message", "events"],
             template=self.agent_config["prompt"]
         )
 
@@ -141,7 +146,8 @@ class InteractionTool:
                 events=json.dumps(events)
             )
 
-            self.logger.debug(f"Generated prompt: {prompt}")
+            # Log the complete prompt
+            self.ai_logger.info(f"PROMPT for '{title}' by {artist}:\n{prompt}\n{'=' * 80}")
 
             response = self.llm.invoke(prompt)
 
@@ -166,7 +172,13 @@ class InteractionTool:
                 self.logger.error(reason)
                 return None, reason
 
+            # Log the complete AI response
+            self.ai_logger.info(f"AI RESPONSE for '{title}' by {artist}:\n{response.content}\n{'-' * 80}")
+
             tts_text = response.content.split("{")[0].strip()
+
+            # Log the processed TTS text
+            self.ai_logger.info(f"PROCESSED TTS TEXT for '{title}' by {artist}:\n{tts_text}\n{'*' * 80}\n")
 
             if not tts_text:
                 reason = "Skipped: LLM generated empty text for TTS"
@@ -186,7 +198,6 @@ class InteractionTool:
                     return None, reason
 
             self.logger.debug(f"Generated introduction text: {tts_text[:100]}...")
-            self.logger.debug(f"TTS text: {tts_text}")
 
             self._save_introduction_to_history(title, artist, tts_text)
             self.logger.debug("Calling ElevenLabs TTS API")
