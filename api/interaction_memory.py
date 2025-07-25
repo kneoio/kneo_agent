@@ -11,6 +11,7 @@ class InteractionMemory:
         self.api_client = api_client
         self.brand = brand
         self.logger = logging.getLogger(__name__)
+        self.ai_logger = logging.getLogger('tools.interaction_tools.ai')
 
     def get_messages(self, memory_type: str) -> Union[List[BaseMessage], str]:
         response_data = self.api_client.get(f"ai/memory/{self.brand}/{memory_type}")
@@ -35,6 +36,7 @@ class InteractionMemory:
                 "artist": content.get('artist', ''),
                 "content": content.get('content', '')
             }
+            self.ai_logger.info(f"STORING HISTORY for '{payload['title']}' by {payload['artist']}:\n{payload['content']}\n{'#'*80}\n")
             self.api_client.patch(f"ai/memory/history/brand/{self.brand}", data=payload)
             return True
         else:
@@ -46,6 +48,7 @@ class InteractionMemory:
     def reset_messages(self) -> Dict[str, int]:
         try:
             response = self.api_client.patch(f"ai/memory/reset/{self.brand}/INSTANT_MESSAGE", data={})
+            self.ai_logger.info(f"RESET MESSAGES: {response.get('removedCount', 0)} messages removed\n{'~'*40}\n")
             return response
         except Exception as e:
             self.logger.error(f"Error resetting messages for brand {self.brand}: {e}")
@@ -54,6 +57,7 @@ class InteractionMemory:
     def reset_events(self) -> Dict[str, int]:
         try:
             response = self.api_client.patch(f"ai/memory/reset/{self.brand}/EVENT", data={})
+            self.ai_logger.info(f"RESET EVENTS: {response.get('removedCount', 0)} events removed\n{'~'*40}\n")
             return response
         except Exception as e:
             self.logger.error(f"Error resetting events for brand {self.brand}: {e}")
@@ -61,7 +65,9 @@ class InteractionMemory:
 
     def reset_event_by_id(self, event_id: str) -> Dict[str, int]:
         try:
-            return self.api_client.patch(f"ai/memory/reset/{self.brand}/EVENT?id={event_id}", data={})
+            response = self.api_client.patch(f"ai/memory/reset/{self.brand}/EVENT?id={event_id}", data={})
+            self.ai_logger.info(f"RESET EVENT {event_id}: removed\n{'~'*40}\n")
+            return response
         except Exception as e:
             self.logger.error(f"Error resetting event {event_id} for brand {self.brand}: {e}")
             return {"removedCount": 0}
@@ -100,7 +106,6 @@ class InteractionMemory:
                         events_content.append(event['content'])
                         event_ids.append(event['id'])
                     else:
-                        # Fallback for events without ID structure
                         events_content.append(event)
 
                 result.update({
@@ -111,6 +116,14 @@ class InteractionMemory:
                     'events': events_content,
                     'event_ids': event_ids
                 })
+
+            self.ai_logger.info(f"MEMORY DATA RETRIEVED:\n"
+                              f"Messages: {len(result['messages'])}\n"
+                              f"Introductions: {len(result['introductions'])}\n"
+                              f"Listeners: {len(result['listeners'])}\n"
+                              f"Environment: {len(result['environment'])}\n"
+                              f"Events: {len(result['events'])}\n"
+                              f"{'+'*40}\n")
 
             return result
 
