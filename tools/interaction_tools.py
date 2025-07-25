@@ -30,9 +30,11 @@ class InteractionTool:
         self.agent_config = agent_config
         self.ai_dj_name = self.agent_config["name"]
         self.radio_station_name = radio_station_name
+        # Remove any {location} references from the template
+        template_text = self.agent_config["prompt"].replace("{location}", "")
         self.intro_prompt_template = PromptTemplate(
             input_variables=["ai_dj_name", "song_title", "artist", "brand", "context", "listeners", "history", "instant_message", "events"],
-            template=self.agent_config["prompt"]
+            template=template_text
         )
 
         self.metadata_folder = Path("metadata") / self.radio_station_name
