@@ -143,7 +143,8 @@ class InteractionTool:
                 context=json.dumps(environment),
                 listeners=json.dumps(listeners),
                 instant_message=json.dumps(instant_message),
-                events=json.dumps(events)
+                events=json.dumps(events),
+                location=""
             )
 
             # Log the complete prompt
