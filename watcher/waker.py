@@ -38,7 +38,7 @@ class Waker:
                     BrandStatus.WAITING_FOR_CURATOR.value,
                     BrandStatus.ON_LINE.value,
                     BrandStatus.WARMING_UP.value,
-                    BrandStatus.IDLE.value
+                    #BrandStatus.IDLE.value
                 ]
             }
 
