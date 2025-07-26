@@ -89,7 +89,7 @@ class InteractionMemory:
 
             result = {
                 'messages': {},
-                'introductions': [],
+                'history': [],
                 'listeners': [],
                 'environment': [],
                 'events': [],
@@ -110,7 +110,7 @@ class InteractionMemory:
 
                 result.update({
                     'messages': response.get('messages', {}),
-                    'introductions': response.get('introductions', []),
+                    'history': response.get('history', []),
                     'listeners': response.get('listeners', []),
                     'environment': response.get('environment', []),
                     'events': events_content,
@@ -119,7 +119,7 @@ class InteractionMemory:
 
             self.ai_logger.info(f"MEMORY DATA RETRIEVED:\n"
                               f"Messages: {len(result['messages'])}\n"
-                              f"Introductions: {len(result['introductions'])}\n"
+                              f"History: {len(result['history'])}\n"
                               f"Listeners: {len(result['listeners'])}\n"
                               f"Environment: {len(result['environment'])}\n"
                               f"Events: {len(result['events'])}\n"
@@ -131,7 +131,7 @@ class InteractionMemory:
             self.logger.error(f"Error fetching all memory data: {e}")
             return {
                 'messages': {},
-                'introductions': [],
+                'history': [],
                 'listeners': [],
                 'environment': [],
                 'events': [],

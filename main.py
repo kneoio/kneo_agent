@@ -27,7 +27,7 @@ def main():
 
     logger = logging.getLogger(__name__)
     logger.info("Application starting...")
-    logger.info("v.1.2.1")
+    logger.info("v.1.2.2")
 
     broadcaster = config.get("broadcaster", {}).get("api_base_url")
     if broadcaster:

@@ -16,7 +16,6 @@ class InteractionTool:
     def __init__(self, config, memory: InteractionMemory, language="en", agent_config=None, radio_station_name=None):
         self.logger = logging.getLogger(__name__)
 
-        # Get the shared AI logger for both prompts and outputs
         self.ai_logger = logging.getLogger('tools.interaction_tools.ai')
 
         self.llm = ChatAnthropic(
@@ -116,7 +115,7 @@ class InteractionTool:
 
             memory_data = self.memory.get_all_memory_data()
             instant_message = memory_data.get('messages', [])
-            history_messages = memory_data.get('introductions', [])
+            history_messages = memory_data.get('history', [])
             listeners = memory_data.get('listeners', [])
             environment = memory_data.get('environment', [])
             events = memory_data.get('events', [])
@@ -133,25 +132,20 @@ class InteractionTool:
             print(f"instant_message: {instant_message}")
             print(f"events: {events}")
             print(f"=== END PROMPT VARIABLES ===")
-
             prompt = self.intro_prompt_template.format(
                 ai_dj_name=self.ai_dj_name,
                 song_title=title,
                 artist=artist,
                 brand=brand,
-                history=json.dumps(history_messages),
                 context=json.dumps(environment),
                 listeners=json.dumps(listeners),
+                history=json.dumps(history_messages),
                 instant_message=json.dumps(instant_message),
-                events=json.dumps(events),
-                location=""
+                events=json.dumps(events)
             )
 
-            # Log the complete prompt
             self.ai_logger.info(f"PROMPT for '{title}' by {artist}:\n{prompt}\n{'=' * 80}")
-
             response = self.llm.invoke(prompt)
-
             if instant_message:
                 self.logger.info("Instant message was used in prompt, resetting instant messages")
                 reset_result = self.memory.reset_messages()
