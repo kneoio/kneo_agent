@@ -1,4 +1,3 @@
-# tools/interaction_tools.py
 import json
 import logging
 import random
@@ -144,8 +143,14 @@ class InteractionTool:
                 events=json.dumps(events)
             )
 
+            messages = [
+                ("system",
+                 "You are a radio DJ. Respond with ONLY plain text suitable for text-to-speech. Do not use any formatting, brackets, JSON, or special characters. Keep responses conversational and natural for speech."),
+                ("human", prompt)
+            ]
+
             self.ai_logger.info(f"PROMPT for '{title}' by {artist}:\n{prompt}\n{'=' * 80}")
-            response = self.llm.invoke(prompt)
+            response = self.llm.invoke(messages)
             if instant_message:
                 self.logger.info("Instant message was used in prompt, resetting instant messages")
                 reset_result = self.memory.reset_messages()
@@ -167,12 +172,10 @@ class InteractionTool:
                 self.logger.error(reason)
                 return None, reason
 
-            # Log the complete AI response
             self.ai_logger.info(f"AI RESPONSE for '{title}' by {artist}:\n{response.content}\n{'-' * 80}")
 
-            tts_text = response.content.split("{")[0].strip()
+            tts_text = response.content.strip()
 
-            # Log the processed TTS text
             self.ai_logger.info(f"PROCESSED TTS TEXT for '{title}' by {artist}:\n{tts_text}\n{'*' * 80}\n")
 
             if not tts_text:
