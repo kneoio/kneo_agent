@@ -1,11 +1,12 @@
+# Import the KneoBroadcasterMCPClient
 import logging
 import random
-import re
-import uuid
 from typing import Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
+
 from api.interaction_memory import InteractionMemory
+from mcp.broadcaster_mcp_client import BroadcasterMCPClient
 from tools.interaction_tools import InteractionTool
 from tools.queue_tool import QueueTool
 from tools.sound_fragment_tool import SoundFragmentTool
@@ -17,6 +18,8 @@ class AIDJAgent:
         self.brand_config = brand_config
         self.brand = brand_config.get('radioStationName')
         self.agent_config = brand_config.get('agent', {})
+
+        self.mcp_client = BroadcasterMCPClient(config)
 
         self.song_fetch_tool = SoundFragmentTool(config)
         self.api_client = api_client
@@ -33,50 +36,57 @@ class AIDJAgent:
         self._played_songs_history: List[str] = []
         self._cooldown_songs_count: int = self.agent_config.get('songCooldown', 4)
 
-    def run(self) -> None:
+    async def run(self) -> None:
         self.logger.info(f"Starting DJ Agent run for brand: {self.brand}")
         self.logger.info(f"Agent name: {self.agent_config.get('name', 'Unknown')}")
 
-        self._feed_broadcast()
+        await self.mcp_client.connect()
+        await self._feed_broadcast_mcp()
+        await self.mcp_client.disconnect()
+
         self.logger.info(f"DJ Agent run completed for brand: {self.brand}")
 
-    def _feed_broadcast(self) -> None:
-        songs = self.song_fetch_tool.fetch_songs(self.brand)
-        if not songs:
-            self.logger.warning("No songs available")
-            return
-        self.logger.info(f"available {len(songs)}")
+    async def _feed_broadcast_mcp(self) -> None:
+        tool_name = "get_brand_soundfragments"
+        arguments = {
+            "brand": self.brand,
+            "page": 1,
+            "size": 10
+        }
 
+        response = await self.mcp_client.call_tool(tool_name, arguments)
+        fragments = response.get('result', {}).get('content', [])
+
+        if not fragments:
+            self.logger.warning("No songs available via MCP")
+            return
+
+        self.logger.info(f"Available {len(fragments)} songs via MCP")
+        song = self._select_song_from_fragments(fragments)
+        if song:
+            title, artist = song.get('title', 'Unknown'), song.get('artist', 'Unknown')
+            audio_data, intro_reason = self.intro_tool.create_introduction(
+                title,
+                artist,
+                self.brand,
+                agent_config=self.agent_config
+            )
+
+            if audio_data:
+                if self.broadcast_tool.send_to_broadcast(self.brand, song['id'], audio_data):
+                    self.logger.info(f"Broadcasted with intro: {title} by {artist}")
+            else:
+                if self.broadcast_tool.send_to_broadcast(self.brand, song['id'], None):
+                    self.logger.info(f"Playing directly: {title} (Reason: {intro_reason})")
+
+    def _select_song_from_fragments(self, fragments):
         playable_songs = [
-            song for song in songs
-            if song.get("id") not in self._played_songs_history
+            fragment['soundfragment'] for fragment in fragments
+            if fragment['id'] not in self._played_songs_history
         ]
 
         if not playable_songs:
-            self.logger.info("All available songs are currently in cooldown. Choosing randomly from all songs.")
-            song = random.choice(songs)
-        else:
-            song = random.choice(playable_songs)
+            self.logger.info("All available songs are currently in cooldown. Choosing randomly from all.")
+            return random.choice([fragment['soundfragment'] for fragment in fragments])
 
-        song_uuid = song.get("id", str(uuid.uuid4()))
-        details = song.get("soundfragment", {})
-        title = re.sub(r'^[^a-zA-Z]*', '', details.get("title", ""))
-        artist = details.get("artist", "")
-
-        self._played_songs_history.append(song_uuid)
-        if len(self._played_songs_history) > self._cooldown_songs_count:
-            self._played_songs_history.pop(0)
-
-        audio_data, intro_reason = self.intro_tool.create_introduction(
-            title,
-            artist,
-            self.brand,
-            agent_config=self.agent_config
-        )
-
-        if audio_data:
-            if self.broadcast_tool.send_to_broadcast(self.brand, song_uuid, audio_data):
-                self.logger.info(f"Broadcasted with intro: {title} by {artist}")
-        else:
-            if self.broadcast_tool.send_to_broadcast(self.brand, song_uuid, None):
-                self.logger.info(f"Playing directly: {title} (Reason: {intro_reason})")
+        return random.choice(playable_songs)
