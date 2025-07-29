@@ -1,25 +1,26 @@
-# Import the KneoBroadcasterMCPClient
 import logging
 import random
 from typing import Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
-
 from api.interaction_memory import InteractionMemory
 from mcp.broadcaster_mcp_client import BroadcasterMCPClient
+
 from tools.interaction_tools import InteractionTool
 from tools.queue_tool import QueueTool
 from tools.sound_fragment_tool import SoundFragmentTool
 
 
 class AIDJAgent:
-    def __init__(self, config: Dict, brand_config: Dict, language: str, api_client: BroadcasterAPIClient):
+    def __init__(self, config: Dict, brand_config: Dict, language: str, api_client: BroadcasterAPIClient,
+                 mcp_client=None):
         self.logger = logging.getLogger(__name__)
         self.brand_config = brand_config
         self.brand = brand_config.get('radioStationName')
         self.agent_config = brand_config.get('agent', {})
 
-        self.mcp_client = BroadcasterMCPClient(config)
+        # Use provided MCP client or create new one
+        self.mcp_client = mcp_client if mcp_client else BroadcasterMCPClient(config)
 
         self.song_fetch_tool = SoundFragmentTool(config)
         self.api_client = api_client
@@ -27,7 +28,17 @@ class AIDJAgent:
             brand=self.brand,
             api_client=self.api_client
         )
-        self.intro_tool = InteractionTool(config, self.memory, language, self.agent_config, self.brand)
+
+        # Pass MCP client to InteractionTool
+        self.intro_tool = InteractionTool(
+            config,
+            self.memory,
+            language,
+            self.agent_config,
+            self.brand,
+            mcp_client=self.mcp_client
+        )
+
         self.broadcast_tool = QueueTool(config)
         self.min_broadcast_interval: int = 200  # seconds
         self.last_broadcast: float = 0.0
@@ -40,53 +51,45 @@ class AIDJAgent:
         self.logger.info(f"Starting DJ Agent run for brand: {self.brand}")
         self.logger.info(f"Agent name: {self.agent_config.get('name', 'Unknown')}")
 
-        await self.mcp_client.connect()
+        # Only connect if we created our own MCP client
+        if not hasattr(self, '_external_mcp_client'):
+            await self.mcp_client.connect()
+
         await self._feed_broadcast_mcp()
-        await self.mcp_client.disconnect()
+
+        # Only disconnect if we created our own MCP client
+        if not hasattr(self, '_external_mcp_client'):
+            await self.mcp_client.disconnect()
 
         self.logger.info(f"DJ Agent run completed for brand: {self.brand}")
 
     async def _feed_broadcast_mcp(self) -> None:
-        tool_name = "get_brand_soundfragments"
-        arguments = {
-            "brand": self.brand,
-            "page": 1,
-            "size": 10
-        }
-
-        response = await self.mcp_client.call_tool(tool_name, arguments)
-        fragments = response.get('result', {}).get('content', [])
-
-        if not fragments:
-            self.logger.warning("No songs available via MCP")
-            return
-
-        self.logger.info(f"Available {len(fragments)} songs via MCP")
-        song = self._select_song_from_fragments(fragments)
-        if song:
-            title, artist = song.get('title', 'Unknown'), song.get('artist', 'Unknown')
-            audio_data, intro_reason = self.intro_tool.create_introduction(
-                title,
-                artist,
+        try:
+            audio_data, intro_reason, title, artist = await self.intro_tool.create_introduction(
                 self.brand,
                 agent_config=self.agent_config
             )
 
             if audio_data:
-                if self.broadcast_tool.send_to_broadcast(self.brand, song['id'], audio_data):
+                # Extract song ID from intro_reason or use a placeholder
+                song_id = "agent_selected"  # The agent will select the song via MCP tools
+                if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data):
                     self.logger.info(f"Broadcasted with intro: {title} by {artist}")
             else:
-                if self.broadcast_tool.send_to_broadcast(self.brand, song['id'], None):
-                    self.logger.info(f"Playing directly: {title} (Reason: {intro_reason})")
+                self.logger.warning(f"No audio generated. Reason: {intro_reason}")
+        except Exception as e:
+            self.logger.error(f"Error in _feed_broadcast_mcp: {e}")
+            raise
 
-    def _select_song_from_fragments(self, fragments):
-        playable_songs = [
-            fragment['soundfragment'] for fragment in fragments
-            if fragment['id'] not in self._played_songs_history
-        ]
 
-        if not playable_songs:
-            self.logger.info("All available songs are currently in cooldown. Choosing randomly from all.")
-            return random.choice([fragment['soundfragment'] for fragment in fragments])
+def _select_song_from_fragments(self, fragments):
+    playable_songs = [
+        fragment['soundfragment'] for fragment in fragments
+        if fragment['id'] not in self._played_songs_history
+    ]
 
-        return random.choice(playable_songs)
+    if not playable_songs:
+        self.logger.info("All available songs are currently in cooldown. Choosing randomly from all.")
+        return random.choice([fragment['soundfragment'] for fragment in fragments])
+
+    return random.choice(playable_songs)

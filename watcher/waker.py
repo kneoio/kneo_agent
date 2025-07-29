@@ -2,6 +2,7 @@ import time
 import requests
 import logging
 import threading
+import asyncio
 from typing import Optional, Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
@@ -10,7 +11,7 @@ from cnst.brand_status import BrandStatus
 
 
 class Waker:
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, mcp_client=None):
         broadcaster_config = config['broadcaster']
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
@@ -22,6 +23,7 @@ class Waker:
         self.backoff_factor = 1.5
         self.activity_threshold = 300  # after 5m it will start to slow down
         self.config = config
+        self.mcp_client = mcp_client
         self.radio_station_name = None
         self.active_agents = {}
         self.agent_lock = threading.Lock()
@@ -38,7 +40,7 @@ class Waker:
                     BrandStatus.WAITING_FOR_CURATOR.value,
                     BrandStatus.ON_LINE.value,
                     BrandStatus.WARMING_UP.value,
-                    #BrandStatus.IDLE.value
+                    # BrandStatus.IDLE.value
                 ]
             }
 
@@ -93,9 +95,17 @@ class Waker:
     def run_agent(self, brand_config):
         station_name = brand_config.get('radioStationName')
         logging.info(f"Starting agent thread for {station_name}")
-        api_client = BroadcasterAPIClient(self.config)
-        agent = AIDJAgent(self.config, brand_config, "en", api_client)
-        agent.run()
+
+        # Create new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            api_client = BroadcasterAPIClient(self.config)
+            agent = AIDJAgent(self.config, brand_config, "en", api_client, mcp_client=self.mcp_client)
+            loop.run_until_complete(agent.run())
+        finally:
+            loop.close()
 
         with self.agent_lock:
             if station_name in self.active_agents:
