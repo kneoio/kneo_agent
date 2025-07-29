@@ -6,7 +6,7 @@ import asyncio
 from typing import Optional, Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
-from agent.agent import AIDJAgent
+from agent.ai_dj_agent import AIDJAgent
 from cnst.brand_status import BrandStatus
 
 
