@@ -97,7 +97,7 @@ class SoundFragmentMCPClient:
 
         return result.get('result', {}).get('content', [{}])[0].get('text', '{}')
 
-    async def get_brand_soundfragments(self, brand: str, page: int = 1, size: int = 10):
+    async def get_brand_sound_fragments(self, brand: str, page: int = 1, size: int = 10):
         """Get sound fragments for a brand"""
         response_text = await self.call_tool(
             "get_brand_soundfragments",
@@ -108,7 +108,7 @@ class SoundFragmentMCPClient:
             return json.loads(response_text)
         return {}
 
-    async def search_soundfragments(self, query: str, page: int = 1, size: int = 10):
+    async def search_sound_fragments(self, query: str, page: int = 1, size: int = 10):
         """Search sound fragments"""
         response_text = await self.call_tool(
             "search_soundfragments",
@@ -118,58 +118,3 @@ class SoundFragmentMCPClient:
         if response_text:
             return json.loads(response_text)
         return {}
-
-
-async def main():
-    # Connect to your MCP WebSocket server
-    server_host = "localhost"
-    server_port = 38708
-
-    client = SoundFragmentMCPClient()
-
-    logger.info("Connecting to MCP WebSocket server...")
-    if not await client.connect(server_host, server_port):
-        logger.error("Failed to connect")
-        return
-
-    # List available tools
-    logger.info("Listing available tools...")
-    tools = await client.list_tools()
-
-    # Test brand sound fragments
-    logger.info(f"Getting sound fragments for brand: {BRAND_NAME}")
-    brand_response = await client.get_brand_soundfragments(brand=BRAND_NAME, size=5)
-
-    if brand_response and 'fragments' in brand_response:
-        logger.info(f"Found {brand_response['totalCount']} total fragments for {BRAND_NAME}")
-
-        # Debug: Print first fragment structure
-        if brand_response['fragments']:
-            logger.info(f"Sample fragment structure: {json.dumps(brand_response['fragments'][0], indent=2)}")
-
-        for i, fragment in enumerate(brand_response['fragments'][:3], 1):
-            # Try different ways to access the data based on your DTO structure
-            sound_fragment = fragment.get('soundFragmentDTO', fragment.get('soundfragment', {}))
-
-            title = sound_fragment.get('title', fragment.get('title', 'Unknown'))
-            artist = sound_fragment.get('artist', fragment.get('artist', 'Unknown'))
-            genre = sound_fragment.get('genre', fragment.get('genre', 'Unknown'))
-
-            logger.info(f"{i}. {title} by {artist} ({genre})")
-
-    # Test search
-    logger.info(f"Searching for: {SEARCH_QUERY}")
-    search_response = await client.search_soundfragments(query=SEARCH_QUERY, size=5)
-
-    if search_response and 'fragments' in search_response:
-        logger.info(f"Found {search_response['totalCount']} total search results")
-        for i, fragment in enumerate(search_response['fragments'][:3], 1):
-            title = fragment.get('title', 'Unknown')
-            artist = fragment.get('artist', 'Unknown')
-            logger.info(f"{i}. {title} by {artist}")
-
-    logger.info("Done!")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

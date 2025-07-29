@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 import asyncio
-import atexit
 import logging
 import threading
 
 from core.config import load_config
 from core.logging_config import setup_logging
 from watcher.waker import Waker
-
 
 
 class ApplicationManager:

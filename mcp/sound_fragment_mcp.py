@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any, List
 
 
-class SoundfragmentMCP:
+class SoundFragmentMCP:
     """Handles music catalog operations via MCP"""
 
     def __init__(self, mcp_client):
@@ -10,7 +10,7 @@ class SoundfragmentMCP:
         self.logger = logging.getLogger(__name__)
 
     async def get_songs(self, brand: str, page: int = 1, size: int = 50) -> List[Dict[str, Any]]:
-        """Fetch songs from MCP catalog"""
+        """Fetch songs from the MCP catalog"""
         if not self.mcp_client:
             self.logger.warning("No MCP client available")
             return []

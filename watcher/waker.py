@@ -6,8 +6,9 @@ import asyncio
 from typing import Optional, Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
-from agent.ai_dj_agent import AIDJAgent
+
 from cnst.brand_status import BrandStatus
+from core.dj_runner import DJRunner
 
 
 class Waker:
@@ -96,13 +97,12 @@ class Waker:
         station_name = brand_config.get('radioStationName')
         logging.info(f"Starting agent thread for {station_name}")
 
-        # Create new event loop for this thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         try:
             api_client = BroadcasterAPIClient(self.config)
-            agent = AIDJAgent(self.config, brand_config, "en", api_client, mcp_client=self.mcp_client)
+            agent = DJRunner(self.config, brand_config, api_client, mcp_client=self.mcp_client)
             loop.run_until_complete(agent.run())
         finally:
             loop.close()
@@ -124,7 +124,6 @@ class Waker:
             try:
                 brands = self.get_available_brands()
                 if brands:
-                    # Clean up dead/orphaned agents
                     self.cleanup_agents(brands)
 
                     for brand in brands:
@@ -145,7 +144,6 @@ class Waker:
                                 logging.info(f"Agent for {station_name} already running")
                 else:
                     logging.info("No matching brands found")
-                    # Clean if no brands are available
                     self.cleanup_agents([])
             except Exception as e:
                 logging.error(f"Waker error: {e}")
