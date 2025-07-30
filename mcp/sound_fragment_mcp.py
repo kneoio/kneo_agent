@@ -3,14 +3,11 @@ from typing import Dict, Any, List
 
 
 class SoundFragmentMCP:
-    """Handles music catalog operations via MCP"""
-
     def __init__(self, mcp_client):
         self.mcp_client = mcp_client
         self.logger = logging.getLogger(__name__)
 
     async def get_songs(self, brand: str, page: int = 1, size: int = 50) -> List[Dict[str, Any]]:
-        """Fetch songs from the MCP catalog"""
         if not self.mcp_client:
             self.logger.warning("No MCP client available")
             return []
@@ -29,7 +26,6 @@ class SoundFragmentMCP:
             return []
 
     async def get_song_details(self, song_id: str) -> Dict[str, Any]:
-        """Get detailed song information"""
         if not self.mcp_client:
             return {"error": "No MCP client"}
 
