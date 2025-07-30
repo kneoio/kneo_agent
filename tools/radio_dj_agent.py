@@ -18,6 +18,8 @@ from tools.song_selector import SongSelector
 
 class DJState(MessagesState):
     brand: str
+    events: List[Dict[str, Any]]
+    action_type: str  # 'song', 'birthday', 'ad'
     songs: List[Dict[str, Any]]
     selected_song: Dict[str, Any]
     introduction_text: str
@@ -62,50 +64,143 @@ class RadioDJAgent:
 
     def _build_graph(self):
         workflow = StateGraph(state_schema=DJState)
-        workflow.add_node("check_prerecorded", self._check_prerecorded)
+        
+        # Core workflow nodes
+        workflow.add_node("check_events", self._check_events)
+        workflow.add_node("llm_decision", self._llm_decision)
         workflow.add_node("fetch_songs", self._fetch_songs)
         workflow.add_node("select_song", self._select_song)
         workflow.add_node("generate_intro", self._generate_intro)
+        workflow.add_node("generate_congratulations", self._generate_congratulations)
+        workflow.add_node("request_sound_fragment", self._request_sound_fragment)
         workflow.add_node("create_audio", self._create_audio)
-        workflow.add_node("use_prerecorded", self._use_prerecorded)
-        workflow.set_entry_point("check_prerecorded")
-
+        
+        workflow.set_entry_point("check_events")
+        
+        # Main flow
+        workflow.add_edge("check_events", "llm_decision")
+        
+        # Decision branching
         workflow.add_conditional_edges(
-            "check_prerecorded",
-            self._should_use_prerecorded,
+            "llm_decision",
+            self._route_action,
             {
-                "prerecorded": "use_prerecorded",
-                "generate": "fetch_songs"
+                "song": "fetch_songs",
+                "birthday": "generate_congratulations", 
+                "ad": "request_sound_fragment"
             }
         )
-
+        
+        # Song path
         workflow.add_edge("fetch_songs", "select_song")
         workflow.add_edge("select_song", "generate_intro")
         workflow.add_edge("generate_intro", "create_audio")
-
+        
+        # Birthday path
+        workflow.add_edge("generate_congratulations", "fetch_songs")
+        
+        # Ad path
+        workflow.add_edge("request_sound_fragment", "create_audio")
+        
+        # All paths end
         workflow.add_edge("create_audio", END)
-        workflow.add_edge("use_prerecorded", END)
-
+        
         return workflow.compile()
 
-    async def _check_prerecorded(self, state: DJState) -> DJState:
-        """Check if prerecorded audio should be used"""
-        state["reason"] = "Checking prerecorded options"
+    async def _check_events(self, state: DJState) -> DJState:
+        """Check for incoming events including birthdays, ads, and broadcast events"""
+        events = await self.memory_mcp.get_events(state["brand"])
+        state["events"] = events
+        state["reason"] = f"Found {len(events)} events to process"
         return state
 
-    def _should_use_prerecorded(self) -> str:
-        if self.audio_processor.should_use_prerecorded():
-            return "prerecorded"
-        return "generate"
+    async def _llm_decision(self, state: DJState) -> DJState:
+        """LLM analyzes events and context to determine next action"""
+        memory_data = self.memory.get_all_memory_data()
+        
+        # Build context for LLM decision
+        context_prompt = f"""
+        You are {self.ai_dj_name}, a radio DJ for {self.radio_station_name}.
+        
+        Current events to consider: {state["events"]}
+        Brand: {state["brand"]}
+        Previous context: {memory_data}
+        
+        Analyze the events and context to determine the next action:
+        - "song": Request next song (most common case)
+        - "birthday": Send birthday congratulations
+        - "ad": Request sound fragment for advertisement
+        
+        Consider:
+        - Event priorities and timing
+        - Audience context and time
+        - Previous songs played
+        - Broadcast flow and pacing
+        
+        Respond with only the action type: song, birthday, or ad
+        """
+        
+        try:
+            response = await self.llm.ainvoke(context_prompt)
+            action_type = response.content.strip().lower()
+            
+            # Validate action type
+            if action_type not in ["song", "birthday", "ad"]:
+                action_type = "song"  # Default to song
+                
+            state["action_type"] = action_type
+            state["reason"] = f"LLM decided on action: {action_type}"
+            
+        except Exception as e:
+            self.logger.error(f"LLM decision failed: {e}")
+            state["action_type"] = "song"  # Default fallback
+            state["reason"] = f"LLM decision failed, defaulting to song: {str(e)}"
+            
+        return state
 
-    async def _use_prerecorded(self, state: DJState) -> DJState:
-        audio_data, reason = await self.audio_processor.get_prerecorded_audio()
+    def _route_action(self, state: DJState) -> str:
+        """Route to appropriate path based on LLM decision"""
+        return state["action_type"]
 
-        state["audio_data"] = audio_data
-        state["reason"] = reason
-        state["title"] = "Unknown"
-        state["artist"] = "Unknown"
+    async def _generate_congratulations(self, state: DJState) -> DJState:
+        """Generate congratulatory intro for birthdays"""
+        memory_data = self.memory.get_all_memory_data()
+        
+        # Extract birthday events
+        birthday_events = [event for event in state["events"] if event.get("type") == "birthday"]
+        
+        congratulations_prompt = f"""
+        You are {self.ai_dj_name}, a radio DJ for {self.radio_station_name}.
+        
+        Generate a warm, congratulatory introduction for these birthday celebrations:
+        {birthday_events}
+        
+        Brand context: {state["brand"]}
+        Audience context: {memory_data}
+        
+        Create a heartfelt birthday message that flows naturally into music.
+        Keep it personal but broadcast-appropriate.
+        """
+        
+        try:
+            response = await self.llm.ainvoke(congratulations_prompt)
+            state["introduction_text"] = response.content
+            state["reason"] = "Generated birthday congratulations"
+        except Exception as e:
+            self.logger.error(f"Congratulations generation failed: {e}")
+            state["introduction_text"] = "Happy birthday to our wonderful listeners!"
+            state["reason"] = f"Congratulations generation failed: {str(e)}"
+            
+        return state
 
+    async def _request_sound_fragment(self, state: DJState) -> DJState:
+        """Request sound fragment for advertisement (not implemented in MCP)"""
+        # This would request ad sound fragments when MCP supports it
+        state["introduction_text"] = ""  # Ads skip intro
+        state["audio_data"] = None  # Placeholder for ad audio
+        state["reason"] = "Advertisement sound fragment requested (not implemented)"
+        state["title"] = "Advertisement"
+        state["artist"] = "Sponsor"
         return state
 
     async def _fetch_songs(self, state: DJState) -> DJState:
@@ -171,6 +266,8 @@ class RadioDJAgent:
         initial_state = {
             "messages": [],
             "brand": brand,
+            "events": [],
+            "action_type": "",
             "songs": [],
             "selected_song": {},
             "introduction_text": "",
