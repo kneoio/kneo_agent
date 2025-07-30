@@ -19,7 +19,7 @@ from tools.song_selector import SongSelector
 class DJState(MessagesState):
     brand: str
     events: List[Dict[str, Any]]
-    action_type: str  # 'song', 'birthday', 'ad'
+    action_type: str
     songs: List[Dict[str, Any]]
     selected_song: Dict[str, Any]
     introduction_text: str
@@ -69,9 +69,6 @@ class RadioDJAgent:
         workflow.add_node("check_events", self._check_events)
         workflow.add_node("llm_decision", self._llm_decision)
         workflow.add_node("fetch_songs", self._fetch_songs)
-        workflow.add_node("select_song", self._select_song)
-        workflow.add_node("generate_intro", self._generate_intro)
-        workflow.add_node("generate_congratulations", self._generate_congratulations)
         workflow.add_node("request_sound_fragment", self._request_sound_fragment)
         workflow.add_node("create_audio", self._create_audio)
         
@@ -80,22 +77,18 @@ class RadioDJAgent:
         # Main flow
         workflow.add_edge("check_events", "llm_decision")
         
-        # Decision branching
+        # Decision branching based on event types
         workflow.add_conditional_edges(
             "llm_decision",
             self._route_action,
             {
                 "song": "fetch_songs",
-                "birthday": "generate_congratulations", 
                 "ad": "request_sound_fragment"
             }
         )
         
-        # Song path - LLM decision will handle song selection when songs are available
-        workflow.add_edge("fetch_songs", "generate_intro")
-        
-        # Birthday path
-        workflow.add_edge("generate_congratulations", "fetch_songs")
+        # Song path (includes birthday with congratulatory intro)
+        workflow.add_edge("fetch_songs", "create_audio")
         
         # Ad path
         workflow.add_edge("request_sound_fragment", "create_audio")
@@ -113,10 +106,20 @@ class RadioDJAgent:
         return state
 
     async def _llm_decision(self, state: DJState) -> DJState:
-        """LLM analyzes events and context to determine next action"""
+        """LLM analyzes events and context to determine action and generate intro/speech"""
         memory_data = self.memory.get_all_memory_data()
         
-        # Build context for LLM decision
+        # Analyze events to determine action type
+        action_type = "song"  # Default
+        
+        for event in state["events"]:
+            event_type = event.get("type", "").lower()
+            if "ad" in event_type or "advertisement" in event_type:
+                action_type = "ad"
+                break
+            # Birthday and other events still go to song path but with special intro
+        
+        # Build context for LLM intro generation
         context_prompt = self.agent_config["prompt"].format(
             ai_dj_name=self.ai_dj_name,
             radio_station_name=self.radio_station_name,
@@ -127,66 +130,24 @@ class RadioDJAgent:
         
         try:
             response = await self.llm.ainvoke(context_prompt)
-            action_type = response.content.strip().lower()
-            
-            # Validate action type
-            if action_type not in ["song", "birthday", "ad"]:
-                action_type = "song"  # Default to song
-                
+            # LLM generates the intro/speech based on events and context
+            state["introduction_text"] = response.content
             state["action_type"] = action_type
-            state["reason"] = f"LLM decided on action: {action_type}"
+            state["reason"] = f"LLM generated intro for {action_type} action"
             
         except Exception as e:
-            self.logger.error(f"LLM decision failed: {e}")
-            state["action_type"] = "song"  # Default fallback
-            state["reason"] = f"LLM decision failed, defaulting to song: {str(e)}"
+            self.logger.error(f"LLM intro generation failed: {e}")
+            state["introduction_text"] = "Welcome to our radio show!"
+            state["action_type"] = "song"
+            state["reason"] = f"LLM intro generation failed: {str(e)}"
             
         return state
 
     def _route_action(self, state: DJState) -> str:
-        """Route to appropriate path based on LLM decision"""
+        """Route to appropriate path based on event analysis"""
         return state["action_type"]
 
-    async def _generate_congratulations(self, state: DJState) -> DJState:
-        """Generate congratulatory intro for birthdays"""
-        memory_data = self.memory.get_all_memory_data()
-        
-        # Extract birthday events
-        birthday_events = [event for event in state["events"] if event.get("type") == "birthday"]
-        
-        congratulations_prompt = f"""
-        You are {self.ai_dj_name}, a radio DJ for {self.radio_station_name}.
-        
-        Generate a warm, congratulatory introduction for these birthday celebrations:
-        {birthday_events}
-        
-        Brand context: {state["brand"]}
-        Audience context: {memory_data}
-        
-        Create a heartfelt birthday message that flows naturally into music.
-        Keep it personal but broadcast-appropriate.
-        """
-        
-        try:
-            response = await self.llm.ainvoke(congratulations_prompt)
-            state["introduction_text"] = response.content
-            state["reason"] = "Generated birthday congratulations"
-        except Exception as e:
-            self.logger.error(f"Congratulations generation failed: {e}")
-            state["introduction_text"] = "Happy birthday to our wonderful listeners!"
-            state["reason"] = f"Congratulations generation failed: {str(e)}"
-            
-        return state
 
-    async def _request_sound_fragment(self, state: DJState) -> DJState:
-        """Request sound fragment for advertisement (not implemented in MCP)"""
-        # This would request ad sound fragments when MCP supports it
-        state["introduction_text"] = ""  # Ads skip intro
-        state["audio_data"] = None  # Placeholder for ad audio
-        state["reason"] = "Advertisement sound fragment requested (not implemented)"
-        state["title"] = "Advertisement"
-        state["artist"] = "Sponsor"
-        return state
 
     async def _fetch_songs(self, state: DJState) -> DJState:
         songs = await self.sf_mcp.get_songs(state["brand"])
@@ -268,19 +229,15 @@ class RadioDJAgent:
             self.logger.error(f"Error parsing song selection: {e}")
             return songs[0] if songs else {}
 
-
-
-    async def _generate_intro(self, state: DJState) -> DJState:
-        memory_data = self.memory.get_all_memory_data()
-
-        intro_text = await self.intro_generator.generate_intro(
-            state["title"],
-            state["artist"],
-            state["brand"],
-            memory_data
-        )
-
-        state["introduction_text"] = intro_text
+    async def _request_sound_fragment(self, state: DJState) -> DJState:
+        """Request sound fragment for advertisement events"""
+        # This would request ad sound fragments when MCP supports it
+        # For now, we set placeholder values
+        state["audio_data"] = None  # Placeholder for ad audio
+        state["reason"] = "Advertisement sound fragment requested"
+        state["title"] = "Advertisement"
+        state["artist"] = "Sponsor"
+        # introduction_text already set by LLM decision
         return state
 
     async def _create_audio(self, state: DJState) -> DJState:
