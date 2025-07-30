@@ -150,7 +150,8 @@ class RadioDJAgent:
 
 
     async def _fetch_songs(self, state: DJState) -> DJState:
-        songs = await self.sf_mcp.get_songs(state["brand"])
+        from cnst.play_list_item_type import PlaylistItemType
+        songs = await self.sf_mcp.get_songs(state["brand"], types=[PlaylistItemType.SONG.value])
         state["songs"] = songs
 
         if not songs:
@@ -230,14 +231,22 @@ class RadioDJAgent:
             return songs[0] if songs else {}
 
     async def _request_sound_fragment(self, state: DJState) -> DJState:
-        """Request sound fragment for advertisement events"""
-        # This would request ad sound fragments when MCP supports it
-        # For now, we set placeholder values
-        state["audio_data"] = None  # Placeholder for ad audio
-        state["reason"] = "Advertisement sound fragment requested"
-        state["title"] = "Advertisement"
-        state["artist"] = "Sponsor"
-        # introduction_text already set by LLM decision
+        from cnst.play_list_item_type import PlaylistItemType
+        ads = await self.sf_mcp.get_songs(state["brand"], types=[PlaylistItemType.ADVERTISEMENT.value])
+        
+        if ads:
+            selected_ad = ads[0]
+            state["selected_song"] = selected_ad
+            ad_info = selected_ad.get('soundfragment', {})
+            state["title"] = ad_info.get('title', 'Advertisement')
+            state["artist"] = ad_info.get('artist', 'Sponsor')
+            state["reason"] = "Advertisement sound fragment selected"
+        else:
+            state["selected_song"] = {}
+            state["title"] = "Advertisement"
+            state["artist"] = "Sponsor"
+            state["reason"] = "No advertisement sound fragments available"
+        
         return state
 
     async def _create_audio(self, state: DJState) -> DJState:
