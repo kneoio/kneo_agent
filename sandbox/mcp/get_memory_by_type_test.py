@@ -1,6 +1,7 @@
 import asyncio
-import websockets
 import json
+
+import websockets
 
 
 class MCPMemoryClient:
@@ -43,7 +44,9 @@ class MCPMemoryClient:
         self.message_id += 1
         await self.send_message(websocket, message)
 
-    async def get_memory_by_type(self, websocket, brand="aizoo", types=["CONVERSATION_HISTORY", "LISTENER_CONTEXT"]):
+    async def get_memory_by_type(self, websocket, brand="aizoo", types=None):
+        if types is None:
+            types = []
         message = {
             "jsonrpc": "2.0",
             "id": self.message_id,
@@ -59,7 +62,6 @@ class MCPMemoryClient:
         self.message_id += 1
         response = await self.send_message(websocket, message)
 
-        # Parse and display the memory data nicely
         if "result" in response and "content" in response["result"]:
             content_text = response["result"]["content"][0]["text"]
             data = json.loads(content_text)
@@ -80,7 +82,6 @@ class MCPMemoryClient:
                         for i, item in enumerate(memory_data, 1):
                             if isinstance(item, dict):
                                 if "id" in item and "content" in item:
-                                    # Conversation history format
                                     print(f"  Entry {i} (ID: {item['id']}):")
                                     content = item["content"]
                                     if isinstance(content, dict):
@@ -89,7 +90,6 @@ class MCPMemoryClient:
                                     else:
                                         print(f"    Content: {content}")
                                 else:
-                                    # Listener/Audience context format
                                     print(f"  Entry {i}:")
                                     for key, value in item.items():
                                         print(f"    {key}: {value}")
@@ -102,7 +102,6 @@ class MCPMemoryClient:
         return response
 
 
-# Usage
 uri = "ws://localhost:38708"
 client = MCPMemoryClient(uri)
 asyncio.run(client.connect())

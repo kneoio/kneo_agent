@@ -26,7 +26,7 @@ class MCPSongTool:
             raise ValueError("MCP_SERVER_URI must be set in .env file")
         self.message_id = 1
 
-    async def get_brand_soundfragments(self, brand: str = "aizoo", page: int = 1, size: int = 50) -> Dict[str, Any]:
+    async def get_brand_sound_fragments(self, brand: str = "aizoo", page: int = 1, size: int = 50) -> Dict[str, Any]:
         async with websockets.connect(self.uri) as websocket:
             # Initialize
             init_message = {
@@ -83,7 +83,7 @@ class MusicAgent:
 
     async def _fetch_and_select(self, state: AgentState) -> AgentState:
         # Fetch songs
-        data = await self.mcp_tool.get_brand_soundfragments(brand="aizoo", page=1, size=50)
+        data = await self.mcp_tool.get_brand_sound_fragments(brand="aizoo", page=1, size=50)
         songs = data.get("fragments", [])
 
         if not songs:
