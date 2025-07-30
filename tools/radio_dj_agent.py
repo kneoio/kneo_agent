@@ -91,10 +91,8 @@ class RadioDJAgent:
             }
         )
         
-        # Song path
-        workflow.add_edge("fetch_songs", "select_song")
-        workflow.add_edge("select_song", "generate_intro")
-        workflow.add_edge("generate_intro", "create_audio")
+        # Song path - LLM decision will handle song selection when songs are available
+        workflow.add_edge("fetch_songs", "generate_intro")
         
         # Birthday path
         workflow.add_edge("generate_congratulations", "fetch_songs")
@@ -119,26 +117,13 @@ class RadioDJAgent:
         memory_data = self.memory.get_all_memory_data()
         
         # Build context for LLM decision
-        context_prompt = f"""
-        You are {self.ai_dj_name}, a radio DJ for {self.radio_station_name}.
-        
-        Current events to consider: {state["events"]}
-        Brand: {state["brand"]}
-        Previous context: {memory_data}
-        
-        Analyze the events and context to determine the next action:
-        - "song": Request next song (most common case)
-        - "birthday": Send birthday congratulations
-        - "ad": Request sound fragment for advertisement
-        
-        Consider:
-        - Event priorities and timing
-        - Audience context and time
-        - Previous songs played
-        - Broadcast flow and pacing
-        
-        Respond with only the action type: song, birthday, or ad
-        """
+        context_prompt = self.agent_config["prompt"].format(
+            ai_dj_name=self.ai_dj_name,
+            radio_station_name=self.radio_station_name,
+            events=state["events"],
+            brand=state["brand"],
+            memory_data=memory_data
+        )
         
         try:
             response = await self.llm.ainvoke(context_prompt)
@@ -209,31 +194,81 @@ class RadioDJAgent:
 
         if not songs:
             state["reason"] = "No songs available from catalog"
-
-        return state
-
-    async def _select_song(self, state: DJState) -> DJState:
-        if not state["songs"]:
             state["selected_song"] = {}
-            state["reason"] = "No songs to select from"
             state["title"] = "Unknown"
             state["artist"] = "Unknown"
-            return state
-
-        memory_data = self.memory.get_all_memory_data()
-
-        selected_song = await self.song_selector.select_song(
-            state["songs"],
-            state["brand"],
-            memory_data
-        )
-
-        state["selected_song"] = selected_song
-        song_info = selected_song.get('soundfragment', {})
-        state["title"] = song_info.get('title', 'Unknown')
-        state["artist"] = song_info.get('artist', 'Unknown')
+        else:
+            # Let LLM decision handle song selection
+            memory_data = self.memory.get_all_memory_data()
+            
+            # Build context for LLM song selection
+            context_prompt = self.agent_config["prompt"].format(
+                ai_dj_name=self.ai_dj_name,
+                radio_station_name=self.radio_station_name,
+                events=state["events"],
+                brand=state["brand"],
+                memory_data=memory_data,
+                songs=songs
+            )
+            
+            try:
+                response = await self.llm.ainvoke(context_prompt)
+                # Parse response to extract selected song
+                # Assuming the LLM returns song selection info
+                selected_song = self._parse_song_selection(response.content, songs)
+                state["selected_song"] = selected_song
+                
+                song_info = selected_song.get('soundfragment', {})
+                state["title"] = song_info.get('title', 'Unknown')
+                state["artist"] = song_info.get('artist', 'Unknown')
+                state["reason"] = "LLM selected song"
+                
+            except Exception as e:
+                self.logger.error(f"LLM song selection failed: {e}")
+                # Fallback to first song
+                state["selected_song"] = songs[0] if songs else {}
+                song_info = state["selected_song"].get('soundfragment', {})
+                state["title"] = song_info.get('title', 'Unknown')
+                state["artist"] = song_info.get('artist', 'Unknown')
+                state["reason"] = f"LLM song selection failed, using first song: {str(e)}"
 
         return state
+
+    def _parse_song_selection(self, llm_response: str, songs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Parse LLM JSON response to extract selected song by UUID"""
+        import json
+        import re
+        
+        try:
+            # Try to extract JSON from the response
+            json_match = re.search(r'\{[^}]*"selected_song_uuid"[^}]*\}', llm_response)
+            if json_match:
+                json_str = json_match.group(0)
+                parsed = json.loads(json_str)
+                song_uuid = parsed.get('selected_song_uuid', '')
+                
+                # Find song by UUID
+                for song in songs:
+                    if song.get('uuid') == song_uuid or song.get('id') == song_uuid:
+                        return song
+            
+            # Fallback: look for UUID pattern in response
+            uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+            uuid_match = re.search(uuid_pattern, llm_response.lower())
+            if uuid_match:
+                song_uuid = uuid_match.group(0)
+                for song in songs:
+                    if song.get('uuid') == song_uuid or song.get('id') == song_uuid:
+                        return song
+            
+            # Final fallback: return first song
+            return songs[0] if songs else {}
+            
+        except Exception as e:
+            self.logger.error(f"Error parsing song selection: {e}")
+            return songs[0] if songs else {}
+
+
 
     async def _generate_intro(self, state: DJState) -> DJState:
         memory_data = self.memory.get_all_memory_data()
