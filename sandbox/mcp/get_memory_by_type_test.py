@@ -31,7 +31,7 @@ class MCPMemoryClient:
         message = {
             "jsonrpc": "2.0",
             "id": self.message_id,
-            "method": "initialize",
+            "method": "tools/list",
             "params": {
                 "protocolVersion": "2024-11-05",
                 "clientInfo": {

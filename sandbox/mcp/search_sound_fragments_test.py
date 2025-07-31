@@ -28,12 +28,11 @@ class MCPSongClient:
             await asyncio.sleep(1)
 
             print("\n=== Testing Brand Sound Fragments ===")
-            await self.get_brand_sound_fragments(websocket, "aizoo")
+            # await self.get_brand_sound_fragments(websocket, "aizoo")
             await asyncio.sleep(1)
             await self.get_brand_sound_fragments(websocket, "aizoo",
                                                  genres="rock,electronic",
-                                                 types=[PlaylistItemType.SONG.value,
-                                                        PlaylistItemType.ADVERTISEMENT.value])
+                                                 types=[PlaylistItemType.SONG.value])
             await asyncio.sleep(1)
 
             print("\n=== Testing Get All Sound Fragments ===")

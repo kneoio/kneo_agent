@@ -117,7 +117,7 @@ class Waker:
         while True:
             with self.agent_lock:
                 active_brands = list(self.active_agents.keys())
-            logging.info(f"Waker tick ... Currently active brands: {active_brands}")
+            logging.info(f"Waker tick ... Currently active brands (locked): {active_brands}")
 
             had_activity = False
 

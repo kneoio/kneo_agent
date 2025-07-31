@@ -58,20 +58,16 @@ class AudioProcessor:
             return None, f"Failed to load prerecorded: {e}"
 
     async def generate_tts_audio(self, text: str, title: str, artist: str) -> Tuple[Optional[bytes], str]:
-        """Generate TTS audio from text"""
         if not text:
             return None, "No text provided for TTS"
 
-        # Check for copyright content
         if "copyright" in text.lower():
             self.logger.warning("Copyright content detected")
             return await self.get_prerecorded_audio()
 
         try:
-            # Save to history
             self._save_to_history(title, artist, text)
 
-            # Generate TTS
             voice_id = self.agent_config.get('preferredVoice', 'nPczCjzI2devNBz1zQrb')
             audio_stream = self.tts_client.text_to_speech.convert(
                 voice_id=voice_id,
@@ -93,7 +89,6 @@ class AudioProcessor:
             return None, f"TTS generation failed: {str(e)}"
 
     def _save_to_history(self, title: str, artist: str, text: str):
-        """Save introduction to conversation history"""
         try:
             history_entry = {
                 "title": title,

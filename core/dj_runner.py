@@ -56,16 +56,15 @@ class DJRunner:
 
     async def _feed_broadcast(self) -> None:
         try:
-            audio_data, intro_reason, title, artist = await self.radio_dj_agent.create_introduction(
+            audio_data, song_id, title, artist = await self.radio_dj_agent.create_introduction(
                 brand=self.brand
             )
 
             if audio_data:
-                song_id = "agent_selected"
                 if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data):
                     self.logger.info(f"Broadcasted with intro: {title} by {artist}")
             else:
-                self.logger.warning(f"No audio generated. Reason: {intro_reason}")
+                self.logger.warning(f"No audio generated")
         except Exception as e:
             self.logger.error(f"Error in _feed_broadcast_mcp: {e}")
             raise

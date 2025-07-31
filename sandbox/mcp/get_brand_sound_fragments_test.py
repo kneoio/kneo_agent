@@ -2,6 +2,8 @@ import asyncio
 import websockets
 import json
 
+from cnst.play_list_item_type import PlaylistItemType
+
 
 class MCPSongClient:
     def __init__(self, uri):
@@ -14,7 +16,10 @@ class MCPSongClient:
                 print(f"Connected to {self.uri}")
                 await self.initialize(websocket)
                 await asyncio.sleep(1)
-                await self.get_brand_sound_fragments(websocket)
+                await self.get_brand_sound_fragments(websocket,
+                                                     brand="aizoo",
+                                                     genres="rock,electronic",
+                                                     types="SONG")
         except Exception as e:
             print(f"Connection failed: {e}")
 
@@ -43,18 +48,27 @@ class MCPSongClient:
         self.message_id += 1
         await self.send_message(websocket, message)
 
-    async def get_brand_sound_fragments(self, websocket, brand="aizoo", page=1, size=10):
+    async def get_brand_sound_fragments(self, websocket, brand="aizoo", page=1, size=10, genres=None, sources=None, types=None):
+        arguments = {
+            "brand": brand,
+            "page": page,
+            "size": size
+        }
+
+        if genres:
+            arguments["genres"] = genres
+        if sources:
+            arguments["sources"] = sources
+        if types:
+            arguments["types"] = types
+
         message = {
             "jsonrpc": "2.0",
             "id": self.message_id,
             "method": "tools/call",
             "params": {
                 "name": "get_brand_sound_fragments",
-                "arguments": {
-                    "brand": brand,
-                    "page": page,
-                    "size": size
-                }
+                "arguments": arguments
             }
         }
         self.message_id += 1
