@@ -1,5 +1,4 @@
 import logging
-import random
 from typing import Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
@@ -7,7 +6,7 @@ from api.interaction_memory import InteractionMemory
 from mcp.broadcaster_mcp_client import BroadcasterMCPClient
 
 from tools.radio_dj_agent import RadioDJAgent
-from tools.queue_tool import QueueTool
+from api.queue import Queue
 from tools.sound_fragment_tool import SoundFragmentTool
 
 
@@ -34,7 +33,7 @@ class DJRunner:
             mcp_client=self.mcp_client
         )
 
-        self.broadcast_tool = QueueTool(config)
+        self.broadcast_tool = Queue(config)
         self.min_broadcast_interval: int = 200  # seconds
         self.last_broadcast: float = 0.0
         self._played_songs_history: List[str] = []

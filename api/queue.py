@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 import requests
 
 
-class QueueTool:
+class Queue:
     def __init__(self, config: Dict[str, Any]):
         self.api_base_url = config.get("broadcaster").get("api_base_url")
         self.api_key = config.get("broadcaster").get("api_key")

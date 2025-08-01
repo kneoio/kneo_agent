@@ -14,7 +14,7 @@ class InteractionMemory:
         self.ai_logger = logging.getLogger('tools.interaction_tools.ai')
 
     def get_messages(self, memory_type: str) -> Union[List[BaseMessage], str]:
-        response_data = self.api_client.get(f"ai/memory/{self.brand}/{memory_type}")
+        response_data = self.api_client.get_by_type(f"ai/memory/{self.brand}/{memory_type}")
 
         processed_messages: List[BaseMessage] = []
         for item in response_data:
@@ -48,7 +48,7 @@ class InteractionMemory:
     def reset_messages(self) -> Dict[str, int]:
         try:
             response = self.api_client.patch(f"ai/memory/reset/{self.brand}/INSTANT_MESSAGE", data={})
-            self.ai_logger.info(f"RESET MESSAGES: {response.get('removedCount', 0)} messages removed\n{'~'*40}\n")
+            self.ai_logger.info(f"RESET MESSAGES: {response.get_by_type('removedCount', 0)} messages removed\n{'~' * 40}\n")
             return response
         except Exception as e:
             self.logger.error(f"Error resetting messages for brand {self.brand}: {e}")
@@ -57,7 +57,7 @@ class InteractionMemory:
     def reset_events(self) -> Dict[str, int]:
         try:
             response = self.api_client.patch(f"ai/memory/reset/{self.brand}/EVENT", data={})
-            self.ai_logger.info(f"RESET EVENTS: {response.get('removedCount', 0)} events removed\n{'~'*40}\n")
+            self.ai_logger.info(f"RESET EVENTS: {response.get_by_type('removedCount', 0)} events removed\n{'~' * 40}\n")
             return response
         except Exception as e:
             self.logger.error(f"Error resetting events for brand {self.brand}: {e}")
@@ -74,7 +74,7 @@ class InteractionMemory:
 
     def get_all_memory_data(self) -> Dict[str, Any]:
         try:
-            response = self.api_client.get(
+            response = self.api_client.get_by_type(
                 f"ai/memory/{self.brand}",
                 params={
                     'type': [

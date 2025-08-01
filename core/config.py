@@ -74,8 +74,8 @@ def get_tool_config(config: Dict[str, Any], tool_name: str) -> Optional[Dict[str
     tools_config = config.get('tools', [])
 
     for tool_config in tools_config:
-        if tool_config.get('name') == tool_name:
-            return tool_config.get('config', {})
+        if tool_config.get_by_type('name') == tool_name:
+            return tool_config.get_by_type('config', {})
 
     logger.warning(f"No configuration found for tool: {tool_name}")
     return None

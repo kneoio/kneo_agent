@@ -107,10 +107,10 @@ class MusicAgent:
             return state
 
         song = selected["soundfragment"]
-        artist = song.get("artist", "Unknown")
-        title = song.get("title", "Unknown")
-        genre = song.get("genre", "Unknown")
-        album = song.get("album", "Unknown")
+        artist = song.get_by_type("artist", "Unknown")
+        title = song.get_by_type("title", "Unknown")
+        genre = song.get_by_type("genre", "Unknown")
+        album = song.get_by_type("album", "Unknown")
         plays = selected.get("playedByBrandCount", 0)
 
         # Get artist info from Claude

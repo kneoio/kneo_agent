@@ -54,7 +54,7 @@ class SoundFragmentMCPClient:
         response = await self.websocket.recv()
         init_response = json.loads(response)
         logger.info(
-            f"MCP session initialized: {init_response.get('result', {}).get('serverInfo', {}).get('name', 'Unknown')}")
+            f"MCP session initialized: {init_response.get_by_type('result', {}).get_by_type('serverInfo', {}).get_by_type('name', 'Unknown')}")
 
     async def list_tools(self):
         """List available tools"""
@@ -70,7 +70,7 @@ class SoundFragmentMCPClient:
         response = await self.websocket.recv()
         result = json.loads(response)
 
-        tools = result.get('result', {}).get('tools', [])
+        tools = result.get_by_type('result', {}).get_by_type('tools', [])
         logger.info(f"Available tools: {[tool['name'] for tool in tools]}")
         return tools
 
@@ -95,7 +95,7 @@ class SoundFragmentMCPClient:
             logger.error(f"Tool call error: {result['error']}")
             return {}
 
-        return result.get('result', {}).get('content', [{}])[0].get('text', '{}')
+        return result.get_by_type('result', {}).get_by_type('content', [{}])[0].get_by_type('text', '{}')
 
     async def get_brand_sound_fragments(self, brand: str, page: int = 1, size: int = 10):
         """Get sound fragments for a brand"""
