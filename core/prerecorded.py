@@ -3,30 +3,28 @@ import random
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from elevenlabs import ElevenLabs
+
 from util.filler_generator import FillerGenerator
 
 
 class Prerecorded:
-    def __init__(self, filler_generator: FillerGenerator, talkativity: float = 0.5):
-        self.filler_generator = filler_generator
+    def __init__(self,elevenlabs_inst: ElevenLabs, fillers,  brand: str):
         self.logger = logging.getLogger(__name__)
-
+        self.fillers = fillers
         self.audio_files = self._load_audio_files()
-        self.prerecorded_probability = 1.0 - float(talkativity)
+        self.filler_generator = FillerGenerator(elevenlabs_inst,  Path("metadata") / brand)
 
     def _load_audio_files(self) -> List[Path]:
         audio_files = self.filler_generator.load_audio_files()
         if not audio_files:
             self.logger.info("Generating filler files...")
-            self.filler_generator.generate_filler_files()
+            self.filler_generator.generate_filler_files(self.fillers)
             audio_files = self.filler_generator.load_audio_files()
         return audio_files
 
-    def should_use_prerecorded(self) -> bool:
-        return self.audio_files and random.random() < self.prerecorded_probability
 
     async def get_prerecorded_audio(self) -> Tuple[Optional[bytes], str]:
-        """Get prerecorded audio data"""
         if not self.audio_files:
             return None, "No prerecorded files available"
 

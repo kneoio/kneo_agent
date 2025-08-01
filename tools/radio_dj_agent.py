@@ -1,22 +1,19 @@
 import json
 import logging
 import re
-from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
-from elevenlabs.client import ElevenLabs
 from langchain_anthropic import ChatAnthropic
 from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, END
 
 from api.interaction_memory import InteractionMemory
+from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.memory_mcp import MemoryMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from tools.audio_processor import AudioProcessor
-from util.filler_generator import FillerGenerator
-from api.queue import Queue
-from util.file_util import debug_log, load_external_prompts
+from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
 
 
@@ -48,7 +45,7 @@ def _find_item_by_uuid(items: List[Dict[str, Any]], uuid: str) -> Dict[str, Any]
 
 class RadioDJAgent:
 
-    def __init__(self, config, memory: InteractionMemory, agent_config=None, brand=None, mcp_client=None,
+    def __init__(self, config, memory: InteractionMemory, audio_processor: AudioProcessor, agent_config=None, brand=None, mcp_client=None,
                  debug=False):
         self.debug = debug
         self.logger = logging.getLogger(__name__)
@@ -67,25 +64,12 @@ class RadioDJAgent:
         self.queue = Queue(config)
         # only to save in audio processor
         self.memory = memory
+        self.audio_processor = audio_processor
         self.agent_config = agent_config or {}
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.memory_mcp = MemoryMCP(mcp_client)
-        elevenlabsInst = ElevenLabs(api_key=config.get("elevenlabs").get("api_key"))
-
-        metadata_folder = Path("metadata") / self.brand
-        filler_generator = FillerGenerator(
-            elevenlabsInst,
-            metadata_folder
-        )
-        self.audio_processor = AudioProcessor(
-            elevenlabsInst,
-            filler_generator,
-            self.agent_config,
-            memory
-        )
-
         self.graph = self._build_graph()
         debug_log("RadioDJAgent initialized")
 

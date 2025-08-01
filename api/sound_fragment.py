@@ -18,7 +18,7 @@ def cached(expiration_time: int = 300):
         return wrapper
     return decorator
 
-class SoundFragmentTool:
+class SoundFragment:
     def __init__(self, config: Dict[str, Any]):
         broadcaster = config.get("broadcaster", {})
         self.api_base_url = broadcaster.get("api_base_url")

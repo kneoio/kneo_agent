@@ -3,15 +3,12 @@ import requests
 import logging
 import threading
 import asyncio
-import random
 from typing import Optional, Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
+
 from cnst.brand_status import BrandStatus
-from audio_processor import AudioProcessor
-from prerecorded import Prerecorded
-from radio_dj_agent import RadioDJAgent
-from util.filler_generator import FillerGenerator
+from core.dj_runner import DJRunner
 
 
 class Waker:
@@ -25,15 +22,13 @@ class Waker:
         self.min_interval = 30
         self.max_interval = 300
         self.backoff_factor = 1.5
-        self.activity_threshold = 300
+        self.activity_threshold = 300  # after 5m it will start to slow down
         self.config = config
         self.mcp_client = mcp_client
         self.radio_station_name = None
         self.active_agents = {}
         self.agent_lock = threading.Lock()
         self.last_activity_time = time.time()
-
-        self.audio_processor = AudioProcessor(config)
 
     def get_available_brands(self) -> Optional[List[Dict]]:
         try:
@@ -46,6 +41,7 @@ class Waker:
                     BrandStatus.WAITING_FOR_CURATOR.value,
                     BrandStatus.ON_LINE.value,
                     BrandStatus.WARMING_UP.value,
+                    # BrandStatus.IDLE.value
                 ]
             }
 
@@ -99,23 +95,15 @@ class Waker:
 
     def run_agent(self, brand_config):
         station_name = brand_config.get('radioStationName')
-        talkativity = brand_config.get('talkativity', 0.5)
-
-        use_prerecorded = random.random() > talkativity
+        logging.info(f"Starting agent thread for {station_name}")
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         try:
-            if use_prerecorded:
-                logging.info(f"Starting prerecorded agent for {station_name}")
-                prerecorded = Prerecorded(self.audio_processor, brand_config)
-                loop.run_until_complete(prerecorded.process_and_broadcast())
-            else:
-                logging.info(f"Starting RadioDJAgent for {station_name}")
-                api_client = BroadcasterAPIClient(self.config)
-                agent = RadioDJAgent(self.audio_processor, brand_config, api_client, mcp_client=self.mcp_client)
-                loop.run_until_complete(agent.process_and_broadcast())
+            api_client = BroadcasterAPIClient(self.config)
+            agent = DJRunner(self.config, brand_config, api_client, mcp_client=self.mcp_client)
+            loop.run_until_complete(agent.run())
         finally:
             loop.close()
 

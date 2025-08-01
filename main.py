@@ -66,7 +66,7 @@ async def async_main():
 
     logger = logging.getLogger(__name__)
     logger.info("Application starting...")
-    logger.info("v.1.3.1")
+    logger.info("v.1.3.2")
 
     broadcaster = config.get("broadcaster", {}).get("api_base_url")
     if broadcaster:
