@@ -12,8 +12,8 @@ class Prerecorded:
     def __init__(self,elevenlabs_inst: ElevenLabs, fillers,  brand: str):
         self.logger = logging.getLogger(__name__)
         self.fillers = fillers
-        self.audio_files = self._load_audio_files()
         self.filler_generator = FillerGenerator(elevenlabs_inst,  Path("metadata") / brand)
+        self.audio_files = self._load_audio_files()
 
     def _load_audio_files(self) -> List[Path]:
         audio_files = self.filler_generator.load_audio_files()
