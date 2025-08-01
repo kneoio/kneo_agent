@@ -41,7 +41,7 @@ def _route_action(state: DJState) -> str:
 
 def _find_item_by_uuid(items: List[Dict[str, Any]], uuid: str) -> Dict[str, Any]:
     for item in items:
-        if item.get('uuid') == uuid or item.get('id') == uuid:
+        if item.get('id') == uuid:
             return item
     return items[0] if items else {}
 
@@ -69,7 +69,6 @@ class RadioDJAgent:
         self.memory = memory
         self.agent_config = agent_config or {}
         self.ai_dj_name = self.agent_config.get("name")
-        self.context = self.agent_config.get("context")
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.memory_mcp = MemoryMCP(mcp_client)
@@ -135,29 +134,27 @@ class RadioDJAgent:
         debug_log("Entering _decision")
 
         ads = await self.sound_fragments_mcp.get_by_type(self.brand, types=PlaylistItemType.ADVERTISEMENT.value)
-        state["available_ads"] = ads
+        state["available_ads"] = [ad.get("id") for ad in ads]  # Extract only IDs
         debug_log(f"Ads fetched: {len(ads)} available")
-        debug_log("Ads fetched", {"count": len(ads)})
-
+        memory_data = self.memory.get_all_memory_data()
+        state["context"] = memory_data.get("environment")[0]
         decision_prompt = self.agent_config["decision_prompt"].format(
             ai_dj_name=self.ai_dj_name,
-            context=self.context,
+            context=state["context"],
             brand=self.brand,
             events=state["events"],
             ads=state["available_ads"]
         )
-        debug_log(f"Decision prompt generated, length: {len(decision_prompt)}")
+        debug_log(f"Decision prompt generated: {decision_prompt}")
 
         try:
             messages = [
                 {"role": "system",
-                 "content": "Output JSON only: - Ad: {\"action\": \"ad or song\", \"selected_song_uuid\": \"ad-uuid\", \"introduction_text\": \"transition\"} - Song: {\"action\": \"song\", \"mood\": \"determined-mood\"}"},
+                 "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"selected_song_uuid\": \"ad-uuid\"} - Song: {\"action\": \"song\", \"mood\": \"determined-mood\"}"},
                 {"role": "user", "content": decision_prompt}
             ]
-            debug_log(f"Sending {len(messages)} messages to LLM")
             response = await self.llm.ainvoke(messages)
             debug_log(f"LLM response received: {response.content[:200]}...")
-
             parsed_response = self._parse_llm_response(response.content)
             debug_log(f"Parsed response: {parsed_response}")
 
@@ -167,12 +164,14 @@ class RadioDJAgent:
             if state["action_type"] == "ad":
                 state["introduction_text"] = parsed_response.get("introduction_text", get_random_ad_intro())
                 selected_uuid = parsed_response.get("selected_song_uuid", "")
-
-                selected_ad = _find_item_by_uuid(state["available_ads"], selected_uuid)
+                selected_ad = {}
+                for item in ads:
+                    if item.get('id') == selected_uuid:
+                        selected_ad = item
                 state["selected_sound_fragment"] = selected_ad
-                debug_log(f"Selected ad: {selected_ad.get('uuid', 'No UUID')}")
-
+                debug_log(f"Selected ad: {selected_ad}")
                 ad_info = selected_ad.get('soundfragment', {})
+                debug_log(f"Ad sound fragment: {ad_info}")
                 state["title"] = ad_info.get('title', 'Advertisement')
                 state["artist"] = ad_info.get('artist', 'Sponsor')
             else:
@@ -203,17 +202,16 @@ class RadioDJAgent:
                 state["title"] = song_info.get('title')
                 state["artist"] = song_info.get('artist')
 
-                memory_data = self.memory.get_all_memory_data()
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
-                    context=self.context,
+                    context=state["context"],
                     brand=self.brand,
                     events=state["events"],
-                    memory_data=memory_data,
-                    song_title=state["title"] ,
-                    artist=state["artist"] ,
+                    title=state["title"],
+                    artist=state["artist"],
                     mood=state["mood"],
-                    history=state["history"]
+                    history=state["history"],
+                    #instant_message
                 )
 
                 messages = [
@@ -232,7 +230,7 @@ class RadioDJAgent:
 
             debug_log("Song processed", {"mood": state["mood"], "title": state["title"]})
         except Exception as e:
-            self.logger.error(f"Error in fetch_song: {e}", exc_info=self.debug)
+            self.logger.error(f"Error in fetch_song: {e}")
             state["selected_sound_fragment"] = {}
             state["introduction_text"] = "Here's some music for you"
             state["reason"] = f"Error in fetch_song: {str(e)}"

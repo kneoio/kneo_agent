@@ -1,4 +1,5 @@
 import logging
+import random
 from typing import Dict, Any, List
 
 
@@ -20,7 +21,6 @@ class SoundFragmentMCP:
                 if mood.lower() in song_mood or song_mood in mood.lower():
                     mood_songs.append(song)
 
-            import random
             if mood_songs:
                 return random.choice(mood_songs)
             return songs[0] if songs else {}
