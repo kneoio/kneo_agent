@@ -55,7 +55,7 @@ class Waker:
 
             data = response.json()
             if data and isinstance(data, list) and len(data) > 0:
-                self.radio_station_name = data[0].get_by_type('radioStationName')
+                self.radio_station_name = data[0].get('radioStationName')
 
             return data
 
@@ -94,7 +94,7 @@ class Waker:
                 logging.info(f"Cleaned up agent for {station_name}")
 
     def run_agent(self, brand_config):
-        station_name = brand_config.get_by_type('radioStationName')
+        station_name = brand_config.get('radioStationName')
         logging.info(f"Starting agent thread for {station_name}")
 
         loop = asyncio.new_event_loop()

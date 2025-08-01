@@ -5,9 +5,9 @@ import requests
 
 class BroadcasterAPIClient:
     def __init__(self, config):
-        self.base_url = config.get_by_type("broadcaster").get_by_type("api_base_url")
-        self.api_key = config.get_by_type("broadcaster").get_by_type("api_key")
-        self.api_timeout = config.get_by_type("broadcaster").get_by_type("api_timeout")
+        self.base_url = config.get("broadcaster").get("api_base_url")
+        self.api_key = config.get("broadcaster").get("api_key")
+        self.api_timeout = config.get("broadcaster").get("api_timeout")
         self.logger = logging.getLogger(__name__)
 
     def _get_headers(self):

@@ -59,9 +59,9 @@ class RadioDJAgent:
             self.logger.addHandler(handler)
 
         self.llm = ChatAnthropic(
-            model_name=config.get_by_type("claude").get_by_type("model"),
+            model_name=config.get("claude").get("model"),
             temperature=0.7,
-            api_key=config.get_by_type("claude").get_by_type("api_key")
+            api_key=config.get("claude").get("api_key")
         )
 
         self.queue = Queue(config)
@@ -73,7 +73,7 @@ class RadioDJAgent:
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.memory_mcp = MemoryMCP(mcp_client)
-        elevenlabsInst = ElevenLabs(api_key=config.get_by_type("elevenlabs").get_by_type("api_key"))
+        elevenlabsInst = ElevenLabs(api_key=config.get("elevenlabs").get("api_key"))
 
         metadata_folder = Path("metadata") / self.brand
         filler_generator = FillerGenerator(
@@ -290,7 +290,7 @@ class RadioDJAgent:
             result = await self.graph.ainvoke(initial_state)
             return (
                 result["audio_data"],
-                result["selected_sound_fragment"].get_by_type("id"),
+                result["selected_sound_fragment"].get("id"),
                 result["title"],
                 result["artist"]
             )

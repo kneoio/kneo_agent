@@ -9,7 +9,7 @@ def load_external_prompts(agent_config):
         if decision_prompt_path.exists():
             with open(decision_prompt_path, 'r', encoding='utf-8') as f:
                 decision_data = json.load(f)
-                agent_config["decision_prompt"] = decision_data.get_by_type("prompt", agent_config.get_by_type("decision_prompt", ""))
+                agent_config["decision_prompt"] = decision_data.get("prompt", agent_config.get("decision_prompt", ""))
             debug_log(f"Loaded decision_prompt from {decision_prompt_path}")
         else:
             debug_log(f"Decision prompt file not found: {decision_prompt_path}")
@@ -18,7 +18,7 @@ def load_external_prompts(agent_config):
         if song_prompt_path.exists():
             with open(song_prompt_path, 'r', encoding='utf-8') as f:
                 song_data = json.load(f)
-                agent_config["prompt"] = song_data.get_by_type("prompt", agent_config.get_by_type("prompt", ""))
+                agent_config["prompt"] = song_data.get("prompt", agent_config.get("prompt", ""))
             debug_log(f"Loaded song_prompt from {song_prompt_path}")
         else:
             debug_log(f"Song prompt file not found: {song_prompt_path}")

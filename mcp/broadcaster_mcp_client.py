@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class BroadcasterMCPClient:
     def __init__(self, config):
-        self.ws_url = config.get_by_type("mcp", {}).get_by_type("ws_url", "ws://localhost:38708")
+        self.ws_url = config.get("mcp", {}).get("ws_url", "ws://localhost:38708")
         self.logger = logging.getLogger(__name__)
         self.connection = None
         self.message_id = 1
@@ -90,10 +90,10 @@ class BroadcasterMCPClient:
             raise Exception(f"MCP tool error: {response['error']}")
 
         # Extract the actual content from MCP response
-        result = response.get_by_type("result", {})
-        content = result.get_by_type("content", [])
+        result = response.get("result", {})
+        content = result.get("content", [])
         if content and len(content) > 0:
-            text_content = content[0].get_by_type("text", "")
+            text_content = content[0].get("text", "")
             return json.loads(text_content)
 
         return {}
@@ -150,16 +150,16 @@ class BrandSoundFragmentSearchTool(BaseTool):
             }
 
             for fragment in fragments:
-                song_info = fragment.get_by_type("soundfragment", {})
+                song_info = fragment.get("soundfragment", {})
                 formatted_result["songs"].append({
-                    "id": fragment.get_by_type("id"),
-                    "title": song_info.get_by_type("title"),
-                    "artist": song_info.get_by_type("artist"),
-                    "genre": song_info.get_by_type("genre"),
-                    "album": song_info.get_by_type("album"),
-                    "status": song_info.get_by_type("status"),
-                    "type": song_info.get_by_type("type"),
-                    "played_count": fragment.get_by_type("playedByBrandCount", 0)
+                    "id": fragment.get("id"),
+                    "title": song_info.get("title"),
+                    "artist": song_info.get("artist"),
+                    "genre": song_info.get("genre"),
+                    "album": song_info.get("album"),
+                    "status": song_info.get("status"),
+                    "type": song_info.get("type"),
+                    "played_count": fragment.get("playedByBrandCount", 0)
                 })
 
             return json.dumps(formatted_result, indent=2)
@@ -203,13 +203,13 @@ class SoundFragmentSearchTool(BaseTool):
 
             for fragment in fragments:
                 formatted_result["songs"].append({
-                    "id": fragment.get_by_type("id"),
-                    "title": fragment.get_by_type("title"),
-                    "artist": fragment.get_by_type("artist"),
-                    "genre": fragment.get_by_type("genre"),
-                    "album": fragment.get_by_type("album"),
-                    "status": fragment.get_by_type("status"),
-                    "type": fragment.get_by_type("type")
+                    "id": fragment.get("id"),
+                    "title": fragment.get("title"),
+                    "artist": fragment.get("artist"),
+                    "genre": fragment.get("genre"),
+                    "album": fragment.get("album"),
+                    "status": fragment.get("status"),
+                    "type": fragment.get("type")
                 })
 
             return json.dumps(formatted_result, indent=2)

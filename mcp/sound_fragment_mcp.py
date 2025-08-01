@@ -50,7 +50,7 @@ class SoundFragmentMCP:
                 params["types"] = types
 
             result = await self.mcp_client.call_tool("get_brand_sound_fragments", params)
-            songs = result.get_by_type("fragments", [])
+            songs = result.get("fragments", [])
             self.logger.info(f"Fetched {len(songs)} songs for brand {brand}")
             return songs
         except Exception as e:
@@ -78,7 +78,7 @@ class SoundFragmentMCP:
                 params["types"] = types
 
             result = await self.mcp_client.call_tool("search_sound_fragments", params)
-            songs = result.get_by_type("fragments", [])
+            songs = result.get("fragments", [])
             self.logger.info(f"Found {len(songs)} songs for query '{query}'")
             return songs
         except Exception as e:
