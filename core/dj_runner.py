@@ -19,7 +19,7 @@ class DJRunner:
         self.brand_config = brand_config
         self.brand = brand_config.get('radioStationName')
         self.agent_config = brand_config.get('agent', {})
-        self.talkativity = brand_config.get('talkativity', 0.5)
+        self.talkativity = self.agent_config.get('talkativity', 0.3)
         self.mcp_client = mcp_client if mcp_client else BroadcasterMCPClient(config)
         self.song_fetch_tool = SoundFragment(config)
         self.api_client = api_client
