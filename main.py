@@ -124,7 +124,6 @@ async def async_main():
 
 
 def main():
-    setup_logging()
     try:
         return asyncio.run(async_main())
     except Exception as e:
