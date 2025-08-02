@@ -34,7 +34,7 @@ class Queue:
 
     def send_to_broadcast(self, brand: str, song_uuid: str, audio_data: bytes) -> bool:
         endpoint = f"{self.api_base_url}/{brand}/queue/{song_uuid}"
-        upload_timeout = self.api_timeout * 6
+        upload_timeout = self.api_timeout * 10
 
         try:
             self.logger.info(f"Broadcasting {song_uuid} to {brand}")
@@ -48,7 +48,7 @@ class Queue:
             )
 
             response.raise_for_status()
-            self.logger.info(f"Broadcast successful: {song_uuid}")
+            self.logger.info(f"########Broadcast successful###########: {brand} -------> {song_uuid}")
             return True
 
         except requests.exceptions.Timeout:
