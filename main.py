@@ -66,7 +66,7 @@ async def async_main():
 
     logger = logging.getLogger(__name__)
     logger.info("Application starting...")
-    logger.info("v.1.3.3")
+    logger.info("v.1.3.4")
 
     broadcaster = config.get("broadcaster", {}).get("api_base_url")
     if broadcaster:
@@ -124,6 +124,7 @@ async def async_main():
 
 
 def main():
+    setup_logging()
     try:
         return asyncio.run(async_main())
     except Exception as e:

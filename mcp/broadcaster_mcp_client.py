@@ -30,7 +30,6 @@ class BroadcasterMCPClient:
     async def disconnect(self):
         if self.connection:
             await self.connection.close()
-            self.logger.info("Disconnected from MCP server")
 
     async def send_message(self, message):
         if not self.connection:
