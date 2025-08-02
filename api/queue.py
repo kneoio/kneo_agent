@@ -34,48 +34,37 @@ class Queue:
 
     def send_to_broadcast(self, brand: str, song_uuid: str, audio_data: bytes) -> bool:
         endpoint = f"{self.api_base_url}/{brand}/queue/{song_uuid}"
+        upload_timeout = self.api_timeout * 6
 
         try:
-            self.logger.info(
-                f"Sending broadcast request - Brand: {brand}, Song UUID: {song_uuid}, Endpoint: {endpoint}")
+            self.logger.info(f"Broadcasting {song_uuid} to {brand}")
 
             response = requests.post(
                 endpoint,
                 headers=self._get_headers(),
-                timeout=self.api_timeout,
+                timeout=upload_timeout,
                 data={"song_uuid": song_uuid},
                 files={"intro_audio": ("intro.mp3", audio_data, "audio/mpeg")}
             )
 
-            self.logger.info(f"Broadcast response - Status: {response.status_code}, Headers: {dict(response.headers)}")
-
             response.raise_for_status()
-            self.logger.info(f"Broadcast successful for song {song_uuid}")
+            self.logger.info(f"Broadcast successful: {song_uuid}")
             return True
 
-        except requests.exceptions.Timeout as e:
-            self.logger.error(
-                f"Broadcast timeout - Brand: {brand}, Song: {song_uuid}, Timeout: {self.api_timeout}s, Error: {str(e)}")
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Broadcast timeout ({upload_timeout}s): {song_uuid}")
             return False
 
-        except requests.exceptions.ConnectionError as e:
-            self.logger.error(
-                f"Broadcast connection error - Brand: {brand}, Song: {song_uuid}, Endpoint: {endpoint}, Error: {str(e)}")
+        except requests.exceptions.ConnectionError:
+            self.logger.error(f"Broadcast connection failed: {song_uuid}")
             return False
 
         except requests.exceptions.HTTPError as e:
-            self.logger.error(
-                f"Broadcast HTTP error - Brand: {brand}, Song: {song_uuid}, Status: {e.response.status_code}, Response: {e.response.text}, Error: {str(e)}")
-            return False
-
-        except requests.exceptions.RequestException as e:
-            self.logger.error(
-                f"Broadcast request error - Brand: {brand}, Song: {song_uuid}, Error type: {type(e).__name__}, Error: {str(e)}")
+            self.logger.error(f"Broadcast HTTP {e.response.status_code}: {song_uuid}")
             return False
 
         except Exception as e:
-            self.logger.error(
-                f"Broadcast unexpected error - Brand: {brand}, Song: {song_uuid}, Error type: {type(e).__name__}, Error: {str(e)}")
+            self.logger.error(f"Broadcast failed: {song_uuid} - {type(e).__name__}")
             return False
 
     def get_queue_status(self, brand: str) -> Optional[Dict[str, Any]]:
