@@ -6,3 +6,4 @@ class BrandStatus(Enum):
     ON_LINE = 'ON_LINE'
     WARMING_UP = 'WARMING_UP'
     IDLE = 'IDLE'
+    QUEUE_SATURATED = 'QUEUE_SATURATED'

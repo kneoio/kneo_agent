@@ -41,7 +41,7 @@ class Waker:
                     BrandStatus.WAITING_FOR_CURATOR.value,
                     BrandStatus.ON_LINE.value,
                     BrandStatus.WARMING_UP.value,
-                    # BrandStatus.IDLE.value
+                    BrandStatus.QUEUE_SATURATED.value
                 ]
             }
 
@@ -54,6 +54,12 @@ class Waker:
             response.raise_for_status()
 
             data = response.json()
+            if isinstance(data, list):
+                for i, brand in enumerate(data):
+                    station_name = brand.get('radioStationName', 'Unknown')
+                    station_status = brand.get('radioStationStatus', 'Unknown')
+                    print(f"Brand -{i + 1}: {station_name} - {station_status}")
+
             if data and isinstance(data, list) and len(data) > 0:
                 self.radio_station_name = data[0].get('radioStationName')
 
@@ -127,6 +133,8 @@ class Waker:
                     self.cleanup_agents(brands)
 
                     for brand in brands:
+                        if brand.get("radioStationStatus") == BrandStatus.QUEUE_SATURATED:
+                            continue
                         station_name = brand.get("radioStationName")
 
                         with self.agent_lock:

@@ -51,8 +51,8 @@ class SoundFragment:
                 print(f"Response content: {e.response.text}")
             return None
 
-    @cached(expiration_time=300)
+    @cached(expiration_time=60) #1 min
     def fetch_songs(self, brand: str) -> List[Dict[str, Any]]:
-        endpoint = f"{self.api_base_url}/soundfragments/available-soundfragments?brand={brand}&page=1&size=150"
+        endpoint = f"{self.api_base_url}/soundfragments/available-soundfragments?brand={brand}&page=1&size=10"
         response = self._make_request('GET', endpoint, content_type="application/json")
         return response.json()["payload"]["viewData"]["entries"] if response else []

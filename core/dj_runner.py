@@ -85,7 +85,8 @@ class DJRunner:
         if songs:
             chosen_song = random.choice(songs)
             song_id = chosen_song.get('id')
-            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"({chosen_song.get('title')}-{chosen_song.get('artist')})"):
+            sound_fragment = chosen_song.get('soundfragment')
+            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"-{sound_fragment.get('title')}-{sound_fragment.get('artist')}"):
                 self.logger.info(f"Broadcasted prerecorded content: {message}")
             else:
                 self.logger.warning(f"Failed to broadcast prerecorded content")
@@ -98,7 +99,7 @@ class DJRunner:
         )
 
         if audio_data:
-            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"({title}-{'artist'})"):
+            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"--{title}-{artist}"):
                 self.logger.info(f"Broadcasted live DJ intro: {title} by {artist}")
             else:
                 self.logger.warning(f"Failed to broadcast live DJ content")

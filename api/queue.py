@@ -38,17 +38,17 @@ class Queue:
 
         try:
             self.logger.info(f"Broadcasting {song_uuid} to {brand}")
-
+            intro_and_song = f"intro_for_{meta_data}_{song_uuid}.mp3"
             response = requests.post(
                 endpoint,
                 headers=self._get_headers(),
                 timeout=upload_timeout,
                 data={"song_uuid": song_uuid},
-                files={"intro_audio": ("intro.mp3", audio_data, "audio/mpeg")}
+                files={"intro_audio": (intro_and_song, audio_data, "audio/mpeg")}
             )
 
             response.raise_for_status()
-            self.logger.info(f"########Broadcast successful###########: {brand} -> {meta_data}-{song_uuid}")
+            self.logger.info(f"Was sent to Broadcast###########: {brand} -> {intro_and_song}")
             return True
 
         except requests.exceptions.Timeout:
