@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class BroadcasterMCPClient:
     def __init__(self, config):
-        self.ws_url = config.get("broadcaster", {}).get("mcp_ws_url")
+        self.ws_url = config.get("broadcaster", {}).get("mcp_ws_url", "ws://localhost:38708")
         self.logger = logging.getLogger(__name__)
         self.connection = None
         self.message_id = 1
