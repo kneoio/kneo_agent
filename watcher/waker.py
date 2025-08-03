@@ -17,7 +17,7 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.base_interval = 90
+        self.base_interval = 120
         self.current_interval = self.base_interval
         self.min_interval = 30
         self.max_interval = 300
@@ -106,17 +106,24 @@ class Waker:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+        api_client = None
+        agent = None
+
         try:
             api_client = BroadcasterAPIClient(self.config)
             agent = DJRunner(self.config, brand_config, api_client, mcp_client=self.mcp_client)
             loop.run_until_complete(agent.run())
         finally:
-            loop.close()
+            if agent and hasattr(agent, 'cleanup'):
+                loop.run_until_complete(agent.cleanup())
+            if api_client and hasattr(api_client, 'close'):
+                loop.run_until_complete(api_client.close())
 
-        with self.agent_lock:
-            if station_name in self.active_agents:
-                del self.active_agents[station_name]
-                logging.info(f"Agent for {station_name} has completed")
+            pending = asyncio.all_tasks(loop)
+            if pending:
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+
+            loop.close()
 
     def run(self) -> None:
         logging.info("Starting Waker")

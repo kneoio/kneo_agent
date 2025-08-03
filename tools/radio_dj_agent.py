@@ -200,12 +200,12 @@ class RadioDJAgent:
 
                 messages = [
                     {"role": "system",
-                     "content": "Output plain text only, no SSML/markup. Return JSON: {\"introduction_text\": \"your intro here\"}"},
+                     "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
                 response = await self.llm.ainvoke(messages)
-                parsed_response = self._parse_llm_response(response.content)
-                state["introduction_text"] = parsed_response.get("introduction_text", "Here's a great song")
+                state["introduction_text"] = response.content.strip()
+                debug_log(f"Generated >>>> : {state['introduction_text']}...")
                 state["reason"] = f"Song fetched and intro generated for mood: {state['mood']}"
             else:
                 state["selected_sound_fragment"] = {}
@@ -226,7 +226,9 @@ class RadioDJAgent:
             json_match = re.search(r'\{[^}]*\}', response)
             if json_match:
                 return json.loads(json_match.group(0))
-            return {}
+            else:
+                self.logger.error(f"Parsing LLM response issue: {response}")
+                return {}
         except Exception as e:
             self.logger.error(f"Error parsing LLM response: {e}")
             return {}

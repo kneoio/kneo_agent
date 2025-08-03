@@ -105,3 +105,7 @@ class DJRunner:
                 self.logger.warning(f"Failed to broadcast live DJ content")
         else:
             self.logger.warning(f"No live DJ audio generated")
+
+    async def cleanup(self):
+        if hasattr(self, 'mcp_client') and not hasattr(self, '_external_mcp_client'):
+            await self.mcp_client.disconnect()

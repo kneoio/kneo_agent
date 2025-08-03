@@ -40,7 +40,7 @@ class BroadcasterMCPClient:
         await self.connection.send(json_message)
 
         response = await self.connection.recv()
-        self.logger.debug(f"Received MCP response: {response}")
+        #self.logger.debug(f"Received MCP response: {response}")
         return json.loads(response)
 
     async def initialize(self):
