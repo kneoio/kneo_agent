@@ -30,6 +30,7 @@ class DJState(MessagesState):
     reason: str
     title: str
     artist: str
+    listeners: List[Dict[str, Any]]
 
 
 def _route_action(state: DJState) -> str:
@@ -129,7 +130,7 @@ class RadioDJAgent:
             events=state["events"],
             ads=state["available_ads"]
         )
-        debug_log(f"Decision prompt generated: {decision_prompt}")
+        #debug_log(f"Decision prompt generated: {decision_prompt}")
 
         try:
             messages = [
@@ -140,7 +141,6 @@ class RadioDJAgent:
             response = await self.llm.ainvoke(messages)
             debug_log(f"LLM response received: {response.content[:200]}...")
             parsed_response = self._parse_llm_response(response.content)
-            debug_log(f"Parsed response: {parsed_response}")
 
             state["action_type"] = parsed_response.get("action", "song")
             debug_log("Action type determined", {"action_type": state["action_type"]})
@@ -160,6 +160,7 @@ class RadioDJAgent:
                 state["artist"] = ad_info.get('artist', 'Sponsor')
             else:
                 state["history"] = await self.memory_mcp.get_conversation_history(self.brand)
+                state["listeners"] = await self.memory_mcp.get_listener_context(self.brand)
                 debug_log(f"Retrieved conversation history: {len(state['history'])} items")
                 state["mood"] = parsed_response.get("mood", "upbeat")
                 debug_log(f"Song mood determined: {state['mood']}")
@@ -186,6 +187,15 @@ class RadioDJAgent:
                 state["title"] = song_info.get('title')
                 state["artist"] = song_info.get('artist')
 
+                debug_log("self.agent_config['prompt']", self.agent_config["prompt"])
+                debug_log("state['title']", state["title"])
+                debug_log("state['artist']", state["artist"])
+                debug_log("self.ai_dj_name", self.ai_dj_name)
+                debug_log("state['context']", state["context"])
+                debug_log("state['events']", state["events"])
+                debug_log("state['history']", state["history"])
+                debug_log("state['listeners']", state["listeners"])
+
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
                     context=state["context"],
@@ -195,6 +205,7 @@ class RadioDJAgent:
                     artist=state["artist"],
                     mood=state["mood"],
                     history=state["history"],
+                    listeners=state["listeners"],
                     #instant_message
                 )
 
@@ -205,14 +216,13 @@ class RadioDJAgent:
                 ]
                 response = await self.llm.ainvoke(messages)
                 state["introduction_text"] = response.content.strip()
-                debug_log(f"Generated >>>> : {state['introduction_text']}...")
+                debug_log(f"Result: >>>> : {state['introduction_text']}...")
                 state["reason"] = f"Song fetched and intro generated for mood: {state['mood']}"
             else:
                 state["selected_sound_fragment"] = {}
                 state["introduction_text"] = "Here's some music for you"
                 state["reason"] = f"No song found for mood: {state['mood']}"
 
-            debug_log("Song processed", {"mood": state["mood"], "title": state["title"]})
         except Exception as e:
             self.logger.error(f"Error in fetch_song: {e}")
             state["selected_sound_fragment"] = {}
@@ -267,7 +277,9 @@ class RadioDJAgent:
             "audio_data": None,
             "reason": "",
             "title": "Unknown",
-            "artist": "Unknown"
+            "artist": "Unknown",
+            "listeners": [],
+            "history": []
         }
 
         try:

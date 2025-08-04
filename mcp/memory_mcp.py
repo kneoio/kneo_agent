@@ -28,14 +28,19 @@ class MemoryMCP:
             self.logger.error(f"Failed to fetch memory data: {e}")
             return {}
 
+    def _extract_memory_data(self, result: Dict[str, Any], memory_type: MemoryType) -> List[Dict[str, Any]]:
+        """Extract memory data from MCP response structure"""
+        map_data = result.get("map", {})
+        type_data = map_data.get(memory_type.value, {})
+        return type_data.get("list", [])
+
     async def get_conversation_history(self, brand: str) -> List[Dict[str, Any]]:
         if not self.mcp_client:
             return []
 
         try:
             result = await self.get_memory_by_type(brand, [MemoryType.CONVERSATION_HISTORY])
-            history = result.get(MemoryType.CONVERSATION_HISTORY.name, [])
-            return history
+            return self._extract_memory_data(result, MemoryType.CONVERSATION_HISTORY)
         except Exception as e:
             self.logger.error(f"Failed to fetch conversation history: {e}")
             return []
@@ -46,8 +51,7 @@ class MemoryMCP:
 
         try:
             result = await self.get_memory_by_type(brand, [MemoryType.LISTENER_CONTEXT])
-            context = result.get(MemoryType.LISTENER_CONTEXT.name, [])
-            return context
+            return self._extract_memory_data(result, MemoryType.LISTENER_CONTEXT)
         except Exception as e:
             self.logger.error(f"Failed to fetch listener context: {e}")
             return []
@@ -58,8 +62,7 @@ class MemoryMCP:
 
         try:
             result = await self.get_memory_by_type(brand, [MemoryType.AUDIENCE_CONTEXT])
-            context = result.get(MemoryType.AUDIENCE_CONTEXT.name, [])
-            return context
+            return self._extract_memory_data(result, MemoryType.AUDIENCE_CONTEXT)
         except Exception as e:
             self.logger.error(f"Failed to fetch audience context: {e}")
             return []
@@ -70,8 +73,7 @@ class MemoryMCP:
 
         try:
             result = await self.get_memory_by_type(brand, [MemoryType.INSTANT_MESSAGE])
-            messages = result.get(MemoryType.INSTANT_MESSAGE.name, [])
-            return messages
+            return self._extract_memory_data(result, MemoryType.INSTANT_MESSAGE)
         except Exception as e:
             self.logger.error(f"Failed to fetch instant messages: {e}")
             return []
@@ -82,8 +84,7 @@ class MemoryMCP:
 
         try:
             result = await self.get_memory_by_type(brand, [MemoryType.EVENT])
-            events = result.get(MemoryType.EVENT.name, [])
-            return events
+            return self._extract_memory_data(result, MemoryType.EVENT)
         except Exception as e:
             self.logger.error(f"Failed to fetch events: {e}")
             return []

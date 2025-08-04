@@ -146,7 +146,6 @@ class Waker:
 
                         with self.agent_lock:
                             if station_name not in self.active_agents:
-                                logging.info(f"Creating new agent for {station_name}")
                                 agent_thread = threading.Thread(
                                     target=self.run_agent,
                                     args=(brand,),
