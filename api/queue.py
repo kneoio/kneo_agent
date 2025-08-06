@@ -66,8 +66,3 @@ class Queue:
         except Exception as e:
             self.logger.error(f"Broadcast failed: {meta_data}-{song_uuid} - {type(e).__name__}")
             return False
-
-    def get_queue_status(self, brand: str) -> Optional[Dict[str, Any]]:
-        endpoint = f"{self.api_base_url}/{brand}/queue/status"
-        response = self._make_request('GET', endpoint)
-        return response.json() if response else None
