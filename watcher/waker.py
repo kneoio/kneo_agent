@@ -16,7 +16,7 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.base_interval = 120
+        self.base_interval = 180
         self.current_interval = self.base_interval
         self.min_interval = 30
         self.max_interval = 300
