@@ -8,6 +8,8 @@ from typing import Optional, Dict, List
 
 from api.broadcaster_client import BroadcasterAPIClient
 from cnst.brand_status import BrandStatus
+from cnst.llm_types import LlmType
+from util.llm_factory import LlmFactory
 from audio_processor import AudioProcessor
 from prerecorded import Prerecorded
 from radio_dj_agent import RadioDJAgent
@@ -34,6 +36,7 @@ class Waker:
         self.last_activity_time = time.time()
 
         self.audio_processor = AudioProcessor(config)
+        self.llmFactory = LlmFactory(config)
 
     def get_available_brands(self) -> Optional[List[Dict]]:
         try:
@@ -114,7 +117,10 @@ class Waker:
             else:
                 logging.info(f"Starting RadioDJAgent for {station_name}")
                 api_client = BroadcasterAPIClient(self.config)
-                agent = RadioDJAgent(self.audio_processor, brand_config, api_client, mcp_client=self.mcp_client)
+                llmTypeStr = brand_config.get('llmType')
+                llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
+                llmClient = self.llmFactory.getLlmClient(llmType)
+                agent = RadioDJAgent(self.audio_processor, brand_config, api_client, mcp_client=self.mcp_client, llmClient=llmClient)
                 loop.run_until_complete(agent.process_and_broadcast())
         finally:
             loop.close()

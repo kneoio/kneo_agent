@@ -3,6 +3,7 @@ colorlog>=6.0.0
 elevenlabs>=1.54.0
 langchain>=0.1.0
 langchain-anthropic>=0.3.0
+langchain-groq>=0.1.0
 langchain-core>=0.1.0
 langgraph>=0.6.0
 mcp>=1.12.0

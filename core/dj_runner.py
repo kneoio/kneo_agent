@@ -12,7 +12,7 @@ from tools.sound_fragment_tool import SoundFragmentTool
 
 class DJRunner:
     def __init__(self, config: Dict, brand_config: Dict, api_client: BroadcasterAPIClient,
-                 mcp_client=None):
+                 mcp_client=None, llmClient=None):
         self.logger = logging.getLogger(__name__)
         self.brand_config = brand_config
         self.brand = brand_config.get('radioStationName')
@@ -24,13 +24,15 @@ class DJRunner:
             brand=self.brand,
             api_client=self.api_client
         )
+        self.llmClient = llmClient
 
         self.radio_dj_agent = RadioDJAgent(
             config,
             self.memory,
             self.agent_config,
             self.brand,
-            mcp_client=self.mcp_client
+            mcp_client=self.mcp_client,
+            llmClient=llmClient
         )
 
         self.broadcast_tool = Queue(config)

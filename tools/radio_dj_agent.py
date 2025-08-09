@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
 from elevenlabs.client import ElevenLabs
-from langchain_anthropic import ChatAnthropic
 from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, END
 
@@ -39,17 +38,10 @@ def _route_action(state: DJState) -> str:
     return state["action_type"]
 
 
-def _find_item_by_uuid(items: List[Dict[str, Any]], uuid: str) -> Dict[str, Any]:
-    for item in items:
-        if item.get('id') == uuid:
-            return item
-    return items[0] if items else {}
-
-
 class RadioDJAgent:
 
     def __init__(self, config, memory: InteractionMemory, agent_config=None, brand=None, mcp_client=None,
-                 debug=False):
+                 debug=False, llmClient=None):
         self.debug = debug
         self.logger = logging.getLogger(__name__)
         if self.debug:
@@ -58,11 +50,7 @@ class RadioDJAgent:
             handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
             self.logger.addHandler(handler)
 
-        self.llm = ChatAnthropic(
-            model_name=config.get("claude").get("model"),
-            temperature=0.7,
-            api_key=config.get("claude").get("api_key")
-        )
+        self.llm = llmClient
 
         self.queue = Queue(config)
         # only to save in audio processor
