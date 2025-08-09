@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
 from elevenlabs.client import ElevenLabs
@@ -9,13 +8,12 @@ from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, END
 
 from api.interaction_memory import InteractionMemory
+from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.memory_mcp import MemoryMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from tools.audio_processor import AudioProcessor
-from util.filler_generator import FillerGenerator
-from api.queue import Queue
-from util.file_util import debug_log, load_external_prompts
+from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
 
 
@@ -32,6 +30,7 @@ class DJState(MessagesState):
     reason: str
     title: str
     artist: str
+    listeners: List[Dict[str, Any]]
 
 
 def _route_action(state: DJState) -> str:
@@ -55,25 +54,12 @@ class RadioDJAgent:
         self.queue = Queue(config)
         # only to save in audio processor
         self.memory = memory
+        self.audio_processor = audio_processor
         self.agent_config = agent_config or {}
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.memory_mcp = MemoryMCP(mcp_client)
-        elevenlabsInst = ElevenLabs(api_key=config.get("elevenlabs").get("api_key"))
-
-        metadata_folder = Path("metadata") / self.brand
-        filler_generator = FillerGenerator(
-            elevenlabsInst,
-            metadata_folder
-        )
-        self.audio_processor = AudioProcessor(
-            elevenlabsInst,
-            filler_generator,
-            self.agent_config,
-            memory
-        )
-
         self.graph = self._build_graph()
         debug_log("RadioDJAgent initialized")
 
@@ -133,7 +119,7 @@ class RadioDJAgent:
             events=state["events"],
             ads=state["available_ads"]
         )
-        debug_log(f"Decision prompt generated: {decision_prompt}")
+        #debug_log(f"Decision prompt generated: {decision_prompt}")
 
         try:
             messages = [
@@ -144,7 +130,6 @@ class RadioDJAgent:
             response = await self.llm.ainvoke(messages)
             debug_log(f"LLM response received: {response.content[:200]}...")
             parsed_response = self._parse_llm_response(response.content)
-            debug_log(f"Parsed response: {parsed_response}")
 
             state["action_type"] = parsed_response.get("action", "song")
             debug_log("Action type determined", {"action_type": state["action_type"]})
@@ -164,6 +149,7 @@ class RadioDJAgent:
                 state["artist"] = ad_info.get('artist', 'Sponsor')
             else:
                 state["history"] = await self.memory_mcp.get_conversation_history(self.brand)
+                state["listeners"] = await self.memory_mcp.get_listener_context(self.brand)
                 debug_log(f"Retrieved conversation history: {len(state['history'])} items")
                 state["mood"] = parsed_response.get("mood", "upbeat")
                 debug_log(f"Song mood determined: {state['mood']}")
@@ -190,6 +176,15 @@ class RadioDJAgent:
                 state["title"] = song_info.get('title')
                 state["artist"] = song_info.get('artist')
 
+                debug_log("self.agent_config['prompt']", self.agent_config["prompt"])
+                debug_log("state['title']", state["title"])
+                debug_log("state['artist']", state["artist"])
+                debug_log("self.ai_dj_name", self.ai_dj_name)
+                debug_log("state['context']", state["context"])
+                debug_log("state['events']", state["events"])
+                debug_log("state['history']", state["history"])
+                debug_log("state['listeners']", state["listeners"])
+
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
                     context=state["context"],
@@ -199,24 +194,24 @@ class RadioDJAgent:
                     artist=state["artist"],
                     mood=state["mood"],
                     history=state["history"],
+                    listeners=state["listeners"],
                     #instant_message
                 )
 
                 messages = [
                     {"role": "system",
-                     "content": "Output plain text only, no SSML/markup. Return JSON: {\"introduction_text\": \"your intro here\"}"},
+                     "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
                 response = await self.llm.ainvoke(messages)
-                parsed_response = self._parse_llm_response(response.content)
-                state["introduction_text"] = parsed_response.get("introduction_text", "Here's a great song")
+                state["introduction_text"] = response.content.strip()
+                debug_log(f"Result: >>>> : {state['introduction_text']}...")
                 state["reason"] = f"Song fetched and intro generated for mood: {state['mood']}"
             else:
                 state["selected_sound_fragment"] = {}
                 state["introduction_text"] = "Here's some music for you"
                 state["reason"] = f"No song found for mood: {state['mood']}"
 
-            debug_log("Song processed", {"mood": state["mood"], "title": state["title"]})
         except Exception as e:
             self.logger.error(f"Error in fetch_song: {e}")
             state["selected_sound_fragment"] = {}
@@ -230,7 +225,9 @@ class RadioDJAgent:
             json_match = re.search(r'\{[^}]*\}', response)
             if json_match:
                 return json.loads(json_match.group(0))
-            return {}
+            else:
+                self.logger.error(f"Parsing LLM response issue: {response}")
+                return {}
         except Exception as e:
             self.logger.error(f"Error parsing LLM response: {e}")
             return {}
@@ -269,7 +266,9 @@ class RadioDJAgent:
             "audio_data": None,
             "reason": "",
             "title": "Unknown",
-            "artist": "Unknown"
+            "artist": "Unknown",
+            "listeners": [],
+            "history": []
         }
 
         try:

@@ -6,9 +6,9 @@ from elevenlabs.client import ElevenLabs
 
 
 class FillerGenerator:
-    def __init__(self, tts_client: ElevenLabs, metadata_folder: Path):
+    def __init__(self, elevenlabs_inst: ElevenLabs, metadata_folder: Path):
         self.logger = logging.getLogger(__name__)
-        self.tts_client = tts_client
+        self.elevenlabs_inst = elevenlabs_inst
         self.metadata_folder = metadata_folder
         self.metadata_folder.mkdir(parents=True, exist_ok=True)
 
@@ -27,7 +27,7 @@ class FillerGenerator:
                     continue
 
                 self.logger.debug(f"Generating filler {i + 1}/{len(fillers)}: {filler_prompt}")
-                effect = self.tts_client.text_to_sound_effects.convert(
+                effect = self.elevenlabs_inst.text_to_sound_effects.convert(
                     text=filler_prompt,
                 )
                 with open(file_name, "wb") as f:

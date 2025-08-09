@@ -12,32 +12,37 @@ class MCPSongClient:
         self.message_id = 1
 
     async def connect(self):
-        async with websockets.connect(self.uri) as websocket:
-            await self.initialize(websocket)
-            await asyncio.sleep(1)
+        try:
+            async with websockets.connect(self.uri) as websocket:
+                await self.initialize(websocket)
+                await asyncio.sleep(1)
 
-            print("=== Testing Search with Filters ===")
+                print("=== Testing Search with Filters ===")
 
-            await self.search_sound_fragments(websocket, "EBM")
-            await asyncio.sleep(1)
-            await self.search_sound_fragments(websocket, "jazz", genres="jazz,blues")
-            await asyncio.sleep(1)
-            await self.search_sound_fragments(websocket, "rock", genres="rock,pop",
-                                              sources=SourceType.USERS_UPLOAD.value,
-                                              types=PlaylistItemType.SONG.value)
-            await asyncio.sleep(1)
+                await self.search_sound_fragments(websocket, "EBM")
+                await asyncio.sleep(1)
+                await self.search_sound_fragments(websocket, "jazz", genres="jazz,blues")
+                await asyncio.sleep(1)
+                await self.search_sound_fragments(websocket, "rock", genres="rock,pop",
+                                                  sources=SourceType.USERS_UPLOAD.value,
+                                                  types=PlaylistItemType.SONG.value)
+                await asyncio.sleep(1)
 
-            print("\n=== Testing Brand Sound Fragments ===")
-            # await self.get_brand_sound_fragments(websocket, "aizoo")
-            await asyncio.sleep(1)
-            await self.get_brand_sound_fragments(websocket, "aizoo",
-                                                 genres="rock,electronic",
-                                                 types=[PlaylistItemType.SONG.value])
-            await asyncio.sleep(1)
+                print("\n=== Testing Brand Sound Fragments ===")
+                await self.get_brand_sound_fragments(websocket, "aizoo",
+                                                     genres="rock,electronic",
+                                                     types=[PlaylistItemType.SONG.value])
+                await asyncio.sleep(1)
 
-            print("\n=== Testing Get All Sound Fragments ===")
+                print("\n=== Testing Get All Sound Fragments ===")
+                await self.get_all_sound_fragments(websocket, genres="jazz", sources=SourceType.USERS_UPLOAD.value)
 
-            await self.get_all_sound_fragments(websocket, genres="jazz", sources=SourceType.USERS_UPLOAD.value)
+        except websockets.exceptions.ConnectionClosed:
+            print("Connection closed")
+        except ConnectionRefusedError:
+            print("Connection refused - check if server is running")
+        except Exception as e:
+            print(f"Connection error: {type(e).__name__}: {e}")
 
     async def send_message(self, websocket, message):
         json_message = json.dumps(message)
@@ -69,7 +74,6 @@ class MCPSongClient:
             "size": size
         }
 
-        # Add filters if provided
         if genres:
             arguments["genres"] = genres
         if sources:
@@ -167,15 +171,14 @@ class MCPSongClient:
             print("\nBrand Sound Fragments:")
             print("-" * 80)
 
-            for item in data["fragments"]:
-                fragment = item["soundFragmentDTO"]
+            for fragment in data["fragments"]:
+
                 print(f"ID: {fragment['id']}")
                 print(f"Title: {fragment['title']}")
                 print(f"Artist: {fragment['artist']}")
                 print(f"Genre: {fragment['genre']}")
                 print(f"Type: {fragment['type']}")
                 print(f"Source: {fragment['source']}")
-                print(f"Played Count: {item['playedByBrandCount']}")
                 print("-" * 40)
 
         return response
@@ -236,6 +239,7 @@ class MCPSongClient:
         return response
 
 
-uri = "ws://localhost:38708"
-client = MCPSongClient(uri)
-asyncio.run(client.connect())
+if __name__ == "__main__":
+    uri = "ws://localhost:38708"
+    client = MCPSongClient(uri)
+    asyncio.run(client.connect())

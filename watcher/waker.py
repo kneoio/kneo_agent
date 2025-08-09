@@ -1,19 +1,15 @@
 import time
 import requests
 import logging
-import threading
 import asyncio
-import random
 from typing import Optional, Dict, List
+from queue import Queue
 
 from api.broadcaster_client import BroadcasterAPIClient
 from cnst.brand_status import BrandStatus
 from cnst.llm_types import LlmType
 from util.llm_factory import LlmFactory
-from audio_processor import AudioProcessor
-from prerecorded import Prerecorded
-from radio_dj_agent import RadioDJAgent
-from util.filler_generator import FillerGenerator
+from core.dj_runner import DJRunner
 
 
 class Waker:
@@ -22,20 +18,17 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.base_interval = 90
+        self.base_interval = 180
         self.current_interval = self.base_interval
         self.min_interval = 30
         self.max_interval = 300
         self.backoff_factor = 1.5
-        self.activity_threshold = 300
+        self.activity_threshold = 300  # after 5m it will start to slow down
         self.config = config
         self.mcp_client = mcp_client
         self.radio_station_name = None
-        self.active_agents = {}
-        self.agent_lock = threading.Lock()
         self.last_activity_time = time.time()
-
-        self.audio_processor = AudioProcessor(config)
+        self.brand_queue = Queue()
         self.llmFactory = LlmFactory(config)
 
     def get_available_brands(self) -> Optional[List[Dict]]:
@@ -49,6 +42,7 @@ class Waker:
                     BrandStatus.WAITING_FOR_CURATOR.value,
                     BrandStatus.ON_LINE.value,
                     BrandStatus.WARMING_UP.value,
+                    BrandStatus.QUEUE_SATURATED.value
                 ]
             }
 
@@ -61,6 +55,12 @@ class Waker:
             response.raise_for_status()
 
             data = response.json()
+            if isinstance(data, list):
+                for i, brand in enumerate(data):
+                    station_name = brand.get('radioStationName', 'Unknown')
+                    station_status = brand.get('radioStationStatus', 'Unknown')
+                    print(f"Brand -{i + 1}: {station_name} - {station_status}")
+
             if data and isinstance(data, list) and len(data) > 0:
                 self.radio_station_name = data[0].get('radioStationName')
 
@@ -72,6 +72,47 @@ class Waker:
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
             return None
+
+    def queue_brands(self, brands: List[Dict]):
+        """Add brands to processing queue"""
+        queued_count = 0
+        for brand in brands:
+            if brand.get("radioStationStatus") != BrandStatus.QUEUE_SATURATED:
+                self.brand_queue.put(brand)
+                queued_count += 1
+
+        logging.info(f"Queued {queued_count} brands for processing")
+
+    def process_brand_queue(self) -> bool:
+        """Process all brands in queue sequentially. Returns True if any brand was processed."""
+        processed_any = False
+
+        while not self.brand_queue.empty():
+            brand = self.brand_queue.get()
+            station_name = brand.get("radioStationName")
+
+            try:
+                logging.info(f"Processing brand: {station_name}")
+
+                # Direct execution without threading
+                api_client = BroadcasterAPIClient(self.config)
+                agent = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client)
+
+                asyncio.run(agent.run())
+                processed_any = True
+                logging.info(f"Completed processing brand: {station_name}")
+
+            except Exception as e:
+                logging.error(f"DJ Agent error for {station_name}: {e}")
+            finally:
+                if 'agent' in locals() and hasattr(agent, 'cleanup'):
+                    asyncio.run(agent.cleanup())
+                if 'api_client' in locals() and hasattr(api_client, 'close'):
+                    asyncio.run(api_client.close())
+
+                self.brand_queue.task_done()
+
+        return processed_any
 
     def update_interval(self, had_activity: bool):
         if had_activity:
@@ -131,44 +172,24 @@ class Waker:
                 logging.info(f"Agent for {station_name} has completed")
 
     def run(self) -> None:
-        logging.info("Starting Waker")
+        logging.info("Starting Waker (queued single-thread mode)")
         while True:
-            with self.agent_lock:
-                active_brands = list(self.active_agents.keys())
-            logging.info(f"Waker tick ... Currently active brands (locked): {active_brands}")
-
+            logging.info("Waker tick...")
             had_activity = False
 
             try:
+                # Get available brands and queue them
                 brands = self.get_available_brands()
                 if brands:
-                    self.cleanup_agents(brands)
-
-                    for brand in brands:
-                        station_name = brand.get("radioStationName")
-
-                        with self.agent_lock:
-                            if station_name not in self.active_agents:
-                                logging.info(f"Creating new agent for {station_name}")
-                                agent_thread = threading.Thread(
-                                    target=self.run_agent,
-                                    args=(brand,),
-                                    daemon=True
-                                )
-                                self.active_agents[station_name] = agent_thread
-                                agent_thread.start()
-                                had_activity = True
-                            else:
-                                logging.info(f"Agent for {station_name} already running")
+                    self.queue_brands(brands)
+                    # Process all queued brands one by one
+                    had_activity = self.process_brand_queue()
                 else:
                     logging.info("No matching brands found")
-                    self.cleanup_agents([])
+
             except Exception as e:
                 logging.error(f"Waker error: {e}")
 
             self.update_interval(had_activity)
-
-            with self.agent_lock:
-                active_brands = list(self.active_agents.keys())
-            logging.info(f"Sleeping for {self.current_interval} seconds. Active brands: {active_brands}")
+            logging.info(f"Sleeping for {self.current_interval} seconds")
             time.sleep(self.current_interval)

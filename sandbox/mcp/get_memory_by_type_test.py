@@ -44,9 +44,9 @@ class MCPMemoryClient:
         self.message_id += 1
         await self.send_message(websocket, message)
 
-    async def get_memory_by_type(self, websocket, brand="aizoo", types=None):
+    async def get_memory_by_type(self, websocket, brand="labirints", types=None):
         if types is None:
-            types = []
+            types = ['LISTENER_CONTEXT']
         message = {
             "jsonrpc": "2.0",
             "id": self.message_id,

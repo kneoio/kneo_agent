@@ -96,3 +96,7 @@ class BroadcasterAPIClient:
         except requests.exceptions.RequestException as e:
             self.logger.error(f"API DELETE request failed: {e}")
             return None
+
+    async def close(self):
+        if hasattr(self, '_client'):
+            await self._client.aclose()
