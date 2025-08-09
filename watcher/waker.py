@@ -95,7 +95,7 @@ class Waker:
                 logging.info(f"Processing brand: {station_name}")
 
                 api_client = BroadcasterAPIClient(self.config)
-                llmTypeStr = brand.get('llmType')
+                llmTypeStr =  brand.get('agent', {}).get('llmType')
                 llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
                 llmClient = self.llmFactory.getLlmClient(llmType)
                 runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llmClient=llmClient)
