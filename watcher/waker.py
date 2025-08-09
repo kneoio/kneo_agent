@@ -130,48 +130,7 @@ class Waker:
             else:
                 self.current_interval = self.base_interval
 
-    def cleanup_agents(self, available_brands: List[Dict]):
-        available_stations = {brand.get('radioStationName') for brand in available_brands}
-
-        with self.agent_lock:
-            agents_to_remove = []
-            for station_name, thread in self.active_agents.items():
-                if not thread.is_alive() or station_name not in available_stations:
-                    agents_to_remove.append(station_name)
-
-            for station_name in agents_to_remove:
-                del self.active_agents[station_name]
-                logging.info(f"Cleaned up agent for {station_name}")
-
-    def run_agent(self, brand_config):
-        station_name = brand_config.get('radioStationName')
-        talkativity = brand_config.get('talkativity', 0.5)
-
-        use_prerecorded = random.random() > talkativity
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            if use_prerecorded:
-                logging.info(f"Starting prerecorded agent for {station_name}")
-                prerecorded = Prerecorded(self.audio_processor, brand_config)
-                loop.run_until_complete(prerecorded.process_and_broadcast())
-            else:
-                logging.info(f"Starting DJRunner for {station_name}")
-                api_client = BroadcasterAPIClient(self.config)
-                llmTypeStr = brand_config.get('llmType')
-                llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
-                llmClient = self.llmFactory.getLlmClient(llmType)
-                agent = DJRunner(self.config, brand_config, api_client, mcp_client=self.mcp_client, llmClient=llmClient)
-                loop.run_until_complete(agent.run())
-        finally:
-            loop.close()
-
-        with self.agent_lock:
-            if station_name in self.active_agents:
-                del self.active_agents[station_name]
-                logging.info(f"Agent for {station_name} has completed")
+    
 
     def run(self) -> None:
         logging.info("Starting Waker (queued single-thread mode)")

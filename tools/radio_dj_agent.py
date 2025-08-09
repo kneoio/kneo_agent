@@ -39,7 +39,7 @@ def _route_action(state: DJState) -> str:
 
 class RadioDJAgent:
 
-    def __init__(self, config, memory: InteractionMemory, agent_config=None, brand=None, mcp_client=None,
+    def __init__(self, config, memory: InteractionMemory, audioProcessor, agent_config=None, brand=None, mcp_client=None,
                  debug=False, llmClient=None):
         self.debug = debug
         self.logger = logging.getLogger(__name__)
@@ -52,9 +52,8 @@ class RadioDJAgent:
         self.llm = llmClient
 
         self.queue = Queue(config)
-        # only to save in audio processor
         self.memory = memory
-        self.audio_processor = audio_processor
+        self.audio_processor = audioProcessor
         self.agent_config = agent_config or {}
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
