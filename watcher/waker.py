@@ -94,19 +94,21 @@ class Waker:
             try:
                 logging.info(f"Processing brand: {station_name}")
 
-                # Direct execution without threading
                 api_client = BroadcasterAPIClient(self.config)
-                agent = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client)
+                llmTypeStr = brand.get('llmType')
+                llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
+                llmClient = self.llmFactory.getLlmClient(llmType)
+                runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llmClient=llmClient)
 
-                asyncio.run(agent.run())
+                asyncio.run(runner.run())
                 processed_any = True
                 logging.info(f"Completed processing brand: {station_name}")
 
             except Exception as e:
                 logging.error(f"DJ Agent error for {station_name}: {e}")
             finally:
-                if 'agent' in locals() and hasattr(agent, 'cleanup'):
-                    asyncio.run(agent.cleanup())
+                if 'runner' in locals() and hasattr(runner, 'cleanup'):
+                    asyncio.run(runner.cleanup())
                 if 'api_client' in locals() and hasattr(api_client, 'close'):
                     asyncio.run(api_client.close())
 
@@ -156,13 +158,13 @@ class Waker:
                 prerecorded = Prerecorded(self.audio_processor, brand_config)
                 loop.run_until_complete(prerecorded.process_and_broadcast())
             else:
-                logging.info(f"Starting RadioDJAgent for {station_name}")
+                logging.info(f"Starting DJRunner for {station_name}")
                 api_client = BroadcasterAPIClient(self.config)
                 llmTypeStr = brand_config.get('llmType')
                 llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
                 llmClient = self.llmFactory.getLlmClient(llmType)
-                agent = RadioDJAgent(self.audio_processor, brand_config, api_client, mcp_client=self.mcp_client, llmClient=llmClient)
-                loop.run_until_complete(agent.process_and_broadcast())
+                agent = DJRunner(self.config, brand_config, api_client, mcp_client=self.mcp_client, llmClient=llmClient)
+                loop.run_until_complete(agent.run())
         finally:
             loop.close()
 
