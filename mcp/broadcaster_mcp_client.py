@@ -20,7 +20,6 @@ class BroadcasterMCPClient:
             self.connection = await websockets.connect(self.ws_url)
             self.logger.info("Connected to MCP server")
 
-            # Initialize the connection
             await self.initialize()
         except Exception as e:
             self.logger.error(f"Failed to connect to MCP server: {e}")
@@ -88,7 +87,6 @@ class BroadcasterMCPClient:
         if "error" in response:
             raise Exception(f"MCP tool error: {response['error']}")
 
-        # Extract the actual content from MCP response
         result = response.get("result", {})
         content = result.get("content", [])
         if content and len(content) > 0:

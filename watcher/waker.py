@@ -23,7 +23,7 @@ class Waker:
         self.min_interval = 30
         self.max_interval = 300
         self.backoff_factor = 1.5
-        self.activity_threshold = 300  # after 5m it will start to slow down
+        self.activity_threshold = 240  # secs
         self.config = config
         self.mcp_client = mcp_client
         self.radio_station_name = None
