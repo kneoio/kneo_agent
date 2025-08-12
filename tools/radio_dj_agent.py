@@ -37,6 +37,12 @@ def _route_action(state: DJState) -> str:
     return state["action_type"]
 
 
+def _route_song_fetch(state: DJState) -> str:
+    if not state["selected_sound_fragment"]:
+        return "end"
+    return "create_audio"
+
+
 class RadioDJAgent:
 
     def __init__(self, config, memory: InteractionMemory, audioProcessor, agent_config=None, brand=None, mcp_client=None,
@@ -82,7 +88,15 @@ class RadioDJAgent:
             }
         )
 
-        workflow.add_edge("fetch_song", "create_audio")
+        workflow.add_conditional_edges(
+            "fetch_song",
+            _route_song_fetch,
+            {
+                "create_audio": "create_audio",
+                "end": END
+            }
+        )
+
         workflow.add_edge("create_audio", END)
 
         debug_log("Graph workflow built")
@@ -207,14 +221,15 @@ class RadioDJAgent:
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
                 state["reason"] = f"Song fetched and intro generated for mood: {state['mood']}"
             else:
+                debug_log("No song to broadcast.")
                 state["selected_sound_fragment"] = {}
-                state["introduction_text"] = "Here's some music for you"
+                state["introduction_text"] = ""
                 state["reason"] = f"No song found for mood: {state['mood']}"
 
         except Exception as e:
             self.logger.error(f"Error in fetch_song: {e}")
             state["selected_sound_fragment"] = {}
-            state["introduction_text"] = "Here's some music for you"
+            state["introduction_text"] = ""
             state["reason"] = f"Error in fetch_song: {str(e)}"
 
         return state
