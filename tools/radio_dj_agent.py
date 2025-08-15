@@ -302,9 +302,9 @@ class RadioDJAgent:
             self.memory.reset_messages()
         events = memory_data.get('events', [])
         event_ids = memory_data.get('event_ids', [])
-        if events and event_ids:
-            for event_id in event_ids:
-                self.memory.reset_event_by_id(event_id)
+#        if events and event_ids:
+#            for event_id in event_ids:
+#               self.memory.reset_event_by_id(event_id)
 
     def enable_debug(self):
         self.logger.setLevel(logging.DEBUG)
