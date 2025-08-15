@@ -29,6 +29,7 @@ class DJState(MessagesState):
     title: str
     artist: str
     listeners: List[Dict[str, Any]]
+    http_memory_data: Dict[str, Any]  # Add this to store HTTP response
 
 
 def _route_action(state: DJState) -> str:
@@ -43,7 +44,8 @@ def _route_song_fetch(state: DJState) -> str:
 
 class RadioDJAgent:
 
-    def __init__(self, config, memory: InteractionMemory, audioProcessor, agent_config=None, brand=None, mcp_client=None,
+    def __init__(self, config, memory: InteractionMemory, audioProcessor, agent_config=None, brand=None,
+                 mcp_client=None,
                  debug=False, llmClient=None):
         self.debug = debug
         self.logger = logging.getLogger(__name__)
@@ -104,10 +106,13 @@ class RadioDJAgent:
         debug_log("Entering _check_events")
 
         try:
-            events = await self.memory_mcp.get_events(self.brand)
+            # Use HTTP memory data instead of MCP call
+            http_memory_data = state.get("http_memory_data", {})
+            events = http_memory_data.get("EVENT", [])
+
             state["events"] = events
             state["reason"] = f"Found {len(events)} events to process"
-            debug_log("Events retrieved", {"count": len(events), "events": events})
+            debug_log("Events retrieved from HTTP data", {"count": len(events), "events": events})
         except Exception as e:
             self.logger.error(f"Error checking events: {e}", exc_info=self.debug)
             state["events"] = []
@@ -130,7 +135,6 @@ class RadioDJAgent:
             events=state["events"],
             ads=state["available_ads"]
         )
-        #debug_log(f"Decision prompt generated: {decision_prompt}")
 
         try:
             messages = [
@@ -159,9 +163,14 @@ class RadioDJAgent:
                 state["title"] = ad_info.get('title', 'Advertisement')
                 state["artist"] = ad_info.get('artist', 'Sponsor')
             else:
-                state["history"] = await self.memory_mcp.get_conversation_history(self.brand)
-                state["listeners"] = await self.memory_mcp.get_listener_context(self.brand)
-                debug_log(f"Retrieved conversation history: {len(state['history'])} items")
+                # Use HTTP memory data instead of MCP calls
+                http_memory_data = state.get("http_memory_data", {})
+                state["history"] = http_memory_data.get("CONVERSATION_HISTORY", [])
+                state["listeners"] = http_memory_data.get("LISTENER_CONTEXT", [])
+
+                debug_log(f"Retrieved conversation history from HTTP: {len(state['history'])} items")
+                debug_log(f"Retrieved listeners from HTTP: {len(state['listeners'])} items")
+
                 state["mood"] = parsed_response.get("mood", "upbeat")
                 debug_log(f"Song mood determined: {state['mood']}")
 
@@ -187,7 +196,6 @@ class RadioDJAgent:
                 state["title"] = song_info.get('title')
                 state["artist"] = song_info.get('artist')
 
-                #debug_log("self.agent_config['prompt']", self.agent_config["prompt"])
                 debug_log("state['title']", state["title"])
                 debug_log("state['artist']", state["artist"])
                 debug_log("self.ai_dj_name", self.ai_dj_name)
@@ -206,7 +214,6 @@ class RadioDJAgent:
                     mood=state["mood"],
                     history=state["history"],
                     listeners=state["listeners"],
-                    #instant_message
                 )
 
                 messages = [
@@ -263,7 +270,8 @@ class RadioDJAgent:
 
         return state
 
-    async def create_introduction(self, brand: str) -> Tuple[Optional[bytes], str, str, str]:
+    async def create_introduction(self, brand: str, http_memory_data: Dict[str, Any] = None) -> Tuple[
+        Optional[bytes], str, str, str]:
         self._reset_memory()
 
         initial_state = {
@@ -280,7 +288,8 @@ class RadioDJAgent:
             "title": "Unknown",
             "artist": "Unknown",
             "listeners": [],
-            "history": []
+            "history": [],
+            "http_memory_data": http_memory_data or {}  # Pass HTTP data to state
         }
 
         try:
@@ -302,9 +311,6 @@ class RadioDJAgent:
             self.memory.reset_messages()
         events = memory_data.get('events', [])
         event_ids = memory_data.get('event_ids', [])
-#        if events and event_ids:
-#            for event_id in event_ids:
-#               self.memory.reset_event_by_id(event_id)
 
     def enable_debug(self):
         self.logger.setLevel(logging.DEBUG)
