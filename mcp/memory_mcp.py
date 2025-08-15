@@ -34,12 +34,12 @@ class MemoryMCP:
             return {}
 
         try:
-            type_values = [t.value for t in types]
-            self.logger.info(f"Calling MCP tool with brand: {brand}, type_values: {type_values}")
+            type_names = [t.name for t in types]  # Use .name instead of .value
+            self.logger.info(f"Calling MCP tool with brand: {brand}, type_names: {type_names}")
 
             tool_params = {
                 "brand": brand,
-                "types": type_values
+                "types": type_names
             }
             self.logger.debug(f"Tool parameters: {tool_params}")
 
@@ -54,7 +54,7 @@ class MemoryMCP:
         except Exception as e:
             self.logger.error(f"Failed to fetch memory data - Exception type: {type(e).__name__}")
             self.logger.error(f"Failed to fetch memory data - Exception message: {str(e)}")
-            self.logger.error(f"Failed to fetch memory data - Brand: {brand}, Types: {[t.value for t in types]}")
+            self.logger.error(f"Failed to fetch memory data - Brand: {brand}, Types: {[t.name for t in types]}")
             import traceback
             self.logger.error(f"Failed to fetch memory data - Traceback: {traceback.format_exc()}")
             return {}
