@@ -6,15 +6,18 @@ from cnst.memory_type import MemoryType
 def extract_memory_data(result: Dict[str, Any], memory_type: MemoryType) -> List[Dict[str, Any]]:
     logger = logging.getLogger(__name__)
     logger.debug(f"extract_memory_data called with memory_type: {memory_type.value}")
+    logger.debug(f"extract_memory_data FULL result: {result}")
     logger.debug(f"extract_memory_data result keys: {list(result.keys()) if result else 'None'}")
 
     map_data = result.get("map", {})
+    logger.debug(f"map_data FULL: {map_data}")
     logger.debug(f"map_data keys: {list(map_data.keys()) if map_data else 'None'}")
 
     type_data = map_data.get(memory_type.value, {})
-    logger.debug(f"type_data for {memory_type.value}: {type_data}")
+    logger.debug(f"type_data for {memory_type.value} FULL: {type_data}")
 
     extracted_list = type_data.get("list", [])
+    logger.debug(f"extracted list FULL: {extracted_list}")
     logger.debug(f"extracted list length: {len(extracted_list)}")
     return extracted_list
 
@@ -45,7 +48,7 @@ class MemoryMCP:
 
             result = await self.mcp_client.call_tool("get_memory_by_type", tool_params)
             self.logger.debug(f"Raw MCP result type: {type(result)}")
-            self.logger.debug(f"Raw MCP result: {result}")
+            self.logger.info(f"Raw MCP result COMPLETE: {result}")
 
             memory_data = result if isinstance(result, dict) else {}
             self.logger.info(f"Processed memory data keys: {list(memory_data.keys()) if memory_data else 'None'}")

@@ -187,7 +187,7 @@ class RadioDJAgent:
                 state["title"] = song_info.get('title')
                 state["artist"] = song_info.get('artist')
 
-                debug_log("self.agent_config['prompt']", self.agent_config["prompt"])
+                #debug_log("self.agent_config['prompt']", self.agent_config["prompt"])
                 debug_log("state['title']", state["title"])
                 debug_log("state['artist']", state["artist"])
                 debug_log("self.ai_dj_name", self.ai_dj_name)
