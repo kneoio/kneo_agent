@@ -25,11 +25,10 @@ class DJState(MessagesState):
     selected_sound_fragment: Dict[str, Any]
     introduction_text: str
     audio_data: Optional[bytes]
-    reason: str
     title: str
     artist: str
     listeners: List[Dict[str, Any]]
-    http_memory_data: Dict[str, Any]  # Add this to store HTTP response
+    http_memory_data: Dict[str, Any]
 
 
 def _route_action(state: DJState) -> str:
@@ -64,7 +63,7 @@ class RadioDJAgent:
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
-        self.memory_mcp = MemoryMCP(mcp_client)
+        #self.memory_mcp = MemoryMCP(mcp_client)
         self.graph = self._build_graph()
         debug_log("RadioDJAgent initialized")
 
@@ -106,17 +105,11 @@ class RadioDJAgent:
         debug_log("Entering _check_events")
 
         try:
-            # Use HTTP memory data instead of MCP call
             http_memory_data = state.get("http_memory_data", {})
-            events = http_memory_data.get("EVENT", [])
-
-            state["events"] = events
-            state["reason"] = f"Found {len(events)} events to process"
-            debug_log("Events retrieved from HTTP data", {"count": len(events), "events": events})
+            state["events"] = http_memory_data.get("events", [])
         except Exception as e:
             self.logger.error(f"Error checking events: {e}", exc_info=self.debug)
             state["events"] = []
-            state["reason"] = f"Error checking events: {str(e)}"
 
         return state
 
@@ -163,10 +156,9 @@ class RadioDJAgent:
                 state["title"] = ad_info.get('title', 'Advertisement')
                 state["artist"] = ad_info.get('artist', 'Sponsor')
             else:
-                # Use HTTP memory data instead of MCP calls
                 http_memory_data = state.get("http_memory_data", {})
-                state["history"] = http_memory_data.get("CONVERSATION_HISTORY", [])
-                state["listeners"] = http_memory_data.get("LISTENER_CONTEXT", [])
+                state["history"] = http_memory_data.get("history", [])
+                state["listeners"] = http_memory_data.get("listeners", [])
 
                 debug_log(f"Retrieved conversation history from HTTP: {len(state['history'])} items")
                 debug_log(f"Retrieved listeners from HTTP: {len(state['listeners'])} items")
@@ -174,13 +166,10 @@ class RadioDJAgent:
                 state["mood"] = parsed_response.get("mood", "upbeat")
                 debug_log(f"Song mood determined: {state['mood']}")
 
-            state["reason"] = f"Decision made: {state['action_type']}"
-
         except Exception as e:
             self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
             state["action_type"] = "song"
             state["mood"] = "upbeat"
-            state["reason"] = f"Decision failed: {str(e)}"
             self.logger.warning(f"Fallback to default: action=song, mood=upbeat")
 
         return state
@@ -224,18 +213,15 @@ class RadioDJAgent:
                 response = await self.llm.ainvoke(messages)
                 state["introduction_text"] = response.content.strip()
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
-                state["reason"] = f"Song fetched and intro generated for mood: {state['mood']}"
             else:
                 debug_log("No song to broadcast.")
                 state["selected_sound_fragment"] = {}
                 state["introduction_text"] = ""
-                state["reason"] = f"No song found for mood: {state['mood']}"
 
         except Exception as e:
             self.logger.error(f"Error in fetch_song: {e}")
             state["selected_sound_fragment"] = {}
             state["introduction_text"] = ""
-            state["reason"] = f"Error in fetch_song: {str(e)}"
 
         return state
 
@@ -262,11 +248,9 @@ class RadioDJAgent:
             )
 
             state["audio_data"] = audio_data
-            state["reason"] = reason
 
         except Exception as e:
             self.logger.error(f"Error creating audio: {e}", exc_info=self.debug)
-            state["reason"] = f"Error creating audio: {str(e)}"
 
         return state
 
@@ -284,12 +268,11 @@ class RadioDJAgent:
             "selected_sound_fragment": {},
             "introduction_text": "",
             "audio_data": None,
-            "reason": "",
             "title": "Unknown",
             "artist": "Unknown",
             "listeners": [],
             "history": [],
-            "http_memory_data": http_memory_data or {}  # Pass HTTP data to state
+            "http_memory_data": http_memory_data or {}
         }
 
         try:
@@ -301,9 +284,8 @@ class RadioDJAgent:
                 result["artist"]
             )
         except Exception as e:
-            reason = f"Workflow execution failed: {str(e)}"
-            self.logger.error(reason, exc_info=self.debug)
-            return None, reason, "Unknown", "Unknown"
+            self.logger.error(f"Workflow execution failed: {str(e)}", exc_info=self.debug)
+            return None, "Unknown", "Unknown", "Unknown"
 
     def _reset_memory(self):
         memory_data = self.memory.get_all_memory_data()
@@ -311,6 +293,9 @@ class RadioDJAgent:
             self.memory.reset_messages()
         events = memory_data.get('events', [])
         event_ids = memory_data.get('event_ids', [])
+        if events and event_ids:
+            for event_id in event_ids:
+                self.memory.reset_event_by_id(event_id)
 
     def enable_debug(self):
         self.logger.setLevel(logging.DEBUG)
