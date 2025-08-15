@@ -3,7 +3,6 @@ import logging
 import re
 from typing import Dict, Any, List, Optional, Tuple
 
-from elevenlabs.client import ElevenLabs
 from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, END
 
@@ -12,7 +11,6 @@ from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.memory_mcp import MemoryMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
-from tools.audio_processor import AudioProcessor
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
 
