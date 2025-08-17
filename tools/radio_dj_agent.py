@@ -28,6 +28,7 @@ class DJState(MessagesState):
     title: str
     artist: str
     listeners: List[Dict[str, Any]]
+    instant_message: List[Dict[str, Any]]
     http_memory_data: Dict[str, Any]
 
 
@@ -203,6 +204,7 @@ class RadioDJAgent:
                     mood=state["mood"],
                     history=state["history"],
                     listeners=state["listeners"],
+                    instant_message=state["instant_message"]
                 )
 
                 messages = [
@@ -272,6 +274,7 @@ class RadioDJAgent:
             "artist": "Unknown",
             "listeners": [],
             "history": [],
+            "instant_message": [],
             "http_memory_data": http_memory_data or {}
         }
 
