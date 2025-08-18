@@ -77,9 +77,12 @@ class Waker:
         """Add brands to processing queue"""
         queued_count = 0
         for brand in brands:
-            if brand.get("radioStationStatus") != BrandStatus.QUEUE_SATURATED:
-                self.brand_queue.put(brand)
-                queued_count += 1
+            status = brand.get("radioStationStatus")
+            if status == BrandStatus.QUEUE_SATURATED.value:
+                logging.info(f" >>>>>> Skipping brand due to queue saturated: {brand.get('radioStationName')}")
+                continue
+            self.brand_queue.put(brand)
+            queued_count += 1
 
         logging.info(f"Queued {queued_count} brands for processing")
 
