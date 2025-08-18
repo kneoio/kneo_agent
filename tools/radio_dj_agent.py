@@ -3,7 +3,6 @@ import logging
 import re
 from typing import Dict, Any, List, Optional, Tuple
 
-from elevenlabs.client import ElevenLabs
 from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, END
 
@@ -12,7 +11,6 @@ from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.memory_mcp import MemoryMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
-from tools.audio_processor import AudioProcessor
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
 
@@ -27,19 +25,27 @@ class DJState(MessagesState):
     selected_sound_fragment: Dict[str, Any]
     introduction_text: str
     audio_data: Optional[bytes]
-    reason: str
     title: str
     artist: str
     listeners: List[Dict[str, Any]]
+    instant_message: List[Dict[str, Any]]
+    http_memory_data: Dict[str, Any]
 
 
 def _route_action(state: DJState) -> str:
     return state["action_type"]
 
 
+def _route_song_fetch(state: DJState) -> str:
+    if not state["selected_sound_fragment"]:
+        return "end"
+    return "create_audio"
+
+
 class RadioDJAgent:
 
-    def __init__(self, config, memory: InteractionMemory, audioProcessor, agent_config=None, brand=None, mcp_client=None,
+    def __init__(self, config, memory: InteractionMemory, audioProcessor, agent_config=None, brand=None,
+                 mcp_client=None,
                  debug=False, llmClient=None):
         self.debug = debug
         self.logger = logging.getLogger(__name__)
@@ -58,7 +64,7 @@ class RadioDJAgent:
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
-        self.memory_mcp = MemoryMCP(mcp_client)
+        #self.memory_mcp = MemoryMCP(mcp_client)
         self.graph = self._build_graph()
         debug_log("RadioDJAgent initialized")
 
@@ -82,7 +88,15 @@ class RadioDJAgent:
             }
         )
 
-        workflow.add_edge("fetch_song", "create_audio")
+        workflow.add_conditional_edges(
+            "fetch_song",
+            _route_song_fetch,
+            {
+                "create_audio": "create_audio",
+                "end": END
+            }
+        )
+
         workflow.add_edge("create_audio", END)
 
         debug_log("Graph workflow built")
@@ -92,14 +106,11 @@ class RadioDJAgent:
         debug_log("Entering _check_events")
 
         try:
-            events = await self.memory_mcp.get_events(self.brand)
-            state["events"] = events
-            state["reason"] = f"Found {len(events)} events to process"
-            debug_log("Events retrieved", {"count": len(events), "events": events})
+            http_memory_data = state.get("http_memory_data", {})
+            state["events"] = http_memory_data.get("events", [])
         except Exception as e:
             self.logger.error(f"Error checking events: {e}", exc_info=self.debug)
             state["events"] = []
-            state["reason"] = f"Error checking events: {str(e)}"
 
         return state
 
@@ -118,7 +129,6 @@ class RadioDJAgent:
             events=state["events"],
             ads=state["available_ads"]
         )
-        #debug_log(f"Decision prompt generated: {decision_prompt}")
 
         try:
             messages = [
@@ -147,19 +157,20 @@ class RadioDJAgent:
                 state["title"] = ad_info.get('title', 'Advertisement')
                 state["artist"] = ad_info.get('artist', 'Sponsor')
             else:
-                state["history"] = await self.memory_mcp.get_conversation_history(self.brand)
-                state["listeners"] = await self.memory_mcp.get_listener_context(self.brand)
-                debug_log(f"Retrieved conversation history: {len(state['history'])} items")
+                http_memory_data = state.get("http_memory_data", {})
+                state["history"] = http_memory_data.get("history", [])
+                state["listeners"] = http_memory_data.get("listeners", [])
+
+                debug_log(f"Retrieved conversation history from HTTP: {len(state['history'])} items")
+                debug_log(f"Retrieved listeners from HTTP: {len(state['listeners'])} items")
+
                 state["mood"] = parsed_response.get("mood", "upbeat")
                 debug_log(f"Song mood determined: {state['mood']}")
-
-            state["reason"] = f"Decision made: {state['action_type']}"
 
         except Exception as e:
             self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
             state["action_type"] = "song"
             state["mood"] = "upbeat"
-            state["reason"] = f"Decision failed: {str(e)}"
             self.logger.warning(f"Fallback to default: action=song, mood=upbeat")
 
         return state
@@ -175,7 +186,6 @@ class RadioDJAgent:
                 state["title"] = song_info.get('title')
                 state["artist"] = song_info.get('artist')
 
-                debug_log("self.agent_config['prompt']", self.agent_config["prompt"])
                 debug_log("state['title']", state["title"])
                 debug_log("state['artist']", state["artist"])
                 debug_log("self.ai_dj_name", self.ai_dj_name)
@@ -194,7 +204,7 @@ class RadioDJAgent:
                     mood=state["mood"],
                     history=state["history"],
                     listeners=state["listeners"],
-                    #instant_message
+                    instant_message=state["instant_message"]
                 )
 
                 messages = [
@@ -205,17 +215,15 @@ class RadioDJAgent:
                 response = await self.llm.ainvoke(messages)
                 state["introduction_text"] = response.content.strip()
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
-                state["reason"] = f"Song fetched and intro generated for mood: {state['mood']}"
             else:
+                debug_log("No song to broadcast.")
                 state["selected_sound_fragment"] = {}
-                state["introduction_text"] = "Here's some music for you"
-                state["reason"] = f"No song found for mood: {state['mood']}"
+                state["introduction_text"] = ""
 
         except Exception as e:
             self.logger.error(f"Error in fetch_song: {e}")
             state["selected_sound_fragment"] = {}
-            state["introduction_text"] = "Here's some music for you"
-            state["reason"] = f"Error in fetch_song: {str(e)}"
+            state["introduction_text"] = ""
 
         return state
 
@@ -242,15 +250,14 @@ class RadioDJAgent:
             )
 
             state["audio_data"] = audio_data
-            state["reason"] = reason
 
         except Exception as e:
             self.logger.error(f"Error creating audio: {e}", exc_info=self.debug)
-            state["reason"] = f"Error creating audio: {str(e)}"
 
         return state
 
-    async def create_introduction(self, brand: str) -> Tuple[Optional[bytes], str, str, str]:
+    async def create_introduction(self, brand: str, http_memory_data: Dict[str, Any] = None) -> Tuple[
+        Optional[bytes], str, str, str]:
         self._reset_memory()
 
         initial_state = {
@@ -263,11 +270,12 @@ class RadioDJAgent:
             "selected_sound_fragment": {},
             "introduction_text": "",
             "audio_data": None,
-            "reason": "",
             "title": "Unknown",
             "artist": "Unknown",
             "listeners": [],
-            "history": []
+            "history": [],
+            "instant_message": [],
+            "http_memory_data": http_memory_data or {}
         }
 
         try:
@@ -279,9 +287,8 @@ class RadioDJAgent:
                 result["artist"]
             )
         except Exception as e:
-            reason = f"Workflow execution failed: {str(e)}"
-            self.logger.error(reason, exc_info=self.debug)
-            return None, reason, "Unknown", "Unknown"
+            self.logger.error(f"Workflow execution failed: {str(e)}", exc_info=self.debug)
+            return None, "Unknown", "Unknown", "Unknown"
 
     def _reset_memory(self):
         memory_data = self.memory.get_all_memory_data()

@@ -44,9 +44,9 @@ class MCPMemoryClient:
         self.message_id += 1
         await self.send_message(websocket, message)
 
-    async def get_memory_by_type(self, websocket, brand="labirints", types=None):
+    async def get_memory_by_type(self, websocket, brand="bratan", types=None):
         if types is None:
-            types = ['LISTENER_CONTEXT']
+            types = ['EVENT']
         message = {
             "jsonrpc": "2.0",
             "id": self.message_id,
@@ -103,5 +103,7 @@ class MCPMemoryClient:
 
 
 uri = "ws://localhost:38708"
+#uri = "ws://kneo.io:38708"
+
 client = MCPMemoryClient(uri)
 asyncio.run(client.connect())

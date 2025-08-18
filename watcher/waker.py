@@ -18,12 +18,12 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.base_interval = 180
+        self.base_interval = 120
         self.current_interval = self.base_interval
         self.min_interval = 30
         self.max_interval = 300
         self.backoff_factor = 1.5
-        self.activity_threshold = 300  # after 5m it will start to slow down
+        self.activity_threshold = 240  # secs
         self.config = config
         self.mcp_client = mcp_client
         self.radio_station_name = None
@@ -98,7 +98,7 @@ class Waker:
                 logging.info(f"Processing brand: {station_name}")
 
                 api_client = BroadcasterAPIClient(self.config)
-                llmTypeStr = brand.get('llmType')
+                llmTypeStr =  brand.get('agent', {}).get('llmType')
                 llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
                 llmClient = self.llmFactory.getLlmClient(llmType)
                 runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llmClient=llmClient)

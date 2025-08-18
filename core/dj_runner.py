@@ -96,8 +96,11 @@ class DJRunner:
             self.logger.warning(f"No prerecorded audio available: {message}")
 
     async def _handle_live_dj_broadcast(self) -> None:
+        memory_data = self.memory.get_all_memory_data()
+
         audio_data, song_id, title, artist = await self.radio_dj_agent.create_introduction(
-            brand=self.brand
+            brand=self.brand,
+            http_memory_data=memory_data
         )
 
         if audio_data:

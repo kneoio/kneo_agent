@@ -14,14 +14,33 @@ class BroadcasterMCPClient:
         self.connection = None
         self.message_id = 1
 
+        self.connect_timeout = config.get("broadcaster", {}).get("connect_timeout", 30)
+        self.message_timeout = config.get("broadcaster", {}).get("message_timeout", 60)
+        self.ping_interval = config.get("broadcaster", {}).get("ping_interval", 30)
+        self.ping_timeout = config.get("broadcaster", {}).get("ping_timeout", 10)
+
     async def connect(self):
         try:
             self.logger.info(f"Connecting to MCP server at {self.ws_url}")
-            self.connection = await websockets.connect(self.ws_url)
-            self.logger.info("Connected to MCP server")
 
-            # Initialize the connection
+            # Add connection timeout and keep-alive settings
+            self.connection = await asyncio.wait_for(
+                websockets.connect(
+                    self.ws_url,
+                    ping_interval=self.ping_interval,
+                    ping_timeout=self.ping_timeout,
+                    close_timeout=10
+                ),
+                timeout=self.connect_timeout
+            )
+
+            self.logger.info("Connected to MCP server")
             await self.initialize()
+
+        except asyncio.TimeoutError:
+            self.logger.error(f"Connection timeout after {self.connect_timeout}s")
+            self.connection = None
+            raise Exception(f"Connection timeout after {self.connect_timeout}s")
         except Exception as e:
             self.logger.error(f"Failed to connect to MCP server: {e}")
             self.connection = None
@@ -37,11 +56,25 @@ class BroadcasterMCPClient:
 
         json_message = json.dumps(message)
         self.logger.debug(f"Sending MCP message: {json_message}")
-        await self.connection.send(json_message)
 
-        response = await self.connection.recv()
-        #self.logger.debug(f"Received MCP response: {response}")
-        return json.loads(response)
+        try:
+            # Send with timeout
+            await asyncio.wait_for(
+                self.connection.send(json_message),
+                timeout=self.message_timeout
+            )
+
+            # Receive with timeout
+            response = await asyncio.wait_for(
+                self.connection.recv(),
+                timeout=self.message_timeout
+            )
+
+            return json.loads(response)
+
+        except asyncio.TimeoutError:
+            self.logger.error(f"Message timeout after {self.message_timeout}s")
+            raise Exception(f"Message timeout after {self.message_timeout}s")
 
     async def initialize(self):
         message = {
@@ -88,7 +121,6 @@ class BroadcasterMCPClient:
         if "error" in response:
             raise Exception(f"MCP tool error: {response['error']}")
 
-        # Extract the actual content from MCP response
         result = response.get("result", {})
         content = result.get("content", [])
         if content and len(content) > 0:
@@ -140,7 +172,6 @@ class BrandSoundFragmentSearchTool(BaseTool):
             total_count = result.get("totalCount", 0)
             max_page = result.get("maxPage", 1)
 
-            # Format the response for the AI
             formatted_result = {
                 "total_songs": total_count,
                 "current_page": page,
@@ -191,7 +222,6 @@ class SoundFragmentSearchTool(BaseTool):
             total_count = result.get("totalCount", 0)
             max_page = result.get("maxPage", 1)
 
-            # Format the response for the AI
             formatted_result = {
                 "total_results": total_count,
                 "current_page": page,
@@ -231,7 +261,6 @@ class MCPToolsManager:
         self.mcp_client = BroadcasterMCPClient(self.config)
         await self.mcp_client.connect()
 
-        # Create LangChain tools
         self.tools = [
             BrandSoundFragmentSearchTool(self.mcp_client),
             SoundFragmentSearchTool(self.mcp_client)

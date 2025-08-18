@@ -16,7 +16,7 @@ class LlmFactory:
         if llmType in self.clients:
             return self.clients[llmType]
         client = None
-        if llmType == LlmType.ANTHROPIC:
+        if llmType == LlmType.CLAUDE:
             cfg = self.config.get('claude')
             client = ChatAnthropic(
                 model_name=cfg.get('model'),
