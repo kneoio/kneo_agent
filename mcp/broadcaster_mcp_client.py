@@ -1,46 +1,64 @@
-import logging
-import json
 import asyncio
+import json
+import logging
+from typing import Dict, Any
+
 import websockets
-from typing import Dict, List, Any, Optional
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
 
 
 class BroadcasterMCPClient:
     def __init__(self, config):
-        self.ws_url = config.get("broadcaster", {}).get("mcp_ws_url", "ws://localhost:38708")
+        # Fix: Use 127.0.0.1 instead of localhost to force IPv4
+        self.ws_url = config.get("broadcaster", {}).get("mcp_ws_url", "ws://127.0.0.1:38708")
         self.logger = logging.getLogger(__name__)
         self.connection = None
         self.message_id = 1
 
-        self.connect_timeout = config.get("broadcaster", {}).get("connect_timeout", 30)
+        # Increase timeouts for production
+        self.connect_timeout = config.get("broadcaster", {}).get("connect_timeout", 60)
         self.message_timeout = config.get("broadcaster", {}).get("message_timeout", 60)
-        self.ping_interval = config.get("broadcaster", {}).get("ping_interval", 30)
-        self.ping_timeout = config.get("broadcaster", {}).get("ping_timeout", 10)
+
+        # Fix: Disable ping/pong initially for troubleshooting
+        self.ping_interval = config.get("broadcaster", {}).get("ping_interval", None)
+        self.ping_timeout = config.get("broadcaster", {}).get("ping_timeout", None)
 
     async def connect(self):
         try:
             self.logger.info(f"Connecting to MCP server at {self.ws_url}")
+            self.logger.info(f"Connect timeout: {self.connect_timeout}s")
 
-            # Add connection timeout and keep-alive settings
+            # Fix: Simplified connection parameters
             self.connection = await asyncio.wait_for(
                 websockets.connect(
                     self.ws_url,
                     ping_interval=self.ping_interval,
                     ping_timeout=self.ping_timeout,
-                    close_timeout=10
+                    close_timeout=10,
+                    # Add explicit timeout and retry logic
+                    open_timeout=30,
+                    # Remove any subprotocols that might cause issues
+                    subprotocols=None
                 ),
                 timeout=self.connect_timeout
             )
 
-            self.logger.info("Connected to MCP server")
+            self.logger.info("Connected to MCP server successfully")
             await self.initialize()
 
         except asyncio.TimeoutError:
             self.logger.error(f"Connection timeout after {self.connect_timeout}s")
             self.connection = None
             raise Exception(f"Connection timeout after {self.connect_timeout}s")
+        except websockets.exceptions.ConnectionClosed as e:
+            self.logger.error(f"WebSocket connection closed: {e}")
+            self.connection = None
+            raise Exception(f"WebSocket connection closed: {e}")
+        except OSError as e:
+            self.logger.error(f"Network error connecting to MCP server: {e}")
+            self.connection = None
+            raise Exception(f"Network error: {e}")
         except Exception as e:
             self.logger.error(f"Failed to connect to MCP server: {e}")
             self.connection = None
@@ -48,7 +66,11 @@ class BroadcasterMCPClient:
 
     async def disconnect(self):
         if self.connection:
-            await self.connection.close()
+            try:
+                await self.connection.close()
+                self.logger.info("Disconnected from MCP server")
+            except Exception as e:
+                self.logger.error(f"Error during disconnect: {e}")
 
     async def send_message(self, message):
         if not self.connection:
@@ -70,11 +92,16 @@ class BroadcasterMCPClient:
                 timeout=self.message_timeout
             )
 
+            self.logger.debug(f"Received MCP response: {response}")
             return json.loads(response)
 
         except asyncio.TimeoutError:
             self.logger.error(f"Message timeout after {self.message_timeout}s")
             raise Exception(f"Message timeout after {self.message_timeout}s")
+        except websockets.exceptions.ConnectionClosed as e:
+            self.logger.error(f"Connection closed during message: {e}")
+            self.connection = None
+            raise Exception(f"Connection closed: {e}")
 
     async def initialize(self):
         message = {
@@ -92,6 +119,7 @@ class BroadcasterMCPClient:
         }
         self.message_id += 1
         response = await self.send_message(message)
+        self.logger.info("MCP initialization successful")
         return response
 
     async def list_tools(self):
@@ -130,6 +158,7 @@ class BroadcasterMCPClient:
         return {}
 
 
+# Rest of your code remains the same...
 class BrandSoundFragmentSearchInput(BaseModel):
     brand: str = Field(description="Brand name to filter sound fragments by")
     page: int = Field(default=1, description="Page number for pagination (1-based)")

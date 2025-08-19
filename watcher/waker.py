@@ -74,7 +74,6 @@ class Waker:
             return None
 
     def queue_brands(self, brands: List[Dict]):
-        """Add brands to processing queue"""
         queued_count = 0
         for brand in brands:
             if brand.get("radioStationStatus") != BrandStatus.QUEUE_SATURATED:
@@ -84,7 +83,6 @@ class Waker:
         logging.info(f"Queued {queued_count} brands for processing")
 
     def process_brand_queue(self) -> bool:
-        """Process all brands in queue sequentially. Returns True if any brand was processed."""
         processed_any = False
 
         while not self.brand_queue.empty():
