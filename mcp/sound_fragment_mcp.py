@@ -18,16 +18,19 @@ class SoundFragmentMCP:
             for song in songs:
                 mood_songs.append(song)
 
-            print('mood_songs', mood_songs)
+
             if mood_songs:
-                return random.choice(mood_songs)
-            return songs[0] if songs else {}
+                the_song = random.choice(mood_songs)
+                print('the_song', the_song)
+                return the_song
+            else:
+                return {}
 
         except Exception as e:
             self.logger.error(f"Failed to get song by mood: {e}")
             return {}
 
-    async def get_by_type(self, brand: str, page: int = 1, size: int = 50,
+    async def get_by_type(self, brand: str, page: int = 1, size: int = 3,
                           genres: str = None, sources: str = None, types: str = None) -> List[Dict[str, Any]]:
         if not self.mcp_client:
             self.logger.warning("No MCP client available")
