@@ -16,8 +16,7 @@ class SoundFragmentMCP:
 
             mood_songs = []
             for song in songs:
-                sound_fragment = song.get('soundfragment', {})
-                mood_songs.append(sound_fragment)
+                mood_songs.append(song)
 
             if mood_songs:
                 return random.choice(mood_songs)
