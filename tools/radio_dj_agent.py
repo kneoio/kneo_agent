@@ -181,12 +181,11 @@ class RadioDJAgent:
         try:
             song = await self.sound_fragments_mcp.get_song_by_mood(self.brand, state["mood"])
             if song:
-                state["selected_sound_fragment"] = song
                 song_info = song.get('soundfragment', {})
+                state["selected_sound_fragment"] = song_info
                 state["title"] = song_info.get('title')
                 state["artist"] = song_info.get('artist')
 
-                debug_log("state['title']", state["title"])
                 debug_log("state['title']", state["title"])
                 debug_log("state['artist']", state["artist"])
                 debug_log("self.ai_dj_name", self.ai_dj_name)
