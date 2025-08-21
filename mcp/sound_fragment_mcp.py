@@ -30,7 +30,7 @@ class SoundFragmentMCP:
             self.logger.error(f"Failed to get song by mood: {e}")
             return {}
 
-    async def get_by_type(self, brand: str, page: int = 1, size: int = 3,
+    async def get_by_type(self, brand: str, page: int = 1, size: int = 1,
                           genres: str = None, sources: str = None, types: str = None) -> List[Dict[str, Any]]:
         if not self.mcp_client:
             self.logger.warning("No MCP client available")
