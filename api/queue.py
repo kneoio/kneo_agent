@@ -48,7 +48,7 @@ class Queue:
             )
 
             response.raise_for_status()
-            self.logger.info(f"Was sent to Broadcast###########: {brand} -> {intro_and_song}")
+            self.logger.info(f"Was sent to Broadcast >>>>>>>>: {brand} -> {intro_and_song}")
             return True
 
         except requests.exceptions.Timeout:

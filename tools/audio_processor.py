@@ -31,7 +31,8 @@ class AudioProcessor:
             audio_stream = self.elevenlabs_inst.text_to_speech.convert(
                 voice_id=voice_id,
                 text=text[:500],
-                model_id="eleven_multilingual_v2",
+                #model_id="eleven_multilingual_v2",
+                model_id="eleven_v3",
                 output_format="mp3_44100_128"
             )
 
