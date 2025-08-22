@@ -179,7 +179,7 @@ class RadioDJAgent:
         debug_log("Entering _fetch_song")
 
         try:
-            song = await self.sound_fragments_mcp.get_song_by_mood(self.brand, state["mood"])
+            song = await self.sound_fragments_mcp.get_random_song(self.brand)
             if song:
                 song_info = song.get('soundfragment', {})
                 state["selected_sound_fragment"] = song_info
