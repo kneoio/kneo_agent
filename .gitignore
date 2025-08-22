@@ -13,3 +13,4 @@ metadata
 *.log
 config.yaml
 /app_logs/
+*.mp3

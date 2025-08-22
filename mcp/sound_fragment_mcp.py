@@ -1,5 +1,4 @@
 import logging
-import random
 from typing import Dict, Any, List
 
 
@@ -8,26 +7,19 @@ class SoundFragmentMCP:
         self.mcp_client = mcp_client
         self.logger = logging.getLogger(__name__)
 
-    async def get_song_by_mood(self, brand: str, mood: str) -> Dict[str, Any]:
+    async def get_random_song(self, brand: str) -> Dict[str, Any]:
         try:
-            songs = await self.get_by_type(brand, types="SONG")
+            songs = await self.get_by_type(brand, types="SONG", size=1)
             if not songs:
+                self.logger.warning(f"No songs available for brand {brand}")
                 return {}
 
-            mood_songs = []
-            for song in songs:
-                mood_songs.append(song)
-
-
-            if mood_songs:
-                the_song = random.choice(mood_songs)
-                print('the_song', the_song)
-                return the_song
-            else:
-                return {}
+            song = songs[0]  # Take the first (and only) song
+            self.logger.info(f"Got song: {song.get('soundfragment', {}).get('title', 'Unknown')}")
+            return song
 
         except Exception as e:
-            self.logger.error(f"Failed to get song by mood: {e}")
+            self.logger.error(f"Failed to get random song: {e}")
             return {}
 
     async def get_by_type(self, brand: str, page: int = 1, size: int = 1,
