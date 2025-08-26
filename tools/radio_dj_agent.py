@@ -116,6 +116,10 @@ class RadioDJAgent:
     async def _decision(self, state: DJState) -> DJState:
         debug_log("Entering _decision")
 
+        # Always get context regardless of ad availability
+        memory_data = self.memory.get_all_memory_data()
+        state["context"] = memory_data.get("environment")[0]
+
         ad = await self.sound_fragments_mcp.get_sound_fragment(self.brand,
                                                                fragment_type=PlaylistItemType.ADVERTISEMENT.value)
 
@@ -124,8 +128,6 @@ class RadioDJAgent:
             state["available_ad"] = None
         else:
             state["available_ad"] = ad.get("id")
-            memory_data = self.memory.get_all_memory_data()
-            state["context"] = memory_data.get("environment")[0]
             decision_prompt = self.agent_config["decision_prompt"].format(
                 ai_dj_name=self.ai_dj_name,
                 context=state["context"],
