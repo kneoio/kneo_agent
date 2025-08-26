@@ -257,6 +257,8 @@ class RadioDJAgent:
 
     async def create_introduction(self, brand: str, http_memory_data: Dict[str, Any] = None) -> Tuple[
         Optional[bytes], str, str, str]:
+        debug_log(f"create_introduction called for brand: {brand}")
+        debug_log(f"http_memory_data provided: {http_memory_data is not None}")
         self._reset_memory()
 
         initial_state = {
