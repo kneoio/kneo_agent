@@ -2,6 +2,7 @@ import time
 import requests
 import logging
 import asyncio
+from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 from queue import Queue
 
@@ -18,7 +19,7 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.base_interval = 180
+        self.base_interval = 140
         self.current_interval = self.base_interval
         self.min_interval = 30
         self.max_interval = 300
@@ -96,7 +97,7 @@ class Waker:
                 logging.info(f"Processing brand: {station_name}")
 
                 api_client = BroadcasterAPIClient(self.config)
-                llmTypeStr =  brand.get('agent', {}).get('llmType')
+                llmTypeStr = brand.get('agent', {}).get('llmType')
                 llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
                 llmClient = self.llmFactory.getLlmClient(llmType)
                 runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llm_client=llmClient)
@@ -131,8 +132,6 @@ class Waker:
             else:
                 self.current_interval = self.base_interval
 
-    
-
     def run(self) -> None:
         logging.info("Starting Waker (queued single-thread mode)")
         while True:
@@ -153,5 +152,7 @@ class Waker:
                 logging.error(f"Waker error: {e}")
 
             self.update_interval(had_activity)
-            logging.info(f"Sleeping for {self.current_interval} seconds")
+            next_run_time = datetime.now() + timedelta(seconds=self.current_interval)
+            logging.info(
+                f"Sleeping for {self.current_interval} seconds - Next run at: {next_run_time.strftime('%Y-%m-%d %H:%M:%S')}")
             time.sleep(self.current_interval)
