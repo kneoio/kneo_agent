@@ -116,52 +116,59 @@ class RadioDJAgent:
     async def _decision(self, state: DJState) -> DJState:
         debug_log("Entering _decision")
 
-        ad = await self.sound_fragments_mcp.get_sound_fragment(self.brand, fragment_type=PlaylistItemType.ADVERTISEMENT.value)
-        state["available_ad"] = ad.get("id")
-        memory_data = self.memory.get_all_memory_data()
-        state["context"] = memory_data.get("environment")[0]
-        decision_prompt = self.agent_config["decision_prompt"].format(
-            ai_dj_name=self.ai_dj_name,
-            context=state["context"],
-            brand=self.brand,
-            events=state["events"],
-            ad=state["available_ad"]
-        )
+        ad = await self.sound_fragments_mcp.get_sound_fragment(self.brand,
+                                                               fragment_type=PlaylistItemType.ADVERTISEMENT.value)
 
-        try:
-            messages = [
-                {"role": "system",
-                 "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"introduction_text\": \"here is something from our sponsors\"}"},
-                {"role": "user", "content": decision_prompt}
-            ]
-            response = await self.llm.ainvoke(messages)
-            debug_log(f"LLM response received: {response.content[:200]}...")
-            parsed_response = self._parse_llm_response(response.content)
-
-            state["action_type"] = parsed_response.get("action", "song")
-            debug_log("Action type determined", {"action_type": state["action_type"]})
-
-            if state["action_type"] == "ad":
-                state["introduction_text"] = parsed_response.get("introduction_text", get_random_ad_intro())
-                state["selected_sound_fragment"] = ad
-                state["title"] = ad.get('title', 'Advertisement')
-                state["artist"] = ad.get('artist', 'Sponsor')
-            else:
-                http_memory_data = state.get("http_memory_data", {})
-                state["history"] = http_memory_data.get("history", [])
-                state["listeners"] = http_memory_data.get("listeners", [])
-
-                debug_log(f"Retrieved conversation history from HTTP: {len(state['history'])} items")
-                debug_log(f"Retrieved listeners from HTTP: {len(state['listeners'])} items")
-
-                state["mood"] = parsed_response.get("mood", "upbeat")
-                debug_log(f"Song mood determined: {state['mood']}")
-
-        except Exception as e:
-            self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
+        if not ad:
             state["action_type"] = "song"
-            state["mood"] = "upbeat"
-            self.logger.warning(f"Fallback to default: action=song, mood=upbeat")
+            state["available_ad"] = None
+        else:
+            state["available_ad"] = ad.get("id")
+            memory_data = self.memory.get_all_memory_data()
+            state["context"] = memory_data.get("environment")[0]
+            decision_prompt = self.agent_config["decision_prompt"].format(
+                ai_dj_name=self.ai_dj_name,
+                context=state["context"],
+                brand=self.brand,
+                events=state["events"],
+                ad=state["available_ad"]
+            )
+
+            try:
+                messages = [
+                    {"role": "system",
+                     "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"introduction_text\": \"here is something from our sponsors\"}"},
+                    {"role": "user", "content": decision_prompt}
+                ]
+                response = await self.llm.ainvoke(messages)
+                debug_log(f"LLM response received: {response.content[:200]}...")
+                parsed_response = self._parse_llm_response(response.content)
+
+                state["action_type"] = parsed_response.get("action", "song")
+                debug_log("Action type determined", {"action_type": state["action_type"]})
+
+                if state["action_type"] == "ad":
+                    state["introduction_text"] = parsed_response.get("introduction_text", get_random_ad_intro())
+                    state["selected_sound_fragment"] = ad
+                    state["title"] = ad.get('title', 'Advertisement')
+                    state["artist"] = ad.get('artist', 'Sponsor')
+
+            except Exception as e:
+                self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
+                state["action_type"] = "song"
+                state["mood"] = "upbeat"
+                self.logger.warning(f"Fallback to default: action=song, mood=upbeat")
+
+        if state["action_type"] != "ad":
+            http_memory_data = state.get("http_memory_data", {})
+            state["history"] = http_memory_data.get("history", [])
+            state["listeners"] = http_memory_data.get("listeners", [])
+
+            debug_log(f"Retrieved conversation history from HTTP: {len(state['history'])} items")
+            debug_log(f"Retrieved listeners from HTTP: {len(state['listeners'])} items")
+
+            state["mood"] = parsed_response.get("mood", "upbeat") if 'parsed_response' in locals() else "upbeat"
+            debug_log(f"Song mood determined: {state['mood']}")
 
         return state
 
