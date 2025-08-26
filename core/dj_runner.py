@@ -73,10 +73,10 @@ class DJRunner:
 
     async def _feed_broadcast(self) -> None:
         try:
-            if self.prerecorded.audio_files and random.random() > self.talkativity:
-                await self._handle_prerecorded_broadcast()
-            else:
+            if self.prerecorded.audio_files and random.random() < self.talkativity:
                 await self._handle_live_dj_broadcast()
+            else:
+                await self._handle_prerecorded_broadcast()
         except Exception as e:
             self.logger.error(f"Error in _feed_broadcast: {e}")
             raise
