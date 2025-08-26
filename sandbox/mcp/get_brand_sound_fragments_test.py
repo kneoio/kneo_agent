@@ -16,8 +16,8 @@ class MCPSongClient:
                 print(f"Connected to {self.uri}")
                 await self.initialize(websocket)
                 await asyncio.sleep(1)
-                #await self.get_brand_sound_fragments(websocket, brand="aizoo", genres="rock,electronic",types="SONG")
-                await self.get_brand_sound_fragments(websocket, brand="aizoo", genres="",types=PlaylistItemType.ADVERTISEMENT)
+                #await self.get_brand_sound_fragment(websocket, brand="aizoo", genres="rock,electronic",types="SONG")
+                await self.get_brand_sound_fragment(websocket, brand="aizoo", genres="",types=PlaylistItemType.ADVERTISEMENT)
         except Exception as e:
             print(f"Connection failed: {e}")
 
@@ -46,7 +46,7 @@ class MCPSongClient:
         self.message_id += 1
         await self.send_message(websocket, message)
 
-    async def get_brand_sound_fragments(self, websocket, brand="aizoo", page=1, size=10, genres=None, sources=None, types=None):
+    async def get_brand_sound_fragment(self, websocket, brand="aizoo", page=1, size=10, genres=None, sources=None, types=None):
         arguments = {
             "brand": brand,
             "page": page,
@@ -65,7 +65,7 @@ class MCPSongClient:
             "id": self.message_id,
             "method": "tools/call",
             "params": {
-                "name": "get_brand_sound_fragments",
+                "name": "get_brand_sound_fragment",
                 "arguments": arguments
             }
         }

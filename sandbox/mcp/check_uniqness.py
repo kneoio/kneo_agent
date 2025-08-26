@@ -42,7 +42,7 @@ class SoundFragmentChecker:
             "id": self.request_id,
             "method": "tools/call",
             "params": {
-                "name": "get_brand_sound_fragments",
+                "name": "get_brand_sound_fragment",
                 "arguments": {"brand": brand, "page": 1, "size": 1}
             }
         }

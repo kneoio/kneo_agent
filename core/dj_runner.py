@@ -7,6 +7,7 @@ from api.interaction_memory import InteractionMemory
 from api.queue import Queue
 from core.prerecorded import Prerecorded
 from mcp.broadcaster_mcp_client import BroadcasterMCPClient
+from mcp.sound_fragment_mcp import SoundFragmentMCP
 from tools.audio_processor import AudioProcessor
 from tools.radio_dj_agent import RadioDJAgent
 from api.sound_fragment import SoundFragment
@@ -14,7 +15,7 @@ from api.sound_fragment import SoundFragment
 
 class DJRunner:
     def __init__(self, config: Dict, brand_config: Dict, api_client: BroadcasterAPIClient,
-                 mcp_client=None, llmClient=None):
+                 mcp_client=None, llm_client=None):
         self.logger = logging.getLogger(__name__)
         self.brand_config = brand_config
         self.brand = brand_config.get('radioStationName')
@@ -37,7 +38,7 @@ class DJRunner:
             self.agent_config,
             self.memory
         )
-        self.llmClient = llmClient
+        self.llmClient = llm_client
 
         self.radio_dj_agent = RadioDJAgent(
             config,
@@ -46,9 +47,9 @@ class DJRunner:
             self.agent_config,
             self.brand,
             mcp_client=self.mcp_client,
-            llmClient=llmClient
+            llm_client=llm_client
         )
-
+        self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.broadcast_tool = Queue(config)
         self.min_broadcast_interval: int = 200  # seconds
         self.last_broadcast: float = 0.0
@@ -83,12 +84,10 @@ class DJRunner:
     async def _handle_prerecorded_broadcast(self) -> None:
         audio_data, message = await self.prerecorded.get_prerecorded_audio()
 
-        songs = self.song_fetch_tool.fetch_songs(self.brand)
-        if songs:
-            chosen_song = random.choice(songs)
-            song_id = chosen_song.get('id')
-            sound_fragment = chosen_song.get('soundfragment')
-            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"-{sound_fragment.get('title')}-{sound_fragment.get('artist')}"):
+        song = await self.sound_fragments_mcp.get_sound_fragment(self.brand)
+        if song:
+            song_id = song.get('id')
+            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"-{song.get('title')}-{song.get('artist')}"):
                 self.logger.info(f"Broadcasted prerecorded content: {message}")
             else:
                 self.logger.warning(f"Failed to broadcast prerecorded content")

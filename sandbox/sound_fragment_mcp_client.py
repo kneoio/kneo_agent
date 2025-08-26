@@ -218,18 +218,18 @@ class SoundFragmentMCPClient:
             logger.exception("Full traceback:")
             return {}
 
-    async def get_brand_sound_fragments(self, brand: str, page: int = 1, size: int = 1):
+    async def get_brand_sound_fragment(self, brand: str, page: int = 1, size: int = 1):
         logger.info("=" * 50)
         logger.info(f"GETTING SOUND FRAGMENTS FOR BRAND: {brand}")
         logger.info(f"Page: {page}, Size: {size}")
 
         response_text = await self.call_tool(
-            "get_brand_sound_fragments",
+            "get_brand_sound_fragment",
             {"brand": brand, "page": page, "size": size}
         )
 
         if not response_text:
-            logger.warning("[ERROR] No response from get_brand_sound_fragments tool")
+            logger.warning("[ERROR] No response from get_brand_sound_fragment tool")
             return {}
 
         try:
@@ -285,7 +285,7 @@ async def main():
     # Connect to server
     if await client.connect("localhost", 38708):
         tools = await client.list_tools()
-        fragments = await client.get_brand_sound_fragments(BRAND_NAME, page=1, size=1)
+        fragments = await client.get_brand_sound_fragment(BRAND_NAME, page=1, size=1)
         await client.close()
     else:
         logger.error("[FAILED] Failed to establish connection")

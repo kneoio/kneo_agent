@@ -9,7 +9,6 @@ from langgraph.graph import StateGraph, END
 from api.interaction_memory import InteractionMemory
 from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
-from mcp.memory_mcp import MemoryMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
@@ -21,12 +20,13 @@ class DJState(MessagesState):
     action_type: str
     mood: str
     context: str
-    available_ads: List[Dict[str, Any]]
+    available_ad: Dict[str, Any]
     selected_sound_fragment: Dict[str, Any]
     introduction_text: str
     audio_data: Optional[bytes]
     title: str
     artist: str
+    genres: List[str]
     listeners: List[Dict[str, Any]]
     instant_message: List[Dict[str, Any]]
     http_memory_data: Dict[str, Any]
@@ -44,9 +44,9 @@ def _route_song_fetch(state: DJState) -> str:
 
 class RadioDJAgent:
 
-    def __init__(self, config, memory: InteractionMemory, audioProcessor, agent_config=None, brand=None,
+    def __init__(self, config, memory: InteractionMemory, audio_processor, agent_config=None, brand=None,
                  mcp_client=None,
-                 debug=False, llmClient=None):
+                 debug=False, llm_client=None):
         self.debug = debug
         self.logger = logging.getLogger(__name__)
         if self.debug:
@@ -55,16 +55,15 @@ class RadioDJAgent:
             handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
             self.logger.addHandler(handler)
 
-        self.llm = llmClient
+        self.llm = llm_client
 
         self.queue = Queue(config)
         self.memory = memory
-        self.audio_processor = audioProcessor
+        self.audio_processor = audio_processor
         self.agent_config = agent_config or {}
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
-        #self.memory_mcp = MemoryMCP(mcp_client)
         self.graph = self._build_graph()
         debug_log("RadioDJAgent initialized")
 
@@ -117,9 +116,8 @@ class RadioDJAgent:
     async def _decision(self, state: DJState) -> DJState:
         debug_log("Entering _decision")
 
-        ads = await self.sound_fragments_mcp.get_by_type(self.brand, types=PlaylistItemType.ADVERTISEMENT.value)
-        state["available_ads"] = [ad.get("id") for ad in ads]  # Extract only IDs
-        debug_log(f"Ads fetched: {len(ads)} available")
+        ad = await self.sound_fragments_mcp.get_sound_fragment(self.brand, fragment_type=PlaylistItemType.ADVERTISEMENT.value)
+        state["available_ad"] = ad.get("id")
         memory_data = self.memory.get_all_memory_data()
         state["context"] = memory_data.get("environment")[0]
         decision_prompt = self.agent_config["decision_prompt"].format(
@@ -127,13 +125,13 @@ class RadioDJAgent:
             context=state["context"],
             brand=self.brand,
             events=state["events"],
-            ads=state["available_ads"]
+            ad=state["available_ad"]
         )
 
         try:
             messages = [
                 {"role": "system",
-                 "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"selected_song_uuid\": \"ad-uuid\"} - Song: {\"action\": \"song\", \"mood\": \"determined-mood\"}"},
+                 "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"introduction_text\": \"here is something from our sponsors\"}"},
                 {"role": "user", "content": decision_prompt}
             ]
             response = await self.llm.ainvoke(messages)
@@ -145,17 +143,9 @@ class RadioDJAgent:
 
             if state["action_type"] == "ad":
                 state["introduction_text"] = parsed_response.get("introduction_text", get_random_ad_intro())
-                selected_uuid = parsed_response.get("selected_song_uuid", "")
-                selected_ad = {}
-                for item in ads:
-                    if item.get('id') == selected_uuid:
-                        selected_ad = item
-                state["selected_sound_fragment"] = selected_ad
-                debug_log(f"Selected ad: {selected_ad}")
-                ad_info = selected_ad.get('soundfragment', {})
-                debug_log(f"Ad sound fragment: {ad_info}")
-                state["title"] = ad_info.get('title', 'Advertisement')
-                state["artist"] = ad_info.get('artist', 'Sponsor')
+                state["selected_sound_fragment"] = ad
+                state["title"] = ad.get('title', 'Advertisement')
+                state["artist"] = ad.get('artist', 'Sponsor')
             else:
                 http_memory_data = state.get("http_memory_data", {})
                 state["history"] = http_memory_data.get("history", [])
@@ -179,15 +169,16 @@ class RadioDJAgent:
         debug_log("Entering _fetch_song")
 
         try:
-            song = await self.sound_fragments_mcp.get_random_song(self.brand)
+            song = await self.sound_fragments_mcp.get_sound_fragment(self.brand)
             if song:
-                song_info = song.get('soundfragment', {})
-                state["selected_sound_fragment"] = song_info
-                state["title"] = song_info.get('title')
-                state["artist"] = song_info.get('artist')
+                state["selected_sound_fragment"] = song
+                state["title"] = song.get('title')
+                state["artist"] = song.get('artist')
+                state["genres"] = song.get('genres', [])
 
                 debug_log("state['title']", state["title"])
                 debug_log("state['artist']", state["artist"])
+                debug_log("state['genres']", state["genres"])
                 debug_log("self.ai_dj_name", self.ai_dj_name)
                 debug_log("state['context']", state["context"])
                 debug_log("state['events']", state["events"])
@@ -201,6 +192,7 @@ class RadioDJAgent:
                     events=state["events"],
                     title=state["title"],
                     artist=state["artist"],
+                    genres=state["genres"],
                     mood=state["mood"],
                     history=state["history"],
                     listeners=state["listeners"],
@@ -266,12 +258,13 @@ class RadioDJAgent:
             "events": [],
             "action_type": "",
             "mood": "",
-            "available_ads": [],
+            "available_ad": {},
             "selected_sound_fragment": {},
             "introduction_text": "",
             "audio_data": None,
             "title": "Unknown",
             "artist": "Unknown",
+            "genres": [],
             "listeners": [],
             "history": [],
             "instant_message": [],
