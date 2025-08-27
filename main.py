@@ -5,6 +5,7 @@ import threading
 
 from core.config import load_config
 from core.logging_config import setup_logging
+from mcp.mcp_client import MCPClient
 from watcher.waker import Waker
 
 
@@ -19,8 +20,7 @@ class ApplicationManager:
     async def initialize_mcp_client(self):
         while self.running:
             try:
-                from mcp.broadcaster_mcp_client import BroadcasterMCPClient
-                self.mcp_client = BroadcasterMCPClient(self.config)
+                self.mcp_client = MCPClient(self.config)
                 await self.mcp_client.connect()
                 self.logger.info("MCP client initialized and connected")
                 return True
@@ -66,7 +66,7 @@ async def async_main():
 
     logger = logging.getLogger(__name__)
     logger.info("Application starting...")
-    logger.info("v.1.3.8")
+    logger.info("v.1.3.9")
 
     broadcaster = config.get("broadcaster", {}).get("api_base_url")
     if broadcaster:

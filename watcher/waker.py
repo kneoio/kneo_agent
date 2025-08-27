@@ -104,8 +104,6 @@ class Waker:
 
                 asyncio.run(runner.run())
                 processed_any = True
-                logging.info(f"Completed processing brand: {station_name}")
-
             except Exception as e:
                 logging.error(f"DJ Agent error for {station_name}: {e}")
             finally:

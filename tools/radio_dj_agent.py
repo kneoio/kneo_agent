@@ -18,7 +18,6 @@ class DJState(MessagesState):
     events: List[Dict[str, Any]]
     history: List[Dict[str, Any]]
     action_type: str
-    mood: str
     context: str
     available_ad: Dict[str, Any]
     selected_sound_fragment: Dict[str, Any]
@@ -116,12 +115,12 @@ class RadioDJAgent:
     async def _decision(self, state: DJState) -> DJState:
         debug_log("Entering _decision")
 
-        # Always get context regardless of ad availability
         memory_data = self.memory.get_all_memory_data()
         state["context"] = memory_data.get("environment")[0]
 
-        ad = await self.sound_fragments_mcp.get_sound_fragment(self.brand,
-                                                               fragment_type=PlaylistItemType.ADVERTISEMENT.value)
+        ad = await self.sound_fragments_mcp.get_brand_sound_fragment(
+            brand=self.brand,
+            fragment_type=PlaylistItemType.ADVERTISEMENT.value)
 
         if not ad:
             state["action_type"] = "song"
@@ -158,8 +157,7 @@ class RadioDJAgent:
             except Exception as e:
                 self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
                 state["action_type"] = "song"
-                state["mood"] = "upbeat"
-                self.logger.warning(f"Fallback to default: action=song, mood=upbeat")
+                self.logger.warning(f"Fallback to default: action=song")
 
         if state["action_type"] != "ad":
             http_memory_data = state.get("http_memory_data", {})
@@ -169,16 +167,13 @@ class RadioDJAgent:
             debug_log(f"Retrieved conversation history from HTTP: {len(state['history'])} items")
             debug_log(f"Retrieved listeners from HTTP: {len(state['listeners'])} items")
 
-            state["mood"] = parsed_response.get("mood", "upbeat") if 'parsed_response' in locals() else "upbeat"
-            debug_log(f"Song mood determined: {state['mood']}")
-
         return state
 
     async def _fetch_song(self, state: DJState) -> DJState:
         debug_log("Entering _fetch_song")
 
         try:
-            song = await self.sound_fragments_mcp.get_sound_fragment(self.brand)
+            song = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
             if song:
                 state["selected_sound_fragment"] = song
                 state["title"] = song.get('title')
@@ -202,7 +197,6 @@ class RadioDJAgent:
                     title=state["title"],
                     artist=state["artist"],
                     genres=state["genres"],
-                    mood=state["mood"],
                     history=state["history"],
                     listeners=state["listeners"],
                     instant_message=state["instant_message"]
@@ -268,7 +262,6 @@ class RadioDJAgent:
             "brand": brand,
             "events": [],
             "action_type": "",
-            "mood": "",
             "available_ad": {},
             "selected_sound_fragment": {},
             "introduction_text": "",

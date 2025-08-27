@@ -1,5 +1,6 @@
-from typing import Dict, Any, Optional
 import logging
+from typing import Dict, Any
+
 import requests
 
 
@@ -18,26 +19,11 @@ class Queue:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    def _make_request(self, method: str, endpoint: str, **kwargs):
-        try:
-            response = requests.request(
-                method,
-                endpoint,
-                headers=self._get_headers(kwargs.pop('content_type', None)),
-                timeout=self.api_timeout,
-                **kwargs
-            )
-            response.raise_for_status()
-            return response
-        except requests.RequestException:
-            return None
-
     def send_to_broadcast(self, brand: str, song_uuid: str, audio_data: bytes, meta_data: str ) -> bool:
         endpoint = f"{self.api_base_url}/{brand}/queue/{song_uuid}"
         upload_timeout = self.api_timeout * 10
 
         try:
-            self.logger.info(f"Broadcasting {song_uuid} to {brand}")
             intro_and_song = f"intro_for_{meta_data}_{song_uuid}.mp3"
             response = requests.post(
                 endpoint,

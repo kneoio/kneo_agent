@@ -48,5 +48,4 @@ class FillerGenerator:
             for file in self.metadata_folder.glob("*.mp3"):
                 audio_files.append(file)
 
-        self.logger.info(f"Loaded {len(audio_files)} intro audio files from {self.metadata_folder}")
         return audio_files

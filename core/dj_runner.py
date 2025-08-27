@@ -6,7 +6,7 @@ from api.broadcaster_client import BroadcasterAPIClient
 from api.interaction_memory import InteractionMemory
 from api.queue import Queue
 from core.prerecorded import Prerecorded
-from mcp.broadcaster_mcp_client import BroadcasterMCPClient
+from mcp.mcp_client import MCPClient
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from tools.audio_processor import AudioProcessor
 from tools.radio_dj_agent import RadioDJAgent
@@ -21,7 +21,7 @@ class DJRunner:
         self.brand = brand_config.get('radioStationName')
         self.agent_config = brand_config.get('agent', {})
         self.talkativity = self.agent_config.get('talkativity', 0.3)
-        self.mcp_client = mcp_client if mcp_client else BroadcasterMCPClient(config)
+        self.mcp_client = mcp_client if mcp_client else MCPClient(config, True)
         self.song_fetch_tool = SoundFragment(config)
         self.api_client = api_client
 
@@ -38,8 +38,6 @@ class DJRunner:
             self.agent_config,
             self.memory
         )
-        self.llmClient = llm_client
-
         self.radio_dj_agent = RadioDJAgent(
             config,
             self.memory,
@@ -50,16 +48,10 @@ class DJRunner:
             llm_client=llm_client
         )
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
-        self.broadcast_tool = Queue(config)
-        self.min_broadcast_interval: int = 200  # seconds
-        self.last_broadcast: float = 0.0
-        self._played_songs_history: List[str] = []
-        self._cooldown_songs_count: int = self.agent_config.get('songCooldown', 4)
+        self.broadcaster_rest = Queue(config)
 
     async def run(self) -> None:
-        self.logger.info(f"Starting DJ Agent run for brand: {self.brand}")
-        self.logger.info(f"Agent name: {self.agent_config.get('name')}")
-        self.logger.info(f"Talkativity: {self.talkativity}")
+        self.logger.info(f"Starting DJ Agent run for: {self.brand}, DJ: {self.agent_config.get('name')}, Talkativity: {self.talkativity}")
 
         if not hasattr(self, '_external_mcp_client'):
             await self.mcp_client.connect()
@@ -84,10 +76,10 @@ class DJRunner:
     async def _handle_prerecorded_broadcast(self) -> None:
         audio_data, message = await self.prerecorded.get_prerecorded_audio()
 
-        song = await self.sound_fragments_mcp.get_sound_fragment(self.brand)
+        song = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
         if song:
             song_id = song.get('id')
-            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"-{song.get('title')}-{song.get('artist')}"):
+            if self.broadcaster_rest.send_to_broadcast(self.brand, song_id, audio_data, f"-{song.get('title')}-{song.get('artist')}"):
                 self.logger.info(f"Broadcasted prerecorded content: {message}")
             else:
                 self.logger.warning(f"Failed to broadcast prerecorded content")
@@ -103,7 +95,7 @@ class DJRunner:
         )
 
         if audio_data:
-            if self.broadcast_tool.send_to_broadcast(self.brand, song_id, audio_data, f"--{title}-{artist}"):
+            if self.broadcaster_rest.send_to_broadcast(self.brand, song_id, audio_data, f"--{title}-{artist}"):
                 self.logger.info(f"Broadcasted live DJ intro: {title} by {artist}")
             else:
                 self.logger.warning(f"Failed to broadcast live DJ content")

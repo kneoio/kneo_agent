@@ -4,8 +4,6 @@ import json
 import websockets
 
 BRAND_NAME = 'lumisonic'
-SONG_ID = 'c62a21b5-1a56-439e-a798-23c07fd06128'
-FILE_PATHS = ["C://Users//justa//Music//mixpla_filler.mp3"]
 
 
 async def main():
@@ -20,12 +18,10 @@ async def main():
                 "id": 1,
                 "method": "tools/call",
                 "params": {
-                    "name": "add_to_queue",
+                    "name": "get_brand_sound_fragment",
                     "arguments": {
                         "brand": BRAND_NAME,
-                        "songId": SONG_ID,
-                        "filePaths": FILE_PATHS,
-                        "priority": 10
+                        "fragment_type": "SONG"
                     }
                 }
             }
@@ -44,7 +40,7 @@ async def main():
                 if item.get('type') == 'toolResult':
                     final_data = item.get('result')
                     print("\n--- Tool Call Successful ---")
-                    print("Add to Queue Result:")
+                    print("Received Sound Fragment:")
                     print(json.dumps(final_data, indent=2))
                     return
 
