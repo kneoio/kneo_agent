@@ -1,8 +1,8 @@
 import json
 import logging
 import re
-import tempfile
 import os
+import uuid
 from typing import Dict, Any, List, Optional, Tuple
 
 from langgraph.graph import MessagesState
@@ -255,10 +255,14 @@ class RadioDJAgent:
             state["audio_data"] = audio_data
 
             if audio_data:
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
-                    temp_file.write(audio_data)
-                    state["file_path"] = temp_file.name
-                    debug_log(f"Audio saved to temporary file: {temp_file.name}")
+                target_dir = "/home/kneobroadcaster/merged"
+                os.makedirs(target_dir, exist_ok=True)
+                file_name = f"mixpla_{uuid.uuid4().hex}.mp3"
+                full_path = os.path.join(target_dir, file_name)
+                with open(full_path, "wb") as f:
+                    f.write(audio_data)
+                state["file_path"] = full_path
+                debug_log(f"Audio saved to: {full_path}")
 
         except Exception as e:
             self.logger.error(f"Error creating audio: {e}", exc_info=self.debug)
@@ -271,12 +275,15 @@ class RadioDJAgent:
 
         try:
             if state.get("file_path") and state.get("selected_sound_fragment"):
-                result = await self.queue_mcp.add_to_queue(
-                    brand_name=self.brand,
-                    sound_fragment_uuid=state["selected_sound_fragment"].get("id"),
-                    file_path=state["file_path"],
-                    priority=10
-                )
+                while True:
+                    result = await self.queue_mcp.add_to_queue(
+                        brand_name=self.brand,
+                        sound_fragment_uuid=state["selected_sound_fragment"].get("id"),
+                        file_path=state["file_path"],
+                        priority=10
+                    )
+                    if result:
+                        break
 
                 state["broadcast_success"] = result
                 state["broadcast_message"] = f"Broadcasted: {state['title']} by {state['artist']}"
