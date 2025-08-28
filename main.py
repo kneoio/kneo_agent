@@ -7,6 +7,7 @@ from core.config import load_config
 from core.logging_config import setup_logging
 from mcp.mcp_client import MCPClient
 from watcher.waker import Waker
+from util.temp_optimizer import TempDirectoryOptimizer
 
 
 class ApplicationManager:
@@ -67,6 +68,9 @@ async def async_main():
     logger = logging.getLogger(__name__)
     logger.info("Application starting...")
     logger.info("v.1.3.9")
+
+    # Initialize optimal temp directory for audio files
+    TempDirectoryOptimizer.initialize()
 
     broadcaster = config.get("broadcaster", {}).get("api_base_url")
     if broadcaster:

@@ -1,16 +1,19 @@
 import logging
 import random
-from typing import Dict, List
+import tempfile
+from typing import Dict
+
 from elevenlabs import ElevenLabs
+
 from api.broadcaster_client import BroadcasterAPIClient
 from api.interaction_memory import InteractionMemory
-from api.queue import Queue
+from api.sound_fragment import SoundFragment
 from core.prerecorded import Prerecorded
 from mcp.mcp_client import MCPClient
+from mcp.queue_mcp import QueueMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from tools.audio_processor import AudioProcessor
 from tools.radio_dj_agent import RadioDJAgent
-from api.sound_fragment import SoundFragment
 
 
 class DJRunner:
@@ -47,11 +50,12 @@ class DJRunner:
             mcp_client=self.mcp_client,
             llm_client=llm_client
         )
-        self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
-        self.broadcaster_rest = Queue(config)
+        self.sound_fragments_mcp = SoundFragmentMCP(self.mcp_client)
+        self.queue_mcp = QueueMCP(self.mcp_client)
 
     async def run(self) -> None:
-        self.logger.info(f"Starting DJ Agent run for: {self.brand}, DJ: {self.agent_config.get('name')}, Talkativity: {self.talkativity}")
+        self.logger.info(
+            f"Starting DJ Agent run for: {self.brand}, DJ: {self.agent_config.get('name')}, Talkativity: {self.talkativity}")
 
         if not hasattr(self, '_external_mcp_client'):
             await self.mcp_client.connect()
@@ -76,31 +80,48 @@ class DJRunner:
     async def _handle_prerecorded_broadcast(self) -> None:
         audio_data, message = await self.prerecorded.get_prerecorded_audio()
 
-        song = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
-        if song:
-            song_id = song.get('id')
-            if self.broadcaster_rest.send_to_broadcast(self.brand, song_id, audio_data, f"-{song.get('title')}-{song.get('artist')}"):
-                self.logger.info(f"Broadcasted prerecorded content: {message}")
-            else:
-                self.logger.warning(f"Failed to broadcast prerecorded content")
-        else:
+        if not audio_data:
             self.logger.warning(f"No prerecorded audio available: {message}")
+            return
+
+        song = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
+        if not song:
+            self.logger.warning("No song available for prerecorded broadcast")
+            return
+
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
+                temp_file.write(audio_data)
+                temp_file_path = temp_file.name
+
+            result = await self.queue_mcp.add_to_queue(
+                brand_name=self.brand,
+                sound_fragment_uuid=song.get('id'),
+                file_path=temp_file_path,
+                priority=5
+            )
+            success = result
+
+            if success:
+                self.logger.info(f"Successfully broadcasted prerecorded content: {message}")
+            else:
+                self.logger.warning(f"Failed to broadcast prerecorded content: {result}")
+
+        except Exception as e:
+            self.logger.error(f"Error in prerecorded broadcast: {e}")
 
     async def _handle_live_dj_broadcast(self) -> None:
         memory_data = self.memory.get_all_memory_data()
 
-        audio_data, song_id, title, artist = await self.radio_dj_agent.create_introduction(
+        broadcast_success, song_id, title, artist = await self.radio_dj_agent.create_introduction(
             brand=self.brand,
             http_memory_data=memory_data
         )
 
-        if audio_data:
-            if self.broadcaster_rest.send_to_broadcast(self.brand, song_id, audio_data, f"--{title}-{artist}"):
-                self.logger.info(f"Broadcasted live DJ intro: {title} by {artist}")
-            else:
-                self.logger.warning(f"Failed to broadcast live DJ content")
+        if broadcast_success:
+            self.logger.info(f"Successfully broadcasted live DJ intro: {title} by {artist}")
         else:
-            self.logger.warning(f"No live DJ audio generated")
+            self.logger.warning(f"Failed to broadcast live DJ content: {title} by {artist}")
 
     async def cleanup(self):
         if hasattr(self, 'mcp_client') and not hasattr(self, '_external_mcp_client'):

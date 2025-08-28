@@ -4,8 +4,8 @@ import json
 import websockets
 
 BRAND_NAME = 'lumisonic'
-SONG_ID = 'c62a21b5-1a56-439e-a798-23c07fd06128'
-FILE_PATHS = ["C://Users//justa//Music//mixpla_filler.mp3"]
+SONG_IDS = {'song1': 'c62a21b5-1a56-439e-a798-23c07fd06128'}
+FILE_PATHS = {"audio1": "C://Users//justa//Music//mixpla_filler.mp3"}
 
 
 async def main():
@@ -23,8 +23,9 @@ async def main():
                     "name": "add_to_queue",
                     "arguments": {
                         "brand": BRAND_NAME,
-                        "songId": SONG_ID,
+                        "songIds": SONG_IDS,
                         "filePaths": FILE_PATHS,
+                        "mergingMethod": "INTRO_PLUS_SONG",
                         "priority": 10
                     }
                 }
@@ -39,16 +40,15 @@ async def main():
                 print(f"Error from server: {result['error']['message']}")
                 return
 
+            # The Java tool returns CompletableFuture<Boolean>, so expect true/false
             content = result.get('result', {}).get('content', [])
             for item in content:
-                if item.get('type') == 'toolResult':
-                    final_data = item.get('result')
-                    print("\n--- Tool Call Successful ---")
-                    print("Add to Queue Result:")
-                    print(json.dumps(final_data, indent=2))
+                if item.get('type') == 'text':
+                    print("\n--- Tool Call Result ---")
+                    print(f"Success: {item.get('text')}")
                     return
 
-            print("Tool call returned an unexpected format.")
+            print(f"Full response: {json.dumps(result, indent=2)}")
 
     except Exception as e:
         print(f"An error occurred: {e}")

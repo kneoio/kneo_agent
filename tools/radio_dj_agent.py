@@ -1,6 +1,8 @@
 import json
 import logging
 import re
+import tempfile
+import os
 from typing import Dict, Any, List, Optional, Tuple
 
 from langgraph.graph import MessagesState
@@ -10,6 +12,7 @@ from api.interaction_memory import InteractionMemory
 from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.sound_fragment_mcp import SoundFragmentMCP
+from mcp.queue_mcp import QueueMCP
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
 
@@ -29,6 +32,9 @@ class DJState(MessagesState):
     listeners: List[Dict[str, Any]]
     instant_message: List[Dict[str, Any]]
     http_memory_data: Dict[str, Any]
+    file_path: Optional[str]
+    broadcast_success: bool
+    broadcast_message: str
 
 
 def _route_action(state: DJState) -> str:
@@ -44,8 +50,7 @@ def _route_song_fetch(state: DJState) -> str:
 class RadioDJAgent:
 
     def __init__(self, config, memory: InteractionMemory, audio_processor, agent_config=None, brand=None,
-                 mcp_client=None,
-                 debug=False, llm_client=None):
+                 mcp_client=None, debug=False, llm_client=None):
         self.debug = debug
         self.logger = logging.getLogger(__name__)
         if self.debug:
@@ -63,6 +68,7 @@ class RadioDJAgent:
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
+        self.queue_mcp = QueueMCP(mcp_client)
         self.graph = self._build_graph()
         debug_log("RadioDJAgent initialized")
 
@@ -72,6 +78,7 @@ class RadioDJAgent:
         workflow.add_node("decision", self._decision)
         workflow.add_node("fetch_song", self._fetch_song)
         workflow.add_node("create_audio", self._create_audio)
+        workflow.add_node("broadcast_audio", self._broadcast_audio)
 
         workflow.set_entry_point("check_events")
 
@@ -95,7 +102,8 @@ class RadioDJAgent:
             }
         )
 
-        workflow.add_edge("create_audio", END)
+        workflow.add_edge("create_audio", "broadcast_audio")
+        workflow.add_edge("broadcast_audio", END)
 
         debug_log("Graph workflow built")
         return workflow.compile()
@@ -246,13 +254,55 @@ class RadioDJAgent:
 
             state["audio_data"] = audio_data
 
+            if audio_data:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
+                    temp_file.write(audio_data)
+                    state["file_path"] = temp_file.name
+                    debug_log(f"Audio saved to temporary file: {temp_file.name}")
+
         except Exception as e:
             self.logger.error(f"Error creating audio: {e}", exc_info=self.debug)
+            state["file_path"] = None
+
+        return state
+
+    async def _broadcast_audio(self, state: DJState) -> DJState:
+        debug_log("Entering _broadcast_audio")
+
+        try:
+            if state.get("file_path") and state.get("selected_sound_fragment"):
+                result = await self.queue_mcp.add_to_queue(
+                    brand_name=self.brand,
+                    sound_fragment_uuid=state["selected_sound_fragment"].get("id"),
+                    file_path=state["file_path"],
+                    priority=10
+                )
+
+                state["broadcast_success"] = result
+                state["broadcast_message"] = f"Broadcasted: {state['title']} by {state['artist']}"
+
+                debug_log(f"Broadcasting result: {state['broadcast_success']}")
+
+            else:
+                state["broadcast_success"] = False
+                state["broadcast_message"] = "No audio or sound fragment to broadcast"
+                debug_log("Broadcasting skipped: missing audio or sound fragment")
+
+        except Exception as e:
+            self.logger.error(f"Error broadcasting audio: {e}", exc_info=self.debug)
+            state["broadcast_success"] = False
+            state["broadcast_message"] = f"Broadcast failed: {str(e)}"
+
+            if state.get("file_path") and os.path.exists(state["file_path"]):
+                try:
+                    os.unlink(state["file_path"])
+                except:
+                    pass
 
         return state
 
     async def create_introduction(self, brand: str, http_memory_data: Dict[str, Any] = None) -> Tuple[
-        Optional[bytes], str, str, str]:
+        bool, str, str, str]:
         debug_log(f"create_introduction called for brand: {brand}")
         debug_log(f"http_memory_data provided: {http_memory_data is not None}")
         self._reset_memory()
@@ -272,20 +322,23 @@ class RadioDJAgent:
             "listeners": [],
             "history": [],
             "instant_message": [],
-            "http_memory_data": http_memory_data or {}
+            "http_memory_data": http_memory_data or {},
+            "file_path": None,
+            "broadcast_success": False,
+            "broadcast_message": ""
         }
 
         try:
             result = await self.graph.ainvoke(initial_state)
             return (
-                result["audio_data"],
-                result["selected_sound_fragment"].get("id"),
+                result["broadcast_success"],
+                result["selected_sound_fragment"].get("id", "Unknown"),
                 result["title"],
                 result["artist"]
             )
         except Exception as e:
             self.logger.error(f"Workflow execution failed: {str(e)}", exc_info=self.debug)
-            return None, "Unknown", "Unknown", "Unknown"
+            return False, "Unknown", "Unknown", "Unknown"
 
     def _reset_memory(self):
         memory_data = self.memory.get_all_memory_data()
