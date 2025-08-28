@@ -12,7 +12,7 @@ class QueueMCP:
                           file_path: Optional[str] = None, priority: Optional[int] = None) -> bool:
         result = await self.mcp_client.call_tool("add_to_queue", {
             "brand": brand_name,
-            "songIds": {"song1": sound_fragment_uuid} if sound_fragment_uuid else {},
+            "songIds": {"song1": sound_fragment_uuid},
             "filePaths": {"audio1": file_path} if file_path else {},
             "mergingMethod": "INTRO_PLUS_SONG",
             "priority": priority

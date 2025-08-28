@@ -293,11 +293,11 @@ class RadioDJAgent:
             state["broadcast_success"] = False
             state["broadcast_message"] = f"Broadcast failed: {str(e)}"
 
-            if state.get("file_path") and os.path.exists(state["file_path"]):
-                try:
-                    os.unlink(state["file_path"])
-                except:
-                    pass
+          #  if state.get("file_path") and os.path.exists(state["file_path"]):
+          #      try:
+          #          os.unlink(state["file_path"])
+          #      except:
+          #          pass
 
         return state
 
