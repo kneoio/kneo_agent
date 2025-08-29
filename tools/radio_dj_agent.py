@@ -11,6 +11,7 @@ from langgraph.graph import StateGraph, END
 from api.interaction_memory import InteractionMemory
 from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
+from mcp.external.internet_mcp import InternetMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from mcp.queue_mcp import QueueMCP
 from util.file_util import debug_log
@@ -60,7 +61,6 @@ class RadioDJAgent:
             self.logger.addHandler(handler)
 
         self.llm = llm_client
-
         self.queue = Queue(config)
         self.memory = memory
         self.audio_processor = audio_processor
@@ -70,6 +70,7 @@ class RadioDJAgent:
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.queue_mcp = QueueMCP(mcp_client)
         self.graph = self._build_graph()
+        tools = [InternetMCP.get_tool_definition()]
         debug_log("RadioDJAgent initialized")
 
     def _build_graph(self):
@@ -194,7 +195,7 @@ class RadioDJAgent:
                 debug_log("self.ai_dj_name", self.ai_dj_name)
                 debug_log("state['context']", state["context"])
                 debug_log("state['events']", state["events"])
-                debug_log("state['history']", state["history"])
+                #debug_log("state['history']", state["history"])
                 debug_log("state['listeners']", state["listeners"])
 
                 song_prompt = self.agent_config["prompt"].format(
@@ -215,7 +216,8 @@ class RadioDJAgent:
                      "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
-                response = await self.llm.ainvoke(messages)
+                #response = await self.llm.ainvoke(messages=messages, tools=[InternetMCP.get_tool_definition()])
+                response = await self.llm.ainvoke(messages=messages)
                 state["introduction_text"] = response.content.strip()
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
             else:
@@ -299,12 +301,6 @@ class RadioDJAgent:
             self.logger.error(f"Error broadcasting audio: {e}", exc_info=self.debug)
             state["broadcast_success"] = False
             state["broadcast_message"] = f"Broadcast failed: {str(e)}"
-
-          #  if state.get("file_path") and os.path.exists(state["file_path"]):
-          #      try:
-          #          os.unlink(state["file_path"])
-          #      except:
-          #          pass
 
         return state
 

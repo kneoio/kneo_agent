@@ -103,7 +103,7 @@ class DJRunner:
             success = result
 
             if success:
-                self.logger.info(f"Successfully broadcasted prerecorded content: {message}")
+                self.logger.info(f" >>>> Broadcasted: {message}")
             else:
                 self.logger.warning(f"Failed to broadcast prerecorded content: {result}")
 

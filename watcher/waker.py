@@ -9,6 +9,7 @@ from queue import Queue
 from api.broadcaster_client import BroadcasterAPIClient
 from cnst.brand_status import BrandStatus
 from cnst.llm_types import LlmType
+from mcp.external.internet_mcp import InternetMCP
 from util.llm_factory import LlmFactory
 from core.dj_runner import DJRunner
 
@@ -19,7 +20,7 @@ class Waker:
         self.base_url = broadcaster_config['api_base_url']
         self.api_key = broadcaster_config['api_key']
         self.timeout = broadcaster_config['api_timeout']
-        self.base_interval = 140
+        self.base_interval = 120
         self.current_interval = self.base_interval
         self.min_interval = 30
         self.max_interval = 300
@@ -78,9 +79,9 @@ class Waker:
         queued_count = 0
         for brand in brands:
             status = brand.get("radioStationStatus")
-            if status == BrandStatus.QUEUE_SATURATED.value:
-                logging.info(f" >>>>>> Skipping brand due to queue saturated: {brand.get('radioStationName')}")
-                continue
+            #if status == BrandStatus.QUEUE_SATURATED.value:
+            #    logging.info(f" >>>>>> Skipping brand due to queue saturated: {brand.get('radioStationName')}")
+            #    continue
             self.brand_queue.put(brand)
             queued_count += 1
 
@@ -95,11 +96,11 @@ class Waker:
 
             try:
                 logging.info(f"Processing brand: {station_name}")
-
+                internet_mcp = InternetMCP(self.mcp_client)
                 api_client = BroadcasterAPIClient(self.config)
                 llmTypeStr = brand.get('agent', {}).get('llmType')
                 llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
-                llmClient = self.llmFactory.getLlmClient(llmType)
+                llmClient = self.llmFactory.getLlmClient(llmType, internet_mcp)
                 runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llm_client=llmClient)
 
                 asyncio.run(runner.run())

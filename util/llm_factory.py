@@ -1,8 +1,54 @@
-from typing import Dict
+from typing import Dict, Callable, Any
+import json
 
 from cnst.llm_types import LlmType
 from langchain_anthropic import ChatAnthropic
 from langchain_groq import ChatGroq
+
+
+class ToolEnabledLLMClient:
+    def __init__(self, base_client):
+        self.base_client = base_client
+        self.tool_functions = {}
+
+    def bind_tool_function(self, name: str, func: Callable):
+        self.tool_functions[name] = func
+
+    async def ainvoke(self, messages, tools=None):
+        if not tools:
+            return await self.base_client.ainvoke(messages)
+
+        bound_client = self.base_client.bind_tools(tools)
+        response = await bound_client.ainvoke(messages)
+
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            tool_messages = [response]
+
+            for tool_call in response.tool_calls:
+                tool_name = tool_call.get('name') or tool_call.get('function', {}).get('name')
+
+                if tool_name in self.tool_functions:
+                    try:
+                        args = tool_call.get('args') or json.loads(tool_call.get('function', {}).get('arguments', '{}'))
+
+                        result = await self.tool_functions[tool_name](**args)
+
+                        tool_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.get('id'),
+                            "content": json.dumps(result)
+                        })
+                    except Exception as e:
+                        tool_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.get('id'),
+                            "content": f"Error: {str(e)}"
+                        })
+
+            final_response = await bound_client.ainvoke(messages + tool_messages)
+            return final_response
+
+        return response
 
 
 class LlmFactory:
@@ -10,26 +56,38 @@ class LlmFactory:
         self.config = config
         self.clients = {}
 
-    def getLlmClient(self, llmType: LlmType):
+    def getLlmClient(self, llmType: LlmType, internet_mcp=None):
+        """Get LLM client with optional tool binding"""
         if llmType is None:
             return None
-        if llmType in self.clients:
-            return self.clients[llmType]
-        client = None
+
+        cache_key = f"{llmType}_{internet_mcp is not None}"
+        if cache_key in self.clients:
+            return self.clients[cache_key]
+
+        base_client = None
         if llmType == LlmType.CLAUDE:
             cfg = self.config.get('claude')
-            client = ChatAnthropic(
+            base_client = ChatAnthropic(
                 model_name=cfg.get('model'),
                 temperature=cfg.get('temperature'),
                 api_key=cfg.get('api_key')
             )
         elif llmType == LlmType.GROQ:
             cfg = self.config.get('groq')
-            client = ChatGroq(
+            base_client = ChatGroq(
                 model_name=cfg.get('model'),
                 temperature=cfg.get('temperature'),
                 api_key=cfg.get('api_key')
             )
-        if client is not None:
-            self.clients[llmType] = client
-        return client
+
+        if base_client is not None:
+            client = ToolEnabledLLMClient(base_client)
+
+            if internet_mcp:
+                client.bind_tool_function("search_internet", internet_mcp.search_internet)
+
+            self.clients[cache_key] = client
+            return client
+
+        return None

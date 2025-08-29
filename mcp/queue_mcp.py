@@ -14,7 +14,7 @@ class QueueMCP:
             "brand": brand_name,
             "songIds": {"song1": sound_fragment_uuid},
             "filePaths": {"audio1": file_path} if file_path else {},
-            "mergingMethod": "INTRO_PLUS_SONG",
+            "mergingMethod": "INTRO_SONG",
             "priority": priority
         })
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
