@@ -75,7 +75,7 @@ class LlmFactory:
         elif llm_type == LlmType.GROQ:
             cfg = self.config.get('groq')
             base_client = ChatGroq(
-                #model=cfg.get('model'), #use default
+                model=cfg.get('model'), #use default
                 temperature=cfg.get('temperature'),
                 api_key=cfg.get('api_key')
             )
