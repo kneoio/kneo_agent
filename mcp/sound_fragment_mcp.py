@@ -10,7 +10,8 @@ class SoundFragmentMCP:
         self.mcp_client = mcp_client
         self.logger = logging.getLogger(__name__)
 
-    async def get_brand_sound_fragment(self, brand: str, fragment_type: str = PlaylistItemType.SONG.value) -> Dict[str, Any]:
+    async def get_brand_sound_fragment(self, brand: str, fragment_type: str = PlaylistItemType.SONG.value) -> Dict[
+        str, Any]:
         if not self.mcp_client:
             self.logger.warning("No MCP client available")
             return {}
@@ -27,6 +28,17 @@ class SoundFragmentMCP:
                 self.logger.error("Tool call returned empty payload. Check the mcp_client's logs for details.")
                 return {}
 
+            # Handle list response - return first fragment
+            if isinstance(response_payload, list):
+                if len(response_payload) > 0:
+                    first_fragment = response_payload[0]
+                    self.logger.info(f"Fetched sound fragment data for brand {brand}: {first_fragment}")
+                    return first_fragment
+                else:
+                    self.logger.warning(f"Empty list returned for brand {brand}")
+                    return {}
+
+            # Fallback for single object response
             self.logger.info(f"Fetched sound fragment data for brand {brand}: {response_payload}")
             return response_payload
 
