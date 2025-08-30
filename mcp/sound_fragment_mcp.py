@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.mcp_client import MCPClient
@@ -10,11 +10,10 @@ class SoundFragmentMCP:
         self.mcp_client = mcp_client
         self.logger = logging.getLogger(__name__)
 
-    async def get_brand_sound_fragment(self, brand: str, fragment_type: str = PlaylistItemType.SONG.value) -> Dict[
-        str, Any]:
+    async def get_brand_sound_fragment(self, brand: str, fragment_type: str = PlaylistItemType.SONG.value) -> List[Dict[str, Any]]:
         if not self.mcp_client:
             self.logger.warning("No MCP client available")
-            return {}
+            return []
 
         try:
             params = {
@@ -26,22 +25,17 @@ class SoundFragmentMCP:
 
             if not response_payload:
                 self.logger.error("Tool call returned empty payload. Check the mcp_client's logs for details.")
-                return {}
+                return []
 
-            # Handle list response - return first fragment
+            # Return list response
             if isinstance(response_payload, list):
-                if len(response_payload) > 0:
-                    first_fragment = response_payload[0]
-                    self.logger.info(f"Fetched sound fragment data for brand {brand}: {first_fragment}")
-                    return first_fragment
-                else:
-                    self.logger.warning(f"Empty list returned for brand {brand}")
-                    return {}
+                self.logger.info(f"Fetched sound fragment data for brand {brand}: {len(response_payload)} fragments")
+                return response_payload
 
-            # Fallback for single object response
-            self.logger.info(f"Fetched sound fragment data for brand {brand}: {response_payload}")
-            return response_payload
+            # Convert single object to list
+            self.logger.info(f"Fetched sound fragment data for brand {brand}: 1 fragment")
+            return [response_payload]
 
         except Exception as e:
             self.logger.error(f"An unexpected error occurred while fetching sound fragment: {e}")
-            return {}
+            return []

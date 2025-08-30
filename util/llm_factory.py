@@ -56,27 +56,26 @@ class LlmFactory:
         self.config = config
         self.clients = {}
 
-    def getLlmClient(self, llmType: LlmType, internet_mcp=None):
-        """Get LLM client with optional tool binding"""
-        if llmType is None:
+    def get_llm_client(self, llm_type: LlmType, internet_mcp=None):
+        if llm_type is None:
             return None
 
-        cache_key = f"{llmType}_{internet_mcp is not None}"
+        cache_key = f"{llm_type}_{internet_mcp is not None}"
         if cache_key in self.clients:
             return self.clients[cache_key]
 
         base_client = None
-        if llmType == LlmType.CLAUDE:
+        if llm_type == LlmType.CLAUDE:
             cfg = self.config.get('claude')
             base_client = ChatAnthropic(
                 model_name=cfg.get('model'),
                 temperature=cfg.get('temperature'),
                 api_key=cfg.get('api_key')
             )
-        elif llmType == LlmType.GROQ:
+        elif llm_type == LlmType.GROQ:
             cfg = self.config.get('groq')
             base_client = ChatGroq(
-                model_name=cfg.get('model'),
+                #model=cfg.get('model'), #use default
                 temperature=cfg.get('temperature'),
                 api_key=cfg.get('api_key')
             )

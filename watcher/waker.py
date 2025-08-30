@@ -79,9 +79,9 @@ class Waker:
         queued_count = 0
         for brand in brands:
             status = brand.get("radioStationStatus")
-            #if status == BrandStatus.QUEUE_SATURATED.value:
-            #    logging.info(f" >>>>>> Skipping brand due to queue saturated: {brand.get('radioStationName')}")
-            #    continue
+            if status == BrandStatus.QUEUE_SATURATED.value:
+                logging.info(f" >>>>>> Skipping brand due to queue saturated: {brand.get('radioStationName')}")
+                continue
             self.brand_queue.put(brand)
             queued_count += 1
 
@@ -100,7 +100,7 @@ class Waker:
                 api_client = BroadcasterAPIClient(self.config)
                 llmTypeStr = brand.get('agent', {}).get('llmType')
                 llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
-                llmClient = self.llmFactory.getLlmClient(llmType, internet_mcp)
+                llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
                 runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llm_client=llmClient)
 
                 asyncio.run(runner.run())

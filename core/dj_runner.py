@@ -84,17 +84,19 @@ class DJRunner:
             self.logger.warning(f"No prerecorded audio available: {message}")
             return
 
-        song = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
-        if not song:
+        song_list = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
+        if not song_list:
             self.logger.warning("No song available for prerecorded broadcast")
             return
+
+        song = song_list[0]
 
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
                 temp_file.write(audio_data)
                 temp_file_path = temp_file.name
 
-            result = await self.queue_mcp.add_to_queue(
+            result = await self.queue_mcp.add_to_queue_f_s(
                 brand_name=self.brand,
                 sound_fragment_uuid=song.get('id'),
                 file_path=temp_file_path,

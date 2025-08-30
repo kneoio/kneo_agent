@@ -23,8 +23,10 @@ class DJState(MessagesState):
     history: List[Dict[str, Any]]
     action_type: str
     context: str
-    available_ad: Dict[str, Any]
+    available_ad: List[Dict[str, Any]]
     selected_sound_fragment: Dict[str, Any]
+    complimentary_sound_fragment: Dict[str, Any]
+    has_complimentary: bool
     introduction_text: str
     audio_data: Optional[bytes]
     title: str
@@ -127,21 +129,22 @@ class RadioDJAgent:
         memory_data = self.memory.get_all_memory_data()
         state["context"] = memory_data.get("environment")[0]
 
-        ad = await self.sound_fragments_mcp.get_brand_sound_fragment(
+        ad_list = await self.sound_fragments_mcp.get_brand_sound_fragment(
             brand=self.brand,
             fragment_type=PlaylistItemType.ADVERTISEMENT.value)
 
-        if not ad:
+        if not ad_list:
             state["action_type"] = "song"
-            state["available_ad"] = None
+            state["available_ad"] = []
         else:
-            state["available_ad"] = ad.get("id")
+            state["available_ad"] = ad_list
+            ad = ad_list[0] if ad_list else None
             decision_prompt = self.agent_config["decision_prompt"].format(
                 ai_dj_name=self.ai_dj_name,
                 context=state["context"],
                 brand=self.brand,
                 events=state["events"],
-                ad=state["available_ad"]
+                ad=ad.get("id") if ad else None
             )
 
             try:
@@ -182,9 +185,18 @@ class RadioDJAgent:
         debug_log("Entering _fetch_song")
 
         try:
-            song = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
-            if song:
-                state["selected_sound_fragment"] = song
+            song_list = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
+            if song_list:
+                if len(song_list) > 1:
+                    state["selected_sound_fragment"] = song_list[1]
+                    state["complimentary_sound_fragment"] = song_list[0]
+                    state["has_complimentary"] = True
+                else:
+                    state["selected_sound_fragment"] = song_list[0]
+                    state["complimentary_sound_fragment"] = {}
+                    state["has_complimentary"] = False
+
+                song = state["selected_sound_fragment"]
                 state["title"] = song.get('title')
                 state["artist"] = song.get('artist')
                 state["genres"] = song.get('genres', [])
@@ -195,8 +207,8 @@ class RadioDJAgent:
                 debug_log("self.ai_dj_name", self.ai_dj_name)
                 debug_log("state['context']", state["context"])
                 debug_log("state['events']", state["events"])
-                #debug_log("state['history']", state["history"])
                 debug_log("state['listeners']", state["listeners"])
+                debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
 
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
@@ -216,18 +228,21 @@ class RadioDJAgent:
                      "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
-                #response = await self.llm.ainvoke(messages=messages, tools=[InternetMCP.get_tool_definition()])
                 response = await self.llm.ainvoke(messages=messages)
                 state["introduction_text"] = response.content.strip()
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
             else:
                 debug_log("No song to broadcast.")
                 state["selected_sound_fragment"] = {}
+                state["complimentary_sound_fragment"] = {}
+                state["has_complimentary"] = False
                 state["introduction_text"] = ""
 
         except Exception as e:
             self.logger.error(f"Error in fetch_song: {e}")
             state["selected_sound_fragment"] = {}
+            state["complimentary_sound_fragment"] = {}
+            state["has_complimentary"] = False
             state["introduction_text"] = ""
 
         return state
@@ -278,12 +293,21 @@ class RadioDJAgent:
         try:
             if state.get("file_path") and state.get("selected_sound_fragment"):
                 while True:
-                    result = await self.queue_mcp.add_to_queue(
-                        brand_name=self.brand,
-                        sound_fragment_uuid=state["selected_sound_fragment"].get("id"),
-                        file_path=state["file_path"],
-                        priority=10
-                    )
+                    if state["has_complimentary"]:
+                        result = await self.queue_mcp.add_to_queue_s_i_s(
+                            brand_name=self.brand,
+                            fragment_uuid_1=state["complimentary_sound_fragment"].get("id"),
+                            fragment_uuid_2=state["selected_sound_fragment"].get("id"),
+                            file_path=state["file_path"],
+                            priority=10
+                        )
+                    else:
+                        result = await self.queue_mcp.add_to_queue_i_s(
+                            brand_name=self.brand,
+                            sound_fragment_uuid=state["selected_sound_fragment"].get("id"),
+                            file_path=state["file_path"],
+                            priority=10
+                        )
                     if result:
                         break
 
@@ -315,8 +339,10 @@ class RadioDJAgent:
             "brand": brand,
             "events": [],
             "action_type": "",
-            "available_ad": {},
+            "available_ad": [],
             "selected_sound_fragment": {},
+            "complimentary_sound_fragment": {},
+            "has_complimentary": False,
             "introduction_text": "",
             "audio_data": None,
             "title": "Unknown",
