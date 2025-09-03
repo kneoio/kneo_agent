@@ -23,7 +23,7 @@ class Waker:
         self.base_interval = 120
         self.current_interval = self.base_interval
         self.min_interval = 30
-        self.max_interval = 300
+        self.max_interval = 180
         self.backoff_factor = 1.5
         self.activity_threshold = 240  # secs
         self.config = config
