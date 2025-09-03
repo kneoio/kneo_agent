@@ -1,5 +1,7 @@
 import logging
+from urllib.parse import quote_plus
 from typing import Dict, Any, List
+from playwright.async_api import async_playwright
 
 
 class InternetMCP:
@@ -28,11 +30,20 @@ class InternetMCP:
 
     async def search_internet(self, query: str, max_results: int = 5) -> Dict[str, Any]:
         try:
-            priority_results = await self._search_priority_sites(query, max_results // 2)
-            general_results = await self._general_search(query, max_results - len(priority_results))
+            first_count = 1 if max_results > 0 else 0
+            if first_count > 0:
+                priority_results = await self._search_priority_sites(query, first_count)
+                if priority_results:
+                    all_results = priority_results
+                    return {
+                        "success": True,
+                        "query": query,
+                        "results": all_results,
+                        "summary": self._create_summary(all_results)
+                    }
 
-            all_results = priority_results + general_results
-
+            general_results = await self._general_search(query, first_count)
+            all_results = general_results
             return {
                 "success": True,
                 "query": query,
@@ -73,11 +84,7 @@ class InternetMCP:
             return []
 
     async def _perform_search(self, query: str, limit: int) -> List[Dict[str, Any]]:
-        if self.mcp_client:
-            result = await self.mcp_client.call_tool("web_search", {"query": query, "limit": limit})
-            return self._parse_mcp_results(result)
-        else:
-            return await self._direct_api_search(query, limit)
+        return await self._playwright_search(query, limit)
 
     def _parse_mcp_results(self, mcp_result) -> List[Dict[str, Any]]:
         results = []
@@ -97,6 +104,36 @@ class InternetMCP:
 
     async def _direct_api_search(self, query: str, limit: int) -> List[Dict[str, Any]]:
         return []
+
+    async def _playwright_search(self, query: str, limit: int) -> List[Dict[str, Any]]:
+        url = f"https://duckduckgo.com/html/?q={quote_plus(query)}"
+        results: List[Dict[str, Any]] = []
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context()
+                page = await context.new_page()
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                items = await page.query_selector_all("div.result__body")
+                for item in items[:limit]:
+                    a = await item.query_selector("a.result__a")
+                    if not a:
+                        continue
+                    title = (await a.inner_text()).strip()
+                    href = await a.get_attribute("href")
+                    sn_el = await item.query_selector("a.result__snippet, div.result__snippet")
+                    snippet = (await sn_el.inner_text()).strip() if sn_el else ""
+                    results.append({
+                        "title": title,
+                        "url": href or "",
+                        "snippet": snippet,
+                        "source": "duckduckgo"
+                    })
+                await context.close()
+                await browser.close()
+        except Exception as e:
+            self.logger.error(f"Playwright search failed: {e}")
+        return results
 
     def _create_summary(self, results: List[Dict[str, Any]]) -> str:
         if not results:

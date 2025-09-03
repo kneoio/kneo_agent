@@ -228,7 +228,8 @@ class RadioDJAgent:
                      "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
-                response = await self.llm.ainvoke(messages=messages)
+                tools = [InternetMCP.get_tool_definition()]
+                response = await self.llm.ainvoke(messages=messages, tools=tools)
                 state["introduction_text"] = response.content.strip()
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
             else:
