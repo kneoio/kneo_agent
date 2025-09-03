@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import tempfile
 from typing import Dict
@@ -92,9 +93,17 @@ class DJRunner:
         song = song_list[0]
 
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
+            # Hardcode path to match broadcaster directory
+            import uuid
+            target_dir = "/home/kneobroadcaster/merged"
+            os.makedirs(target_dir, exist_ok=True)
+            file_name = f"temp_prerecorded_{uuid.uuid4().hex}.mp3"
+            temp_file_path = os.path.join(target_dir, file_name)
+
+            with open(temp_file_path, "wb") as temp_file:
                 temp_file.write(audio_data)
-                temp_file_path = temp_file.name
+
+            self.logger.info(f"Saved prerecorded audio to: {temp_file_path}")
 
             result = await self.queue_mcp.add_to_queue_f_s(
                 brand_name=self.brand,
@@ -111,6 +120,7 @@ class DJRunner:
 
         except Exception as e:
             self.logger.error(f"Error in prerecorded broadcast: {e}")
+
 
     async def _handle_live_dj_broadcast(self) -> None:
         memory_data = self.memory.get_all_memory_data()
