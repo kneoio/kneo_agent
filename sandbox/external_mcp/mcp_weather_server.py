@@ -30,7 +30,7 @@ def get_weather(city="Leiria"):
         weather_codes = {0: "Clear", 1: "Clear", 2: "Cloudy", 3: "Overcast", 61: "Rain", 95: "Storm"}
         condition = weather_codes.get(current["weather_code"], f"Code {current['weather_code']}")
 
-        return f"{city}: {current['temperature_2m']}°C, {condition}, {current['relative_humidity_2m']}% humidity, {current['wind_speed_10m']} km/h wind"
+        return f"{city}: {current['temperature_2m']}ï¿½C, {condition}, {current['relative_humidity_2m']}% humidity, {current['wind_speed_10m']} km/h wind"
     except Exception as e:
         return f"Weather error: {str(e)}"
 
