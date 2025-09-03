@@ -41,7 +41,7 @@ class Waker:
 
             params = {
                 'status': [
-                    BrandStatus.WAITING_FOR_CURATOR.value,
+                    #BrandStatus.WAITING_FOR_CURATOR.value,
                     BrandStatus.ON_LINE.value,
                     BrandStatus.WARMING_UP.value,
                     BrandStatus.QUEUE_SATURATED.value
