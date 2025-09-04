@@ -223,14 +223,35 @@ class RadioDJAgent:
                     instant_message=state["instant_message"]
                 )
 
+                tools = [InternetMCP.get_tool_definition()]
+
+                # for PROD
+                #messages = [
+                #    {"role": "system",
+                #     "content": "Generate only the spoken DJ introduction text in Portuguese. Output exactly what the DJ should say on air, nothing else. Maximum 30 words."},
+                #    {"role": "user", "content": song_prompt}
+                #]
+                #state["introduction_text"] = response.content.strip()
+
+                #for debug exposing thinking
                 messages = [
                     {"role": "system",
-                     "content": "Generate plain text"},
+                     "content": "First, think through your approach in <thinking> tags. Then provide only the spoken DJ introduction text. Example:\n<thinking>Consider the context...</thinking>\nBom dia pessoal, aqui é o DJ..."},
                     {"role": "user", "content": song_prompt}
                 ]
-                tools = [InternetMCP.get_tool_definition()]
+
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
-                state["introduction_text"] = response.content.strip()
+                raw_response = response.content.strip()
+
+                thinking_match = re.search(r'<thinking>(.*?)</thinking>', raw_response, re.DOTALL)
+                if thinking_match:
+                    thinking_content = thinking_match.group(1).strip()
+                    debug_log(f"LLM Reasoning: {thinking_content}")
+                    spoken_text = re.sub(r'<thinking>.*?</thinking>', '', raw_response, flags=re.DOTALL).strip()
+                else:
+                    spoken_text = raw_response
+
+                state["introduction_text"] = spoken_text
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
             else:
                 debug_log("No song to broadcast.")
