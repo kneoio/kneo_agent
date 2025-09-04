@@ -240,7 +240,8 @@ class RadioDJAgent:
                 tools = [InternetMCP.get_tool_definition()]
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
                 #state["introduction_text"] = response.content.strip()
-                state["introduction_text"] = self._strip_xml_tags(response.content).strip()
+                raw_text = self._extract_text_from_response(response)
+                state["introduction_text"] = self._strip_xml_tags(raw_text)
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
             else:
                 debug_log("No song to broadcast.")
@@ -396,8 +397,30 @@ class RadioDJAgent:
     def disable_debug(self):
         self.logger.setLevel(logging.INFO)
 
+    def _extract_text_from_response(self, response) -> str:
+        if hasattr(response, 'content'):
+            content = response.content
+
+            # If content is a list (when tools are used), extract text from content blocks
+            if isinstance(content, list):
+                text_parts = []
+                for block in content:
+                    if hasattr(block, 'text'):
+                        text_parts.append(block.text)
+                    elif isinstance(block, dict) and 'text' in block:
+                        text_parts.append(block['text'])
+                return ' '.join(text_parts)
+
+            # If content is a string, return as is
+            elif isinstance(content, str):
+                return content
+
+        return ""
+
     def _strip_xml_tags(self, text: str) -> str:
+        # Remove search quality reflection and score tags and their content
         text = re.sub(r'<search_quality_reflection>.*?</search_quality_reflection>', '', text, flags=re.DOTALL)
         text = re.sub(r'<search_quality_score>.*?</search_quality_score>', '', text, flags=re.DOTALL)
+        # Remove any other XML-like tags
         text = re.sub(r'<[^>]+>', '', text)
         return text.strip()
