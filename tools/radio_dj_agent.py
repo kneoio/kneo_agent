@@ -239,7 +239,8 @@ class RadioDJAgent:
                 ]
                 tools = [InternetMCP.get_tool_definition()]
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
-                state["introduction_text"] = response.content.strip()
+                #state["introduction_text"] = response.content.strip()
+                state["introduction_text"] = self._strip_xml_tags(response.content).strip()
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
             else:
                 debug_log("No song to broadcast.")
@@ -394,3 +395,9 @@ class RadioDJAgent:
 
     def disable_debug(self):
         self.logger.setLevel(logging.INFO)
+
+    def _strip_xml_tags(self, text: str) -> str:
+        text = re.sub(r'<search_quality_reflection>.*?</search_quality_reflection>', '', text, flags=re.DOTALL)
+        text = re.sub(r'<search_quality_score>.*?</search_quality_score>', '', text, flags=re.DOTALL)
+        text = re.sub(r'<[^>]+>', '', text)
+        return text.strip()
