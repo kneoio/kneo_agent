@@ -7,6 +7,8 @@ from core.config import load_config
 from core.logging_config import setup_logging
 from mcp.mcp_client import MCPClient
 from watcher.waker import Waker
+import uvicorn
+from mcp.server.mcp_manager import app as mcp_http_app
 
 
 class ApplicationManager:
@@ -16,6 +18,8 @@ class ApplicationManager:
         self.mcp_client = None
         self.waker = None
         self.running = True
+        self.http_server = None
+        self.http_thread = None
 
     async def initialize_mcp_client(self):
         while self.running:
@@ -45,6 +49,17 @@ class ApplicationManager:
 
     def shutdown(self):
         self.running = False
+        if self.http_server:
+            self.http_server.should_exit = True
+
+    def start_http_server(self):
+        server_cfg = self.config.get("mcp_server", {})
+        host = server_cfg.get("host", "0.0.0.0")
+        port = int(server_cfg.get("port", 8081))
+        config = uvicorn.Config(mcp_http_app, host=host, port=port, log_level="info")
+        self.http_server = uvicorn.Server(config)
+        self.http_thread = threading.Thread(target=self.http_server.run, daemon=True)
+        self.http_thread.start()
 
 
 def run_scheduler(waker, app_manager):
@@ -91,6 +106,8 @@ async def async_main():
         if not waker_success:
             logger.error("Waker initialization failed, exiting")
             return 1
+
+        app_manager.start_http_server()
 
         if app_manager.waker:
             waker_thread = threading.Thread(

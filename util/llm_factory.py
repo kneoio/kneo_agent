@@ -1,9 +1,11 @@
 from typing import Dict, Callable, Any
 import json
+import re
 
 from cnst.llm_types import LlmType
 from langchain_anthropic import ChatAnthropic
 from langchain_groq import ChatGroq
+from mcp.external.internet_mcp import InternetMCP
 
 
 class ToolEnabledLLMClient:
@@ -36,6 +38,7 @@ class ToolEnabledLLMClient:
                         tool_messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.get('id'),
+                            "name": tool_name,
                             "content": json.dumps(result)
                         })
                     except Exception as e:
@@ -75,7 +78,7 @@ class LlmFactory:
         elif llm_type == LlmType.GROQ:
             cfg = self.config.get('groq')
             base_client = ChatGroq(
-                model=cfg.get('model'), #use default
+                model=cfg.get('model'),
                 temperature=cfg.get('temperature'),
                 api_key=cfg.get('api_key')
             )
@@ -90,3 +93,31 @@ class LlmFactory:
             return client
 
         return None
+
+
+async def generate_dj_intro_text(llm_client, prompt: str, return_raw: bool = False, system_prompt: str | None = None) -> str:
+    tools = [InternetMCP.get_tool_definition()]
+    sys_txt = system_prompt or "First, think through your approach in <thinking> tags. Then provide only the spoken DJ introduction text."
+    messages = [
+        {"role": "system", "content": sys_txt},
+        {"role": "user", "content": prompt or ""}
+    ]
+    resp = await llm_client.ainvoke(messages=messages, tools=tools)
+    raw = (getattr(resp, "content", "") or "").strip()
+    if return_raw:
+        if raw:
+            return raw
+        try:
+            dbg = {
+                "content": raw,
+                "tool_calls": getattr(resp, "tool_calls", None),
+                "additional_kwargs": getattr(resp, "additional_kwargs", {}),
+                "type": type(resp).__name__
+            }
+            return json.dumps(dbg)
+        except Exception:
+            return str(resp)
+    m = re.search(r'<thinking>(.*?)</thinking>', raw, re.DOTALL)
+    if m:
+        return re.sub(r'<thinking>.*?</thinking>', '', raw, flags=re.DOTALL).strip()
+    return raw
