@@ -95,29 +95,6 @@ class LlmFactory:
         return None
 
 
-async def generate_dj_intro_text(llm_client, prompt: str, return_raw: bool = False, system_prompt: str | None = None) -> str:
+async def generate_dj_intro_text(llm_client, messages, return_actual_resp: bool = False):
     tools = [InternetMCP.get_tool_definition()]
-    sys_txt = system_prompt or "First, think through your approach in <thinking> tags. Then provide only the spoken DJ introduction text."
-    messages = [
-        {"role": "system", "content": sys_txt},
-        {"role": "user", "content": prompt or ""}
-    ]
-    resp = await llm_client.ainvoke(messages=messages, tools=tools)
-    raw = (getattr(resp, "content", "") or "").strip()
-    if return_raw:
-        if raw:
-            return raw
-        try:
-            dbg = {
-                "content": raw,
-                "tool_calls": getattr(resp, "tool_calls", None),
-                "additional_kwargs": getattr(resp, "additional_kwargs", {}),
-                "type": type(resp).__name__
-            }
-            return json.dumps(dbg)
-        except Exception:
-            return str(resp)
-    m = re.search(r'<thinking>(.*?)</thinking>', raw, re.DOTALL)
-    if m:
-        return re.sub(r'<thinking>.*?</thinking>', '', raw, flags=re.DOTALL).strip()
-    return raw
+    return await llm_client.ainvoke(messages=messages, tools=tools)

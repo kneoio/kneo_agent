@@ -7,7 +7,6 @@ from cnst.llm_types import LlmType
 from mcp.external.internet_mcp import InternetMCP
 import uvicorn
 import logging
- 
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
@@ -29,13 +28,16 @@ app.add_middleware(
 llm_factory = LlmFactory(cfg)
 internet = InternetMCP(config=cfg)
 
+
 class PromptRequest(BaseModel):
     prompt: str
     llm: LlmType
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.post("/internet_search/test")
 async def test_prompt(req: PromptRequest):
@@ -52,21 +54,31 @@ async def test_prompt(req: PromptRequest):
         })
     return {"items": items, "llm": req.llm.name}
 
+
 @app.post("/radio_dj/test/{llm}")
 async def radio_dj_test_auto(llm: LlmType, request: Request):
     ct = request.headers.get("content-type", "")
     client = llm_factory.get_llm_client(llm, internet_mcp=internet)
     if ct.startswith("text/plain"):
         raw = await request.body()
-        prompt = raw.decode("utf-8")
+        song_prompt = raw.decode("utf-8")
     elif ct.startswith("application/json"):
         data = await request.json()
-        prompt = (data.get("template") or "").format(**(data.get("variables") or {}))      
+        song_prompt = (data.get("template") or "").format(**(data.get("variables") or {}))
     else:
-        prompt = ""
-    text = await generate_dj_intro_text(
+        song_prompt = ""
+
+    messages = [
+        {"role": "system",
+         "content": "Generate plain text"},
+        {"role": "user", "content": song_prompt}
+    ]
+
+    resp = await generate_dj_intro_text(
         client,
-        prompt,
-        return_raw=True
+        messages,
+        return_actual_resp=False
     )
-    return {"text": text, "llm": llm.name}
+
+    return {"text": (getattr(resp, "content", "") or "").strip(),
+            "reasoning": getattr(resp, "additional_kwargs").get("reasoning_content"), "llm": llm.name}

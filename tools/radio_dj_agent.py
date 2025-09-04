@@ -11,11 +11,11 @@ from langgraph.graph import StateGraph, END
 from api.interaction_memory import InteractionMemory
 from api.queue import Queue
 from cnst.play_list_item_type import PlaylistItemType
+from mcp.external.internet_mcp import InternetMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from mcp.queue_mcp import QueueMCP
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
-from util.llm_factory import generate_dj_intro_text
 
 
 class DJState(MessagesState):
@@ -232,8 +232,14 @@ class RadioDJAgent:
                     instant_message=state["instant_message"]
                 )
 
-                text = await generate_dj_intro_text(self.llm, song_prompt)
-                state["introduction_text"] = text
+                messages = [
+                    {"role": "system",
+                     "content": "Generate plain text"},
+                    {"role": "user", "content": song_prompt}
+                ]
+                tools = [InternetMCP.get_tool_definition()]
+                response = await self.llm.ainvoke(messages=messages, tools=tools)
+                state["introduction_text"] = response.content.strip()
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
             else:
                 debug_log("No song to broadcast.")
