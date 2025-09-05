@@ -99,3 +99,17 @@ class LlmResponse(BaseModel):
     def _clean_content(content: str) -> str:
         content = re.sub(r'<[^>]+>', '', content)
         return content.strip()
+
+    @staticmethod
+    def _remove_xml_section(content: str, tag: str) -> str:
+        """Remove XML section and its content"""
+        start_tag = f"<{tag}>"
+        end_tag = f"</{tag}>"
+        start_pos = content.find(start_tag)
+        end_pos = content.find(end_tag)
+
+        if start_pos != -1 and end_pos != -1:
+            end_pos += len(end_tag)
+            return content[:start_pos] + content[end_pos:]
+
+        return content
