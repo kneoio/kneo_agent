@@ -128,47 +128,79 @@ class RadioDJAgent:
         memory_data = self.memory.get_all_memory_data()
         state["context"] = memory_data.get("environment")[0]
 
-        ad_list = await self.sound_fragments_mcp.get_brand_sound_fragment(
-            brand=self.brand,
-            fragment_type=PlaylistItemType.ADVERTISEMENT.value)
-
-        if not ad_list:
+        # Check if events is empty or no events
+        if not state["events"]:
             state["action_type"] = "song"
             state["available_ad"] = []
-        else:
-            state["available_ad"] = ad_list
-            ad = ad_list[0] if ad_list else None
-            decision_prompt = self.agent_config["decision_prompt"].format(
-                ai_dj_name=self.ai_dj_name,
-                context=state["context"],
+            http_memory_data = state.get("http_memory_data", {})
+            state["history"] = http_memory_data.get("history", [])
+            state["listeners"] = http_memory_data.get("listeners", [])
+            debug_log(f"No events - defaulting to song")
+            return state
+
+        # Check if there's an AD event type
+        has_ad_event = any(event.get("type") == "AD" for event in state["events"])
+
+        if has_ad_event:
+            ad_list = await self.sound_fragments_mcp.get_brand_sound_fragment(
                 brand=self.brand,
-                events=state["events"],
-                ad=ad.get("id") if ad else None
-            )
+                fragment_type=PlaylistItemType.ADVERTISEMENT.value)
 
-            try:
-                messages = [
-                    {"role": "system",
-                     "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"introduction_text\": \"here is something from our sponsors\"}"},
-                    {"role": "user", "content": decision_prompt}
-                ]
-                response = await self.llm.ainvoke(messages)
-                debug_log(f"LLM response received: {response.content[:200]}...")
-                parsed_response = self._parse_llm_response(response.content)
-
-                state["action_type"] = parsed_response.get("action", "song")
-                debug_log("Action type determined", {"action_type": state["action_type"]})
-
-                if state["action_type"] == "ad":
-                    state["introduction_text"] = parsed_response.get("introduction_text", get_random_ad_intro())
-                    state["selected_sound_fragment"] = ad
-                    state["title"] = ad.get('title', 'Advertisement')
-                    state["artist"] = ad.get('artist', 'Sponsor')
-
-            except Exception as e:
-                self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
+            if ad_list:
+                state["available_ad"] = ad_list
+                state["action_type"] = "ad"
+                ad = ad_list[0]
+                state["introduction_text"] = get_random_ad_intro()
+                state["selected_sound_fragment"] = ad
+                state["title"] = ad.get('title', 'Advertisement')
+                state["artist"] = ad.get('artist', 'Sponsor')
+                debug_log("AD event detected - setting action to ad")
+                return state
+            else:
                 state["action_type"] = "song"
-                self.logger.warning(f"Fallback to default: action=song")
+                state["available_ad"] = []
+        else:
+            ad_list = await self.sound_fragments_mcp.get_brand_sound_fragment(
+                brand=self.brand,
+                fragment_type=PlaylistItemType.ADVERTISEMENT.value)
+
+            if not ad_list:
+                state["action_type"] = "song"
+                state["available_ad"] = []
+            else:
+                state["available_ad"] = ad_list
+                ad = ad_list[0] if ad_list else None
+                decision_prompt = self.agent_config["decision_prompt"].format(
+                    ai_dj_name=self.ai_dj_name,
+                    context=state["context"],
+                    brand=self.brand,
+                    events=state["events"],
+                    ad=ad.get("id") if ad else None
+                )
+
+                try:
+                    decision_prompt = [
+                        {"role": "system",
+                         "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"introduction_text\": \"here is something from our sponsors\"}"},
+                        {"role": "user", "content": decision_prompt}
+                    ]
+                    response = await self.llm.ainvoke(decision_prompt)
+                    debug_log(f"LLM response received: {response.content[:200]}...")
+                    parsed_response = self._parse_llm_response(response.content)
+
+                    state["action_type"] = parsed_response.get("action", "song")
+                    debug_log("Action type determined", {"action_type": state["action_type"]})
+
+                    if state["action_type"] == "ad":
+                        state["introduction_text"] = parsed_response.get("introduction_text", get_random_ad_intro())
+                        state["selected_sound_fragment"] = ad
+                        state["title"] = ad.get('title', 'Advertisement')
+                        state["artist"] = ad.get('artist', 'Sponsor')
+
+                except Exception as e:
+                    self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
+                    state["action_type"] = "song"
+                    self.logger.warning(f"Fallback to default: action=song")
 
         if state["action_type"] != "ad":
             http_memory_data = state.get("http_memory_data", {})
@@ -210,14 +242,14 @@ class RadioDJAgent:
                 debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
 
                 # for PROD
-                #messages = [
+                # messages = [
                 #    {"role": "system",
                 #     "content": "Generate only the spoken DJ introduction text in Portuguese. Output exactly what the DJ should say on air, nothing else. Maximum 30 words."},
                 #    {"role": "user", "content": song_prompt}
-                #]
-                #state["introduction_text"] = response.content.strip()
+                # ]
+                # state["introduction_text"] = response.content.strip()
 
-                #for debug exposing thinking
+                # for debug exposing thinking
 
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
@@ -239,7 +271,7 @@ class RadioDJAgent:
                 ]
                 tools = [InternetMCP.get_tool_definition()]
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
-                #state["introduction_text"] = response.content.strip()
+                # state["introduction_text"] = response.content.strip()
                 raw_text = self._extract_text_from_response(response)
                 state["introduction_text"] = self._strip_xml_tags(raw_text)
                 debug_log(f"Result: >>>> : {state['introduction_text']}...")
