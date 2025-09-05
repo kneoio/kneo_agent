@@ -101,7 +101,7 @@ class Waker:
                 llmTypeStr = brand.get('agent', {}).get('llmType')
                 llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
                 llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
-                runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llm_client=llmClient)
+                runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llm_client=llmClient, llm_type=llmType)
 
                 asyncio.run(runner.run())
                 processed_any = True

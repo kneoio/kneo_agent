@@ -9,6 +9,7 @@ from elevenlabs import ElevenLabs
 from api.broadcaster_client import BroadcasterAPIClient
 from api.interaction_memory import InteractionMemory
 from api.sound_fragment import SoundFragment
+from cnst.llm_types import LlmType
 from core.prerecorded import Prerecorded
 from mcp.mcp_client import MCPClient
 from mcp.queue_mcp import QueueMCP
@@ -19,7 +20,7 @@ from tools.radio_dj_agent import RadioDJAgent
 
 class DJRunner:
     def __init__(self, config: Dict, brand_config: Dict, api_client: BroadcasterAPIClient,
-                 mcp_client=None, llm_client=None):
+                 mcp_client=None, llm_client=None, llm_type=LlmType.CLAUDE):
         self.logger = logging.getLogger(__name__)
         self.brand_config = brand_config
         self.brand = brand_config.get('radioStationName')
@@ -49,7 +50,8 @@ class DJRunner:
             self.agent_config,
             self.brand,
             mcp_client=self.mcp_client,
-            llm_client=llm_client
+            llm_client=llm_client,
+            llm_type=llm_type
         )
         self.sound_fragments_mcp = SoundFragmentMCP(self.mcp_client)
         self.queue_mcp = QueueMCP(self.mcp_client)

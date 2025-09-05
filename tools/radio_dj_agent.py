@@ -10,8 +10,10 @@ from langgraph.graph import StateGraph, END
 
 from api.interaction_memory import InteractionMemory
 from api.queue import Queue
+from cnst.llm_types import LlmType
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.external.internet_mcp import InternetMCP
+from mcp.server.llm_response import LlmResponse
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from mcp.queue_mcp import QueueMCP
 from util.file_util import debug_log
@@ -53,8 +55,9 @@ def _route_song_fetch(state: DJState) -> str:
 class RadioDJAgent:
 
     def __init__(self, config, memory: InteractionMemory, audio_processor, agent_config=None, brand=None,
-                 mcp_client=None, debug=False, llm_client=None):
+                 mcp_client=None, debug=False, llm_client=None, llm_type=LlmType.CLAUDE):
         self.debug = debug
+        self.llm_type = llm_type
         self.logger = logging.getLogger(__name__)
         if self.debug:
             self.logger.setLevel(logging.DEBUG)
@@ -242,25 +245,6 @@ class RadioDJAgent:
                 state["artist"] = song.get('artist')
                 state["genres"] = song.get('genres', [])
 
-                debug_log("state['title']", state["title"])
-                debug_log("state['artist']", state["artist"])
-                debug_log("state['genres']", state["genres"])
-                debug_log("self.ai_dj_name", self.ai_dj_name)
-                debug_log("state['context']", state["context"])
-                debug_log("state['events']", state["events"])
-                debug_log("state['listeners']", state["listeners"])
-                debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
-
-                # for PROD
-                # messages = [
-                #    {"role": "system",
-                #     "content": "Generate only the spoken DJ introduction text in Portuguese. Output exactly what the DJ should say on air, nothing else. Maximum 30 words."},
-                #    {"role": "user", "content": song_prompt}
-                # ]
-                # state["introduction_text"] = response.content.strip()
-
-                # for debug exposing thinking
-
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
                     context=state["context"],
@@ -275,18 +259,16 @@ class RadioDJAgent:
                 )
 
                 messages = [
-                    {"role": "system",
-                     "content": "Generate plain text"},
+                    {"role": "system", "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
                 tools = [InternetMCP.get_tool_definition()]
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
-                # state["introduction_text"] = response.content.strip()
-                raw_text = self._extract_text_from_response(response)
-                state["introduction_text"] = self._strip_xml_tags(raw_text)
-                debug_log(f"Result: >>>> : {state['introduction_text']}...")
+
+                llm_response = LlmResponse.from_response(response,  self.llm_type)
+                state["introduction_text"] = llm_response.actual_result
+
             else:
-                debug_log("No song to broadcast.")
                 state["selected_sound_fragment"] = {}
                 state["complimentary_sound_fragment"] = {}
                 state["has_complimentary"] = False

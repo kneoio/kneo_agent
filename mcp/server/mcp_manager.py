@@ -1,12 +1,14 @@
-from fastapi import FastAPI, Body, Request
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from core.config import get_merged_config
-from util.llm_factory import LlmFactory, generate_dj_intro_text
+
 from cnst.llm_types import LlmType
+from core.config import get_merged_config
 from mcp.external.internet_mcp import InternetMCP
-import uvicorn
-import logging
+from mcp.server.llm_response import LlmResponse
+from util.llm_factory import LlmFactory, generate_dj_intro_text
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
@@ -59,6 +61,7 @@ async def test_prompt(req: PromptRequest):
 async def radio_dj_test_auto(llm: LlmType, request: Request):
     ct = request.headers.get("content-type", "")
     client = llm_factory.get_llm_client(llm, internet_mcp=internet)
+
     if ct.startswith("text/plain"):
         raw = await request.body()
         song_prompt = raw.decode("utf-8")
@@ -69,16 +72,12 @@ async def radio_dj_test_auto(llm: LlmType, request: Request):
         song_prompt = ""
 
     messages = [
-        {"role": "system",
-         "content": "Generate plain text"},
+        {"role": "system", "content": "Generate plain text"},
         {"role": "user", "content": song_prompt}
     ]
 
-    resp = await generate_dj_intro_text(
-        client,
-        messages,
-        return_actual_resp=False
-    )
+    resp = await generate_dj_intro_text(client, messages, return_actual_resp=False)
 
-    return {"text": (getattr(resp, "content", "") or "").strip(),
-            "reasoning": getattr(resp, "additional_kwargs").get("reasoning_content"), "llm": llm.name}
+    standardized_resp = LlmResponse.from_response(resp, llm)
+
+    return standardized_resp.model_dump()
