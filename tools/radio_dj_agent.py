@@ -242,6 +242,15 @@ class RadioDJAgent:
                 state["artist"] = song.get('artist')
                 state["genres"] = song.get('genres', [])
 
+                debug_log("state['title']", state["title"])
+                debug_log("state['artist']", state["artist"])
+                debug_log("state['genres']", state["genres"])
+                debug_log("self.ai_dj_name", self.ai_dj_name)
+                debug_log("state['context']", state["context"])
+                debug_log("state['events']", state["events"])
+                debug_log("state['listeners']", state["listeners"])
+                debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
+
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
                     context=state["context"],
@@ -262,10 +271,22 @@ class RadioDJAgent:
                 tools = [InternetMCP.get_tool_definition()]
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
 
-                llm_response = LlmResponse.from_response(response,  self.llm_type)
-                state["introduction_text"] = llm_response.actual_result
+                try:
+                    llm_response = LlmResponse.from_response(response, self._get_llm_type())
+                    state["introduction_text"] = llm_response.actual_result
+                    debug_log(f"Result: >>>> : {state['introduction_text']}...")
+                except Exception as parse_error:
+                    self.logger.error(f"LLM Response parsing failed: {parse_error}")
+                    self.logger.error(f"Raw LLM Response: {repr(response)}")
+                    self.logger.error(f"Response content: {getattr(response, 'content', 'NO CONTENT')}")
+                    self.logger.error(f"Response type: {type(response)}")
+                    self.logger.error(f"Response attributes: {dir(response)}")
+
+                    # Fallback to empty intro
+                    state["introduction_text"] = ""
 
             else:
+                debug_log("No song to broadcast.")
                 state["selected_sound_fragment"] = {}
                 state["complimentary_sound_fragment"] = {}
                 state["has_complimentary"] = False
