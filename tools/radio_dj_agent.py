@@ -126,7 +126,13 @@ class RadioDJAgent:
         debug_log("Entering _decision")
 
         memory_data = self.memory.get_all_memory_data()
-        state["context"] = memory_data.get("environment")[0]
+        environment = memory_data.get("environment", [])
+        if isinstance(environment, list) and environment:
+            state["context"] = environment[0]
+        elif isinstance(environment, str):
+            state["context"] = environment
+        else:
+            state["context"] = ""
 
         # Check if events is empty or no events
         if not state["events"]:
@@ -139,7 +145,11 @@ class RadioDJAgent:
             return state
 
         # Check if there's an AD event type
-        has_ad_event = any(event.get("type") == "AD" for event in state["events"])
+        has_ad_event = any(
+            event.get("content", {}).get("type") == "AD"
+            for event in state["events"]
+            if isinstance(event, dict)
+        )
 
         if has_ad_event:
             ad_list = await self.sound_fragments_mcp.get_brand_sound_fragment(
