@@ -272,7 +272,7 @@ class RadioDJAgent:
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
 
                 try:
-                    llm_response = LlmResponse.from_response(response, self._get_llm_type())
+                    llm_response = LlmResponse.from_response(response, self.llm_type)
                     state["introduction_text"] = llm_response.actual_result
                     debug_log(f"Result: >>>> : {state['introduction_text']}...")
                 except Exception as parse_error:
