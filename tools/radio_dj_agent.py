@@ -74,7 +74,7 @@ class RadioDJAgent:
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.queue_mcp = QueueMCP(mcp_client)
         self.graph = self._build_graph()
-        debug_log("RadioDJAgent initialized")
+        debug_log(f"RadioDJAgent initialized, llm:{self.llm_type}")
 
     def _build_graph(self):
         workflow = StateGraph(state_schema=DJState)
