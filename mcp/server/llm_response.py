@@ -1,6 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel
 from cnst.llm_types import LlmType
+import re
 
 
 class LlmResponse(BaseModel):
@@ -11,7 +12,6 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def from_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        """Universal response parser for all LLM types"""
         if llm_type == LlmType.GROQ:
             return cls._parse_groq(resp, llm_type)
         else:
@@ -19,15 +19,29 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def _parse_claude(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        """Parse Claude response format"""
         content = cls._extract_content(resp)
 
         search_quality = cls._extract_between_tags(content, "search_quality_score", int)
         reasoning = cls._extract_between_tags(content, "search_quality_reflection", str)
 
-        # Extract result from <result> tags or use full content
-        actual_result = cls._extract_between_tags(content, "result", str) or content
-        actual_result = cls._clean_content(actual_result)
+        if reasoning or search_quality:
+            cleaned_content = content
+            if reasoning:
+                reflection_tag_start = cleaned_content.find('<search_quality_reflection>')
+                reflection_tag_end = cleaned_content.find('</search_quality_reflection>') + len(
+                    '</search_quality_reflection>')
+                if reflection_tag_start != -1 and reflection_tag_end != -1:
+                    cleaned_content = cleaned_content[:reflection_tag_start] + cleaned_content[reflection_tag_end:]
+
+            if search_quality:
+                score_tag_start = cleaned_content.find('<search_quality_score>')
+                score_tag_end = cleaned_content.find('</search_quality_score>') + len('</search_quality_score>')
+                if score_tag_start != -1 and score_tag_end != -1:
+                    cleaned_content = cleaned_content[:score_tag_start] + cleaned_content[score_tag_end:]
+
+            actual_result = cleaned_content.strip()
+        else:
+            actual_result = content
 
         return cls(
             actual_result=actual_result,
@@ -38,7 +52,6 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def _parse_groq(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        """Parse Groq response format"""
         content = getattr(resp, "content", "").strip()
         reasoning = getattr(resp, "additional_kwargs", {}).get("reasoning_content")
 
@@ -51,7 +64,6 @@ class LlmResponse(BaseModel):
 
     @staticmethod
     def _extract_content(response) -> str:
-        """Extract text content from response object"""
         if not hasattr(response, 'content'):
             return ""
 
@@ -69,7 +81,6 @@ class LlmResponse(BaseModel):
 
     @staticmethod
     def _extract_between_tags(content: str, tag: str, convert_type=str):
-        """Extract content between XML tags"""
         try:
             start_tag = f"<{tag}>"
             end_tag = f"</{tag}>"
@@ -87,8 +98,5 @@ class LlmResponse(BaseModel):
 
     @staticmethod
     def _clean_content(content: str) -> str:
-        """Remove XML tags and clean up content"""
-        import re
-        # Remove XML tags
         content = re.sub(r'<[^>]+>', '', content)
         return content.strip()
