@@ -51,7 +51,6 @@ def _route_song_fetch(state: DJState) -> str:
         return "end"
     return "create_audio"
 
-
 class RadioDJAgent:
 
     def __init__(self, config, memory: InteractionMemory, audio_processor, agent_config=None, brand=None,
@@ -137,7 +136,6 @@ class RadioDJAgent:
         else:
             state["context"] = ""
 
-        # Check if events is empty or no events
         if not state["events"]:
             state["action_type"] = "song"
             state["available_ad"] = []
@@ -147,7 +145,6 @@ class RadioDJAgent:
             debug_log(f"No events - defaulting to song")
             return state
 
-        # Check if there's an AD event type
         has_ad_event = any(
             event.get("content", {}).get("type") == "AD"
             for event in state["events"]
@@ -414,37 +411,3 @@ class RadioDJAgent:
         if events and event_ids:
             for event_id in event_ids:
                 self.memory.reset_event_by_id(event_id)
-
-    def enable_debug(self):
-        self.logger.setLevel(logging.DEBUG)
-
-    def disable_debug(self):
-        self.logger.setLevel(logging.INFO)
-
-    def _extract_text_from_response(self, response) -> str:
-        if hasattr(response, 'content'):
-            content = response.content
-
-            # If content is a list (when tools are used), extract text from content blocks
-            if isinstance(content, list):
-                text_parts = []
-                for block in content:
-                    if hasattr(block, 'text'):
-                        text_parts.append(block.text)
-                    elif isinstance(block, dict) and 'text' in block:
-                        text_parts.append(block['text'])
-                return ' '.join(text_parts)
-
-            # If content is a string, return as is
-            elif isinstance(content, str):
-                return content
-
-        return ""
-
-    def _strip_xml_tags(self, text: str) -> str:
-        # Remove search quality reflection and score tags and their content
-        text = re.sub(r'<search_quality_reflection>.*?</search_quality_reflection>', '', text, flags=re.DOTALL)
-        text = re.sub(r'<search_quality_score>.*?</search_quality_score>', '', text, flags=re.DOTALL)
-        # Remove any other XML-like tags
-        text = re.sub(r'<[^>]+>', '', text)
-        return text.strip()
