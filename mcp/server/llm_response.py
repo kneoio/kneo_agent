@@ -13,14 +13,12 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def _parse_claude(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        """Parse Claude response format"""
         content = cls._extract_content(resp)
 
         search_quality = cls._extract_between_tags(content, "search_quality_score", int)
         reasoning = cls._extract_between_tags(content, "search_quality_reflection", str)
         thinking = cls._extract_between_tags(content, "thinking", str)
 
-        # Remove all XML sections from content
         cleaned_content = content
 
         if thinking:
@@ -102,7 +100,6 @@ class LlmResponse(BaseModel):
 
     @staticmethod
     def _remove_xml_section(content: str, tag: str) -> str:
-        """Remove XML section and its content"""
         start_tag = f"<{tag}>"
         end_tag = f"</{tag}>"
         start_pos = content.find(start_tag)
