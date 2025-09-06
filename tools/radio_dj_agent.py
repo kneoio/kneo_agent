@@ -58,6 +58,7 @@ class RadioDJAgent:
         self.debug = debug
         self.llm_type = llm_type
         self.logger = logging.getLogger(__name__)
+        self.ai_logger = logging.getLogger('tools.interaction_tools.ai')
         if self.debug:
             self.logger.setLevel(logging.DEBUG)
             handler = logging.StreamHandler()
@@ -275,6 +276,8 @@ class RadioDJAgent:
                     llm_response = LlmResponse.from_response(response, self.llm_type)
                     state["introduction_text"] = llm_response.actual_result
                     debug_log(f"Result: >>>> : {state['introduction_text']}...")
+                    debug_log(f"Reasoning: >> : {llm_response.reasoning}")
+                    self.ai_logger.info(f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n")
                 except Exception as parse_error:
                     self.logger.error(f"LLM Response parsing failed: {parse_error}")
                     self.logger.error(f"Raw LLM Response: {repr(response)}")
