@@ -47,5 +47,7 @@ class FillerGenerator:
         if self.metadata_folder.exists() and self.metadata_folder.is_dir():
             for file in self.metadata_folder.glob("*.mp3"):
                 audio_files.append(file)
+            for file in self.metadata_folder.glob("*.wav"):
+                audio_files.append(file)
 
         return audio_files

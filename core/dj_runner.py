@@ -81,9 +81,9 @@ class DJRunner:
             raise
 
     async def _handle_prerecorded_broadcast(self) -> None:
-        audio_data, message = await self.prerecorded.get_prerecorded_audio()
+        temp_file_path, message = await self.prerecorded.get_prerecorded_file_path()
 
-        if not audio_data:
+        if not temp_file_path:
             self.logger.warning(f"No prerecorded audio available: {message}")
             return
 
@@ -95,18 +95,6 @@ class DJRunner:
         song = song_list[0]
 
         try:
-            # Hardcode path to match broadcaster directory
-            import uuid
-            target_dir = "/home/kneobroadcaster/merged"
-            os.makedirs(target_dir, exist_ok=True)
-            file_name = f"temp_prerecorded_{uuid.uuid4().hex}.mp3"
-            temp_file_path = os.path.join(target_dir, file_name)
-
-            with open(temp_file_path, "wb") as temp_file:
-                temp_file.write(audio_data)
-
-            self.logger.info(f"Saved prerecorded audio to: {temp_file_path}")
-
             result = await self.queue_mcp.add_to_queue_f_s(
                 brand_name=self.brand,
                 sound_fragment_uuid=song.get('id'),

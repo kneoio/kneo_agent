@@ -2,6 +2,9 @@ import logging
 import random
 from pathlib import Path
 from typing import List, Optional, Tuple
+import os
+import uuid
+import shutil
 
 from elevenlabs import ElevenLabs
 
@@ -24,9 +27,9 @@ class Prerecorded:
         return audio_files
 
 
-    async def get_prerecorded_audio(self) -> Tuple[Optional[bytes], str]:
+    async def get_prerecorded_audio(self) -> Tuple[Optional[bytes], str, str]:
         if not self.audio_files:
-            return None, "No prerecorded files available"
+            return None, "No prerecorded files available", ""
 
         try:
             selected_file = random.choice(self.audio_files)
@@ -34,8 +37,26 @@ class Prerecorded:
                 audio_data = f.read()
 
             self.logger.info(f"Using prerecorded audio: {selected_file}")
-            return audio_data, "Used pre-recorded audio"
+            return audio_data, "Used pre-recorded audio", selected_file.suffix.lstrip('.')
 
         except Exception as e:
             self.logger.error(f"Error reading audio file: {e}")
-            return None, f"Failed to load prerecorded: {e}"
+            return None, f"Failed to load prerecorded: {e}", ""
+
+    async def get_prerecorded_file_path(self, target_dir: str = "/home/kneobroadcaster/merged") -> Tuple[Optional[str], str]:
+        if not self.audio_files:
+            return None, "No prerecorded files available"
+        try:
+            selected_file = random.choice(self.audio_files)
+            os.makedirs(target_dir, exist_ok=True)
+            ext = selected_file.suffix.lstrip('.').lower() or "mp3"
+            if ext not in ("mp3", "wav"):
+                ext = "mp3"
+            file_name = f"temp_prerecorded_{uuid.uuid4().hex}.{ext}"
+            dest_path = Path(target_dir) / file_name
+            shutil.copy(selected_file, dest_path)
+            self.logger.info(f"Using prerecorded audio: {selected_file} -> {dest_path}")
+            return str(dest_path), "Used pre-recorded audio"
+        except Exception as e:
+            self.logger.error(f"Error preparing prerecorded file: {e}")
+            return None, f"Failed to prepare prerecorded: {e}"

@@ -328,7 +328,10 @@ class RadioDJAgent:
             if audio_data:
                 target_dir = "/home/kneobroadcaster/merged"
                 os.makedirs(target_dir, exist_ok=True)
-                file_name = f"mixpla_{uuid.uuid4().hex}.mp3"
+                chosen_ext = "mp3"
+                if audio_data and len(audio_data) >= 12 and audio_data[:4] == b"RIFF" and audio_data[8:12] == b"WAVE":
+                    chosen_ext = "wav"
+                file_name = f"mixpla_{uuid.uuid4().hex}.{chosen_ext}"
                 full_path = os.path.join(target_dir, file_name)
                 with open(full_path, "wb") as f:
                     f.write(audio_data)

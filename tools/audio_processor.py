@@ -22,7 +22,8 @@ class AudioProcessor:
 
         if "copyright" in text.lower():
             self.logger.warning("Copyright content detected")
-            return await self.prerecorded.get_prerecorded_audio()
+            audio_data, message, _ = await self.prerecorded.get_prerecorded_audio()
+            return audio_data, message
 
         try:
             self._save_to_history(title, artist, text)
