@@ -61,23 +61,46 @@ async def test_prompt(req: PromptRequest):
 async def radio_dj_test_auto(llm: LlmType, request: Request):
     ct = request.headers.get("content-type", "")
     client = llm_factory.get_llm_client(llm, internet_mcp=internet)
+    vars = {}
 
     if ct.startswith("text/plain"):
         raw = await request.body()
         song_prompt = raw.decode("utf-8")
     elif ct.startswith("application/json"):
         data = await request.json()
-        song_prompt = (data.get("template") or "").format(**(data.get("variables") or {}))
+        vars = data.get("variables", {})  # Fixed typo: "varibales" -> "variables"
+        song_prompt = data.get("template", "")
+        print(song_prompt)
     else:
         song_prompt = ""
 
-    messages = [
-        {"role": "system", "content": "Generate plain text"},
-        {"role": "user", "content": song_prompt}
-    ]
+    # Extract all required variables with defaults
+    dj_name = vars.get("ai_dj_name", "")
+    context = vars.get("context", "")
+    brand = vars.get("brand", "")
+    events = vars.get("events", "")
+    title = vars.get("title", "")
+    artist = vars.get("artist", "")
+    genres = vars.get("genres", [])
+    history = vars.get("history", [])
+    listeners = vars.get("listeners", [])
+    instant_message = vars.get("instant_message", [])
 
-    resp = await generate_dj_intro_text(client, messages, return_actual_resp=False)
+    resp = await generate_dj_intro_text(
+        client,
+        song_prompt,
+        dj_name,
+        context,
+        brand,
+        events,
+        title,
+        artist,
+        genres,
+        history,
+        listeners,
+        instant_message
+    )
 
     standardized_resp = LlmResponse.from_response(resp, llm)
-
     return standardized_resp.model_dump()
+

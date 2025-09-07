@@ -6,6 +6,7 @@ from cnst.llm_types import LlmType
 from langchain_anthropic import ChatAnthropic
 from langchain_groq import ChatGroq
 from mcp.external.internet_mcp import InternetMCP
+from mcp.server.llm_response import LlmResponse
 
 
 class ToolEnabledLLMClient:
@@ -95,6 +96,25 @@ class LlmFactory:
         return None
 
 
-async def generate_dj_intro_text(llm_client, messages, return_actual_resp: bool = False):
+
+async def generate_dj_intro_text(llm_client, prompt, dj_name, context, brand, events, title, artist, genres, history,
+                                 listeners, instant_message):
     tools = [InternetMCP.get_tool_definition()]
+    song_prompt = prompt.format(
+        ai_dj_name=dj_name,
+        context=context,
+        brand=brand,
+        events=events,
+        title=title,
+        artist=artist,
+        genres=genres,
+        history=history,
+        listeners=listeners,
+        instant_message=instant_message
+    )
+
+    messages = [
+        {"role": "system", "content": "Generate plain text"},
+        {"role": "user", "content": song_prompt}
+    ]
     return await llm_client.ainvoke(messages=messages, tools=tools)
