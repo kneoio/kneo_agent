@@ -75,7 +75,8 @@ class RadioDJAgent:
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.queue_mcp = QueueMCP(mcp_client)
         self.graph = self._build_graph()
-        debug_log(f"RadioDJAgent initialized, llm:{self.llm_type}")
+        self.search_engine = self.agent_config.get("search_engine_type")
+        debug_log(f"RadioDJAgent initialized, llm:{self.llm_type}, search engine:{self.search_engine}")
 
     def _build_graph(self):
         workflow = StateGraph(state_schema=DJState)
@@ -269,8 +270,7 @@ class RadioDJAgent:
                     {"role": "system", "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
-                default_engine = (self.agent_config.get("serach_engine") or "Brave")
-                tools = [InternetMCP.get_tool_definition(default_engine=default_engine)]
+                tools = [InternetMCP.get_tool_definition(default_engine=self.search_engine)]
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
 
                 try:

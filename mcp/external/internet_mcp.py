@@ -16,9 +16,9 @@ class InternetMCP:
         try:
             self.logger.info(f"internet.search q='{query}' max={max_results}")
             count = max_results if max_results > 0 else 0
-            eng = engine or "Brave"
+            eng = engine or "BRAVE"
             self.logger.info(f"internet.search engine={eng}")
-            if engine and engine.lower() == "perplexity":
+            if engine == "PERPLEXITY":
                 pdata = await self.ask_perplexity(query, max_items=count or 0)
                 items = pdata.get("items", []) if isinstance(pdata, dict) else []
                 all_results = []
@@ -125,7 +125,6 @@ class InternetMCP:
                 }
             }
         }
-
 
     async def _perplexity_chat(self, question: str) -> Dict[str, Any]:
         tool_cfg = get_tool_config(self.config, "internet_mcp") or {}
