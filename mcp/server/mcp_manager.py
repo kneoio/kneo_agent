@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from cnst.llm_types import LlmType
+from cnst.search_engine import SearchEngine
 from core.config import get_merged_config
 from mcp.external.internet_mcp import InternetMCP
 from mcp.server.llm_response import LlmResponse
@@ -34,6 +35,7 @@ internet = InternetMCP(config=cfg)
 class PromptRequest(BaseModel):
     prompt: str
     llm: LlmType
+    searchEngine: SearchEngine = SearchEngine.Brave
 
 
 @app.get("/health")
@@ -46,15 +48,17 @@ async def test_prompt(req: PromptRequest):
     logger.info(f"REQ llm={req.llm.name} prompt_len={len(req.prompt)}")
     q = req.prompt or ""
     max_results = 3
-    data = await internet.search_internet(q, max_results=max_results)
-    results = data.get("results", []) if isinstance(data, dict) else []
-    items = []
-    for it in results[:max_results]:
-        items.append({
-            "title": it.get("title", ""),
-            "snippet": it.get("snippet", "")
-        })
-    return {"items": items, "llm": req.llm.name}
+    results_out = []
+    if req.searchEngine == SearchEngine.Perplexity:
+        pdata = await internet.ask_perplexity(q, max_items=max_results)
+        for s in pdata.get("items", [])[:max_results]:
+            results_out.append(s)
+    else:
+        data = await internet.search_internet(q, max_results=max_results)
+        results = data.get("results", []) if isinstance(data, dict) else []
+        for it in results[:max_results]:
+            results_out.append(it.get("snippet", ""))
+    return {"results": results_out, "llm": req.llm.name}
 
 
 @app.post("/radio_dj/test/{llm}")

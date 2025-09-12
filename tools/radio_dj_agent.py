@@ -269,7 +269,8 @@ class RadioDJAgent:
                     {"role": "system", "content": "Generate plain text"},
                     {"role": "user", "content": song_prompt}
                 ]
-                tools = [InternetMCP.get_tool_definition()]
+                default_engine = (self.agent_config.get("serach_engine") or "Brave")
+                tools = [InternetMCP.get_tool_definition(default_engine=default_engine)]
                 response = await self.llm.ainvoke(messages=messages, tools=tools)
 
                 try:

@@ -12,11 +12,25 @@ class InternetMCP:
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
 
-    async def search_internet(self, query: str, max_results: int = 5) -> Dict[str, Any]:
+    async def search_internet(self, query: str, max_results: int = 5, engine: str | None = None) -> Dict[str, Any]:
         try:
             self.logger.info(f"internet.search q='{query}' max={max_results}")
             count = max_results if max_results > 0 else 0
-            all_results = await self._brave_search(query, count)
+            eng = engine or "Brave"
+            self.logger.info(f"internet.search engine={eng}")
+            if engine and engine.lower() == "perplexity":
+                pdata = await self.ask_perplexity(query, max_items=count or 0)
+                items = pdata.get("items", []) if isinstance(pdata, dict) else []
+                all_results = []
+                for s in items[:count]:
+                    all_results.append({
+                        "title": "",
+                        "url": "",
+                        "snippet": s,
+                        "source": "perplexity"
+                    })
+            else:
+                all_results = await self._brave_search(query, count)
             self.logger.info(f"internet.search returning general results={len(all_results)}")
             return {
                 "success": True,
@@ -82,7 +96,7 @@ class InternetMCP:
         return " | ".join(summary_parts)
 
     @staticmethod
-    def get_tool_definition() -> Dict[str, Any]:
+    def get_tool_definition(default_engine: str = "Brave") -> Dict[str, Any]:
         return {
             "type": "function",
             "function": {
@@ -99,6 +113,12 @@ class InternetMCP:
                             "type": "integer",
                             "description": "Maximum number of results",
                             "default": 5
+                        },
+                        "engine": {
+                            "type": "string",
+                            "description": "Search engine to use",
+                            "enum": ["Brave", "Perplexity"],
+                            "default": default_engine
                         }
                     },
                     "required": ["query"]
@@ -113,9 +133,9 @@ class InternetMCP:
         if not api_key:
             return {}
         url = "https://api.perplexity.ai/chat/completions"
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "accept": "application/json"}
         payload = {
-            "model": "sonar-small-online",
+            "model": "sonar",
             "messages": [
                 {"role": "system", "content": "Respond concisely."},
                 {"role": "user", "content": question}
