@@ -47,7 +47,7 @@ class InteractionMemory:
 
     def reset_messages(self) -> Dict[str, int]:
         try:
-            response = self.api_client.patch(f"ai/memory/reset/{self.brand}/INSTANT_MESSAGE", data={})
+            response = self.api_client.patch(f"ai/memory/reset/{self.brand}/MESSAGE", data={})
             #self.ai_logger.info(f"RESET MESSAGES: {response.get('removedCount', 0)} messages removed\n{'~' * 40}\n")
             return response
         except Exception as e:
@@ -79,7 +79,7 @@ class InteractionMemory:
                 params={
                     'type': [
                         'LISTENER_CONTEXT',
-                        'INSTANT_MESSAGE',
+                        'MESSAGE',
                         'CONVERSATION_HISTORY',
                         'AUDIENCE_CONTEXT',
                         'EVENT'
