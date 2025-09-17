@@ -53,7 +53,7 @@ class InternetMCP:
 
 
     async def _brave_search(self, query: str, limit: int) -> List[Dict[str, Any]]:
-        tool_cfg = get_tool_config(self.config, "internet_mcp") or {}
+        tool_cfg = self._get_tool_config()
         api_key = tool_cfg.get("brave_api_key", "")
         url = f"https://api.search.brave.com/res/v1/web/search?q={quote_plus(query)}&count={limit}"
         results: List[Dict[str, Any]] = []
@@ -127,7 +127,7 @@ class InternetMCP:
         }
 
     async def _perplexity_chat(self, question: str) -> Dict[str, Any]:
-        tool_cfg = get_tool_config(self.config, "internet_mcp") or {}
+        tool_cfg = self._get_tool_config()
         api_key = tool_cfg.get("perplexity_api_key", "")
         if not api_key:
             return {}
@@ -172,3 +172,17 @@ class InternetMCP:
         while len(items) < max_items:
             items.append("")
         return {"items": items[:max_items]}
+
+    def _get_tool_config(self):
+        if not self.config:
+            self.logger.warning("No config provided to InternetMCP")
+            return {}
+
+        tool_cfg = get_tool_config(self.config, "internet_mcp")
+        if tool_cfg is None:
+            if not hasattr(self, '_config_warning_logged'):
+                self.logger.warning("internet_mcp configuration not found - using empty config")
+                self._config_warning_logged = True
+            return {}
+
+        return tool_cfg
