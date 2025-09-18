@@ -88,7 +88,7 @@ async def radio_dj_test_auto(llm: LlmType, request: Request):
     genres = vars.get("genres", [])
     history = vars.get("history", [])
     listeners = vars.get("listeners", [])
-    instant_message = vars.get("instant_message", [])
+    instant_message = vars.get("messages", [])
 
     resp = await generate_dj_intro_text(
         client,

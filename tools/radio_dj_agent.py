@@ -35,7 +35,7 @@ class DJState(MessagesState):
     artist: str
     genres: List[str]
     listeners: List[Dict[str, Any]]
-    instant_message: List[Dict[str, Any]]
+    instant_messages: List[Dict[str, Any]]
     http_memory_data: Dict[str, Any]
     file_path: Optional[str]
     broadcast_success: bool
@@ -131,6 +131,7 @@ class RadioDJAgent:
 
         memory_data = self.memory.get_all_memory_data()
         environment = memory_data.get("environment", [])
+        state["instant_messages"] = memory_data.get("messages", [])
         if isinstance(environment, list) and environment:
             state["context"] = environment[0]
         elif isinstance(environment, str):
@@ -251,6 +252,8 @@ class RadioDJAgent:
                 debug_log("state['context']", state["context"])
                 debug_log("state['events']", state["events"])
                 debug_log("state['listeners']", state["listeners"])
+                debug_log("state['instant_messages']", state["instant_messages"])
+                debug_log("state['history']", state["history"])
                 debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
 
                 song_prompt = self.agent_config["prompt"].format(
@@ -263,7 +266,7 @@ class RadioDJAgent:
                     genres=state["genres"],
                     history=state["history"],
                     listeners=state["listeners"],
-                    instant_message=state["instant_message"]
+                    messages=state["instant_messages"]
                 )
 
                 messages = [
@@ -411,7 +414,7 @@ class RadioDJAgent:
             "genres": [],
             "listeners": [],
             "history": [],
-            "instant_message": [],
+            "instant_messages": [],
             "http_memory_data": http_memory_data or {},
             "file_path": None,
             "broadcast_success": False,
@@ -432,10 +435,12 @@ class RadioDJAgent:
 
     def _reset_memory(self):
         memory_data = self.memory.get_all_memory_data()
-        if memory_data.get('messages'):
-            self.memory.reset_messages()
         events = memory_data.get('events', [])
         event_ids = memory_data.get('event_ids', [])
         if events and event_ids:
             for event_id in event_ids:
                 self.memory.reset_event_by_id(event_id)
+        message_ids = memory_data.get('message_ids', [])
+        if message_ids:
+            for message_id in message_ids:
+                self.memory.reset_message_by_id(message_id)

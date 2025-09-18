@@ -110,7 +110,7 @@ async def generate_dj_intro_text(llm_client, prompt, dj_name, context, brand, ev
         genres=genres,
         history=history,
         listeners=listeners,
-        instant_message=instant_message
+        messages=instant_message
     )
 
     messages = [
