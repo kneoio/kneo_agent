@@ -96,10 +96,17 @@ class LlmFactory:
         return None
 
 
-
 async def generate_dj_intro_text(llm_client, prompt, dj_name, context, brand, events, title, artist, genres, history,
                                  listeners, instant_message):
     tools = [InternetMCP.get_tool_definition()]
+
+    formatted_messages = ""
+    if instant_message:
+        formatted_messages = "; ".join([
+            f"{msg.get('from', 'Anonymous')}: {msg.get('content', '')}"
+            for msg in instant_message
+        ])
+
     song_prompt = prompt.format(
         ai_dj_name=dj_name,
         context=context,
@@ -110,7 +117,7 @@ async def generate_dj_intro_text(llm_client, prompt, dj_name, context, brand, ev
         genres=genres,
         history=history,
         listeners=listeners,
-        messages=instant_message
+        messages=formatted_messages
     )
 
     messages = [

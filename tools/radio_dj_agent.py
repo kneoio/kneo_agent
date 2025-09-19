@@ -18,6 +18,7 @@ from mcp.sound_fragment_mcp import SoundFragmentMCP
 from mcp.queue_mcp import QueueMCP
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
+from util.prompt_formatter import flatten_data_for_prompt, format_events
 
 
 class DJState(MessagesState):
@@ -50,6 +51,7 @@ def _route_song_fetch(state: DJState) -> str:
     if not state["selected_sound_fragment"]:
         return "end"
     return "create_audio"
+
 
 class RadioDJAgent:
 
@@ -183,11 +185,15 @@ class RadioDJAgent:
             else:
                 state["available_ad"] = ad_list
                 ad = ad_list[0] if ad_list else None
+
+                # Use utility function to format events
+                formatted_events = format_events(state["events"])
+
                 decision_prompt = self.agent_config["decision_prompt"].format(
                     ai_dj_name=self.ai_dj_name,
                     context=state["context"],
                     brand=self.brand,
-                    events=state["events"],
+                    events=formatted_events,
                     ad=ad.get("id") if ad else None
                 )
 
@@ -256,17 +262,26 @@ class RadioDJAgent:
                 debug_log("state['history']", state["history"])
                 debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
 
+                # Use utility function to flatten all list data for prompt template
+                formatted_events, formatted_history, formatted_listeners, formatted_genres, formatted_messages = flatten_data_for_prompt(
+                    events=state["events"],
+                    history=state["history"],
+                    listeners=state["listeners"],
+                    genres=state["genres"],
+                    instant_messages=state["instant_messages"]
+                )
+
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
                     context=state["context"],
                     brand=self.brand,
-                    events=state["events"],
+                    events=formatted_events,
                     title=state["title"],
                     artist=state["artist"],
-                    genres=state["genres"],
-                    history=state["history"],
-                    listeners=state["listeners"],
-                    messages=state["instant_messages"]
+                    genres=formatted_genres,
+                    history=formatted_history,
+                    listeners=formatted_listeners,
+                    messages=formatted_messages
                 )
 
                 messages = [
@@ -279,9 +294,10 @@ class RadioDJAgent:
                 try:
                     llm_response = LlmResponse.from_response(response, self.llm_type)
                     state["introduction_text"] = llm_response.actual_result
-                    debug_log(f"Result: >>>> : {state['introduction_text']}...")
+                    debug_log(f"Result: >>>>>>> : {state['introduction_text']}...")
                     debug_log(f"Reasoning: >> : {llm_response.reasoning}")
-                    self.ai_logger.info(f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n")
+                    self.ai_logger.info(
+                        f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n")
                 except Exception as parse_error:
                     self.logger.error(f"LLM Response parsing failed: {parse_error}")
                     self.logger.error(f"Raw LLM Response: {repr(response)}")
