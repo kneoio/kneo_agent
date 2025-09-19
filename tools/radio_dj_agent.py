@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -18,14 +19,14 @@ from mcp.sound_fragment_mcp import SoundFragmentMCP
 from mcp.queue_mcp import QueueMCP
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
-from util.prompt_formatter import flatten_data_for_prompt, format_events
+from util.prompt_formatter import flatten_data_for_prompt
 
 
 class DJState(MessagesState):
     events: List[Dict[str, Any]]
     history: List[Dict[str, Any]]
     action_type: str
-    context: str
+    context: List[str]
     available_ad: List[Dict[str, Any]]
     selected_sound_fragment: Dict[str, Any]
     complimentary_sound_fragment: Dict[str, Any]
@@ -36,8 +37,7 @@ class DJState(MessagesState):
     artist: str
     genres: List[str]
     listeners: List[Dict[str, Any]]
-    instant_messages: List[Dict[str, Any]]
-    http_memory_data: Dict[str, Any]
+    messages: List[Dict[str, Any]]
     file_path: Optional[str]
     broadcast_success: bool
     broadcast_message: str
@@ -82,15 +82,12 @@ class RadioDJAgent:
 
     def _build_graph(self):
         workflow = StateGraph(state_schema=DJState)
-        workflow.add_node("check_events", self._check_events)
         workflow.add_node("decision", self._decision)
         workflow.add_node("fetch_song", self._fetch_song)
         workflow.add_node("create_audio", self._create_audio)
         workflow.add_node("broadcast_audio", self._broadcast_audio)
 
-        workflow.set_entry_point("check_events")
-
-        workflow.add_edge("check_events", "decision")
+        workflow.set_entry_point("decision")
 
         workflow.add_conditional_edges(
             "decision",
@@ -116,37 +113,12 @@ class RadioDJAgent:
         debug_log("Graph workflow built")
         return workflow.compile()
 
-    async def _check_events(self, state: DJState) -> DJState:
-        debug_log("Entering _check_events")
-
-        try:
-            http_memory_data = state.get("http_memory_data", {})
-            state["events"] = http_memory_data.get("events", [])
-        except Exception as e:
-            self.logger.error(f"Error checking events: {e}", exc_info=self.debug)
-            state["events"] = []
-
-        return state
-
     async def _decision(self, state: DJState) -> DJState:
         debug_log("Entering _decision")
-
-        memory_data = self.memory.get_all_memory_data()
-        environment = memory_data.get("environment", [])
-        state["instant_messages"] = memory_data.get("messages", [])
-        if isinstance(environment, list) and environment:
-            state["context"] = environment[0]
-        elif isinstance(environment, str):
-            state["context"] = environment
-        else:
-            state["context"] = ""
 
         if not state["events"]:
             state["action_type"] = "song"
             state["available_ad"] = []
-            http_memory_data = state.get("http_memory_data", {})
-            state["history"] = http_memory_data.get("history", [])
-            state["listeners"] = http_memory_data.get("listeners", [])
             debug_log(f"No events - defaulting to song")
             return state
 
@@ -175,60 +147,8 @@ class RadioDJAgent:
                 state["action_type"] = "song"
                 state["available_ad"] = []
         else:
-            ad_list = await self.sound_fragments_mcp.get_brand_sound_fragment(
-                brand=self.brand,
-                fragment_type=PlaylistItemType.ADVERTISEMENT.value)
-
-            if not ad_list:
-                state["action_type"] = "song"
-                state["available_ad"] = []
-            else:
-                state["available_ad"] = ad_list
-                ad = ad_list[0] if ad_list else None
-
-                # Use utility function to format events
-                formatted_events = format_events(state["events"])
-
-                decision_prompt = self.agent_config["decision_prompt"].format(
-                    ai_dj_name=self.ai_dj_name,
-                    context=state["context"],
-                    brand=self.brand,
-                    events=formatted_events,
-                    ad=ad.get("id") if ad else None
-                )
-
-                try:
-                    decision_prompt = [
-                        {"role": "system",
-                         "content": "Output JSON only: - Ad: {\"action\": \"ad\", \"introduction_text\": \"here is something from our sponsors\"}"},
-                        {"role": "user", "content": decision_prompt}
-                    ]
-                    response = await self.llm.ainvoke(decision_prompt)
-                    debug_log(f"LLM response received: {response.content[:200]}...")
-                    parsed_response = self._parse_llm_response(response.content)
-
-                    state["action_type"] = parsed_response.get("action", "song")
-                    debug_log("Action type determined", {"action_type": state["action_type"]})
-
-                    if state["action_type"] == "ad":
-                        state["introduction_text"] = parsed_response.get("introduction_text", get_random_ad_intro())
-                        state["selected_sound_fragment"] = ad
-                        state["title"] = ad.get('title', 'Advertisement')
-                        state["artist"] = ad.get('artist', 'Sponsor')
-
-                except Exception as e:
-                    self.logger.error(f"Decision failed: {e}", exc_info=self.debug)
-                    state["action_type"] = "song"
-                    self.logger.warning(f"Fallback to default: action=song")
-
-        if state["action_type"] != "ad":
-            http_memory_data = state.get("http_memory_data", {})
-            state["history"] = http_memory_data.get("history", [])
-            state["listeners"] = http_memory_data.get("listeners", [])
-
-            debug_log(f"Retrieved conversation history from HTTP: {len(state['history'])} items")
-            debug_log(f"Retrieved listeners from HTTP: {len(state['listeners'])} items")
-
+            state["action_type"] = "song"
+            state["available_ad"] = []
         return state
 
     async def _fetch_song(self, state: DJState) -> DJState:
@@ -258,22 +178,22 @@ class RadioDJAgent:
                 debug_log("state['context']", state["context"])
                 debug_log("state['events']", state["events"])
                 debug_log("state['listeners']", state["listeners"])
-                debug_log("state['instant_messages']", state["instant_messages"])
+                debug_log("state['messages']", state["messages"])
                 debug_log("state['history']", state["history"])
                 debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
 
-                # Use utility function to flatten all list data for prompt template
-                formatted_events, formatted_history, formatted_listeners, formatted_genres, formatted_messages = flatten_data_for_prompt(
+                formatted_events, formatted_history, formatted_listeners, formatted_genres, formatted_messages, formatted_context = flatten_data_for_prompt(
                     events=state["events"],
                     history=state["history"],
                     listeners=state["listeners"],
                     genres=state["genres"],
-                    instant_messages=state["instant_messages"]
+                    messages=state["messages"],
+                    context=state["context"]
                 )
 
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
-                    context=state["context"],
+                    context=formatted_context,
                     brand=self.brand,
                     events=formatted_events,
                     title=state["title"],
@@ -372,7 +292,9 @@ class RadioDJAgent:
 
         try:
             if state.get("file_path") and state.get("selected_sound_fragment"):
-                while True:
+                result = False
+                max_retries = 2
+                for attempt in range(max_retries):
                     if state["has_complimentary"]:
                         result = await self.queue_mcp.add_to_queue_s_i_s(
                             brand_name=self.brand,
@@ -388,11 +310,16 @@ class RadioDJAgent:
                             file_path=state["file_path"],
                             priority=10
                         )
+
                     if result:
                         break
+                    await asyncio.sleep(2)
 
                 state["broadcast_success"] = result
-                state["broadcast_message"] = f"Broadcasted: {state['title']} by {state['artist']}"
+                if result:
+                    state["broadcast_message"] = f"Broadcasted: {state['title']} by {state['artist']}"
+                else:
+                    state["broadcast_message"] = "Broadcast failed after retries"
 
                 debug_log(f"Broadcasting result: {state['broadcast_success']}")
 
@@ -408,16 +335,13 @@ class RadioDJAgent:
 
         return state
 
-    async def create_introduction(self, brand: str, http_memory_data: Dict[str, Any] = None) -> Tuple[
+    async def create_introduction(self, brand: str, memory_data: Dict[str, Any] = None) -> Tuple[
         bool, str, str, str]:
         debug_log(f"create_introduction called for brand: {brand}")
-        debug_log(f"http_memory_data provided: {http_memory_data is not None}")
-        self._reset_memory()
-
+        debug_log(f"memory provided: {memory_data is not None}")
         initial_state = {
-            "messages": [],
             "brand": brand,
-            "events": [],
+            "events": memory_data.get("events", []),
             "action_type": "",
             "available_ad": [],
             "selected_sound_fragment": {},
@@ -428,15 +352,15 @@ class RadioDJAgent:
             "title": "Unknown",
             "artist": "Unknown",
             "genres": [],
-            "listeners": [],
-            "history": [],
-            "instant_messages": [],
-            "http_memory_data": http_memory_data or {},
+            "listeners": memory_data.get("listeners", []),
+            "history": memory_data.get("history", []),
+            "context": memory_data.get("environment", []),
+            "messages": memory_data.get("messages", []),
             "file_path": None,
             "broadcast_success": False,
             "broadcast_message": ""
         }
-
+        self._reset_memory(memory_data.get("messages", []), memory_data.get("events", []))
         try:
             result = await self.graph.ainvoke(initial_state)
             return (
@@ -449,14 +373,16 @@ class RadioDJAgent:
             self.logger.error(f"Workflow execution failed: {str(e)}", exc_info=self.debug)
             return False, "Unknown", "Unknown", "Unknown"
 
-    def _reset_memory(self):
-        memory_data = self.memory.get_all_memory_data()
-        events = memory_data.get('events', [])
-        event_ids = memory_data.get('event_ids', [])
-        if events and event_ids:
-            for event_id in event_ids:
-                self.memory.reset_event_by_id(event_id)
-        message_ids = memory_data.get('message_ids', [])
-        if message_ids:
-            for message_id in message_ids:
-                self.memory.reset_message_by_id(message_id)
+    def _reset_memory(self, messages, events):
+
+        if events:
+            for ev in events:
+                ev_id = ev.get("id")
+                if ev_id:
+                    self.memory.reset_event_by_id(ev_id)
+
+        if messages:
+            for msg in messages:
+                msg_id = msg.get("id")
+                if msg_id:
+                    self.memory.reset_message_by_id(msg_id)

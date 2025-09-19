@@ -115,7 +115,7 @@ class DJRunner:
 
         broadcast_success, song_id, title, artist = await self.radio_dj_agent.create_introduction(
             brand=self.brand,
-            http_memory_data=memory_data
+            memory_data=memory_data
         )
 
         if broadcast_success:

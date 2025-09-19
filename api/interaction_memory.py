@@ -1,9 +1,7 @@
 # api/interaction_memory.py
 
 import logging
-from typing import List, Any, Dict, Union
-from langchain_core.messages import BaseMessage, AIMessage
-from models.memory_payload import MemoryPayload
+from typing import Any, Dict, Union
 
 
 class InteractionMemory:
@@ -33,7 +31,7 @@ class InteractionMemory:
     def reset_messages(self) -> Dict[str, int]:
         try:
             response = self.api_client.patch(f"ai/memory/reset/{self.brand}/MESSAGE", data={})
-            #self.ai_logger.info(f"RESET MESSAGES: {response.get('removedCount', 0)} messages removed\n{'~' * 40}\n")
+            self.ai_logger.info(f"RESET MESSAGES: {response.get('removedCount', 0)} messages removed\n{'~' * 40}\n")
             return response
         except Exception as e:
             self.logger.error(f"Error resetting messages for brand {self.brand}: {e}")
@@ -51,7 +49,7 @@ class InteractionMemory:
     def reset_event_by_id(self, event_id: str) -> Dict[str, int]:
         try:
             response = self.api_client.patch(f"ai/memory/reset/{self.brand}/EVENT?id={event_id}", data={})
-            #self.ai_logger.info(f"RESET EVENT {event_id}: removed\n{'~'*40}\n")
+            self.ai_logger.info(f"RESET EVENT {event_id}: removed\n{'~'*40}\n")
             return response
         except Exception as e:
             self.logger.error(f"Error resetting event {event_id} for brand {self.brand}: {e}")
@@ -82,7 +80,8 @@ class InteractionMemory:
             )
 
             result = {
-                'messages': {},
+                'messages': [],
+                'message_ids': [],
                 'history': [],
                 'listeners': [],
                 'environment': [],
@@ -136,7 +135,8 @@ class InteractionMemory:
         except Exception as e:
             self.logger.error(f"Error fetching all memory data: {e}")
             return {
-                'messages': {},
+                'messages': [],
+                'message_ids': [],
                 'history': [],
                 'listeners': [],
                 'environment': [],

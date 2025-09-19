@@ -117,25 +117,25 @@ class MemoryMCP:
             self.logger.error(f"get_audience_context traceback: {traceback.format_exc()}")
             return []
 
-    async def get_instant_messages(self, brand: str) -> List[Dict[str, Any]]:
-        self.logger.debug(f"get_instant_messages called for brand: {brand}")
+    async def get_messages(self, brand: str) -> List[Dict[str, Any]]:
+        self.logger.debug(f"get_messages called for brand: {brand}")
 
         if not self.mcp_client:
-            self.logger.warning("get_instant_messages: No MCP client available")
+            self.logger.warning("get_messages: No MCP client available")
             return []
 
         try:
             result = await self.get_memory_by_type(brand, [MemoryType.INSTANT_MESSAGE])
-            self.logger.debug(f"get_instant_messages raw result: {result}")
+            self.logger.debug(f"get_messages raw result: {result}")
 
             extracted_data = extract_memory_data(result, MemoryType.INSTANT_MESSAGE)
-            self.logger.info(f"get_instant_messages extracted {len(extracted_data)} items")
+            self.logger.info(f"get_messages extracted {len(extracted_data)} items")
             return extracted_data
 
         except Exception as e:
             self.logger.error(f"Failed to fetch instant messages: {e}")
             import traceback
-            self.logger.error(f"get_instant_messages traceback: {traceback.format_exc()}")
+            self.logger.error(f"get_messages traceback: {traceback.format_exc()}")
             return []
 
     async def get_events(self, brand: str) -> List[Dict[str, Any]]:
