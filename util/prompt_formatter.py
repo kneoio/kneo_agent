@@ -37,13 +37,11 @@ def flatten_data_for_prompt(
     if genres:
         formatted_genres = ", ".join([str(genre) for genre in genres])
 
-    formatted_messages = ""
-    if messages:
-        formatted_messages = "; ".join([
-            f"{msg.get('from', 'Anonymous')}: {msg.get('content', '')}"
-            for msg in messages
-            if isinstance(msg, dict)
-        ])
+    formatted_messages = "; ".join([
+        f"Message from {msg.get('from', 'Anonymous')}: {msg.get('content', '')}"
+        for msg in messages
+        if isinstance(msg, dict)
+    ])
 
     formatted_context = ""
     if context:
