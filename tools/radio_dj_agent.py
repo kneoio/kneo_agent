@@ -216,16 +216,13 @@ class RadioDJAgent:
                     state["introduction_text"] = llm_response.actual_result
                     debug_log(f"Result: >>>>>>> : {state['introduction_text']}...")
                     debug_log(f"Reasoning: >> : {llm_response.reasoning}")
-                    self.ai_logger.info(
-                        f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n")
+                    self._reset_memory(state["messages"], state["events"])
+                    self.ai_logger.info(f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n")
                 except Exception as parse_error:
                     self.logger.error(f"LLM Response parsing failed: {parse_error}")
                     self.logger.error(f"Raw LLM Response: {repr(response)}")
-                    self.logger.error(f"Response content: {getattr(response, 'content', 'NO CONTENT')}")
                     self.logger.error(f"Response type: {type(response)}")
                     self.logger.error(f"Response attributes: {dir(response)}")
-
-                    # Fallback to empty intro
                     state["introduction_text"] = ""
 
             else:
@@ -243,18 +240,6 @@ class RadioDJAgent:
             state["introduction_text"] = ""
 
         return state
-
-    def _parse_llm_response(self, response: str) -> Dict[str, str]:
-        try:
-            json_match = re.search(r'\{[^}]*\}', response)
-            if json_match:
-                return json.loads(json_match.group(0))
-            else:
-                self.logger.error(f"Parsing LLM response issue: {response}")
-                return {}
-        except Exception as e:
-            self.logger.error(f"Error parsing LLM response: {e}")
-            return {}
 
     async def _create_audio(self, state: DJState) -> DJState:
         debug_log("Entering _create_audio")
@@ -360,7 +345,6 @@ class RadioDJAgent:
             "broadcast_success": False,
             "broadcast_message": ""
         }
-        self._reset_memory(memory_data.get("messages", []), memory_data.get("events", []))
         try:
             result = await self.graph.ainvoke(initial_state)
             return (
