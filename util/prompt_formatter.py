@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import Tuple
 
 
 def flatten_data_for_prompt(
@@ -12,7 +12,7 @@ def flatten_data_for_prompt(
     formatted_events = ""
     if events:
         formatted_events = "; ".join([
-            f"Event: {event.get('type', 'unknown')} - {event.get('content', {}).get('description', str(event))}"
+            f"Event: {event.get('type')} - {event.get('content')}"
             for event in events
             if isinstance(event, dict)
         ])
@@ -20,7 +20,7 @@ def flatten_data_for_prompt(
     formatted_history = ""
     if history:
         formatted_history = "; ".join([
-            f"{item.get('speaker', 'Unknown')}: {item.get('content', str(item))}"
+            f"title: {item.get('title')}, artist: {item.get('artist')}, content: {item.get('content')}"
             for item in history
             if isinstance(item, dict)
         ])
@@ -28,7 +28,7 @@ def flatten_data_for_prompt(
     formatted_listeners = ""
     if listeners:
         formatted_listeners = ", ".join([
-            listener.get('name', listener.get('id', 'Anonymous'))
+            listener.get('name', listener.get('id'))
             for listener in listeners
             if isinstance(listener, dict)
         ])
@@ -38,7 +38,7 @@ def flatten_data_for_prompt(
         formatted_genres = ", ".join([str(genre) for genre in genres])
 
     formatted_messages = "; ".join([
-        f"Message from {msg.get('from', 'Anonymous')}: {msg.get('content', '')}"
+        f"Message from {msg.get('from')}: {msg.get('content')}"
         for msg in messages
         if isinstance(msg, dict)
     ])

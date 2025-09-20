@@ -171,15 +171,6 @@ class RadioDJAgent:
                 state["artist"] = song.get('artist')
                 state["genres"] = song.get('genres', [])
 
-                debug_log("state['title']", state["title"])
-                debug_log("state['artist']", state["artist"])
-                debug_log("state['genres']", state["genres"])
-                debug_log("self.ai_dj_name", self.ai_dj_name)
-                debug_log("state['context']", state["context"])
-                debug_log("state['events']", state["events"])
-                debug_log("state['listeners']", state["listeners"])
-                debug_log("state['messages']", state["messages"])
-                debug_log("state['history']", state["history"])
                 debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
 
                 formatted_events, formatted_history, formatted_listeners, formatted_genres, formatted_messages, formatted_context = flatten_data_for_prompt(
@@ -190,6 +181,17 @@ class RadioDJAgent:
                     messages=state["messages"],
                     context=state["context"]
                 )
+
+                debug_log("ai_dj_name", self.ai_dj_name)
+                debug_log("context", formatted_context)
+                debug_log("brand", self.brand)
+                debug_log("events", formatted_events)
+                debug_log("title", state["title"])
+                debug_log("artist", state["artist"])
+                debug_log("genres", formatted_genres)
+                debug_log("history", formatted_history)
+                debug_log("listeners", formatted_listeners)
+                debug_log("messages", formatted_messages)
 
                 song_prompt = self.agent_config["prompt"].format(
                     ai_dj_name=self.ai_dj_name,
