@@ -1,7 +1,5 @@
 import asyncio
-import json
 import logging
-import re
 import os
 import uuid
 from typing import Dict, Any, List, Optional, Tuple
@@ -14,9 +12,9 @@ from api.queue import Queue
 from cnst.llm_types import LlmType
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.external.internet_mcp import InternetMCP
+from mcp.queue_mcp import QueueMCP
 from mcp.server.llm_response import LlmResponse
 from mcp.sound_fragment_mcp import SoundFragmentMCP
-from mcp.queue_mcp import QueueMCP
 from util.file_util import debug_log
 from util.intro_helper import get_random_ad_intro
 from util.prompt_formatter import flatten_data_for_prompt
@@ -123,7 +121,7 @@ class RadioDJAgent:
             return state
 
         has_ad_event = any(
-            event.get("content", {}).get("type") == "AD"
+            event.get("type") == "AD"
             for event in state["events"]
             if isinstance(event, dict)
         )

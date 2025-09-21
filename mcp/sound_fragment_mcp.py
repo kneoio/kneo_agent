@@ -27,14 +27,9 @@ class SoundFragmentMCP:
                 self.logger.error("Tool call returned empty payload. Check the mcp_client's logs for details.")
                 return []
 
-            # Return list response
             if isinstance(response_payload, list):
                 self.logger.info(f"Fetched sound fragment data for brand {brand}: {len(response_payload)} fragments")
                 return response_payload
-
-            # Convert single object to list
-            self.logger.info(f"Fetched sound fragment data for brand {brand}: 1 fragment")
-            return [response_payload]
 
         except Exception as e:
             self.logger.error(f"An unexpected error occurred while fetching sound fragment: {e}")

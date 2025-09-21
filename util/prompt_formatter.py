@@ -1,6 +1,5 @@
 from typing import Tuple
 
-
 def flatten_data_for_prompt(
     events=None,
     history=None,
@@ -11,42 +10,44 @@ def flatten_data_for_prompt(
 ) -> Tuple[str, str, str, str, str, str]:
     formatted_events = ""
     if events:
-        formatted_events = "; ".join([
-            f"Event: {event.get('type')} - {event.get('content')}"
-            for event in events
-            if isinstance(event, dict)
+        formatted_events = "\n".join([
+            f"- {event.get('type', 'UNKNOWN')}: {event.get('description', '')}"
+            for event in events if isinstance(event, dict)
         ])
 
     formatted_history = ""
     if history:
-        formatted_history = "; ".join([
-            f"title: {item.get('title')}, artist: {item.get('artist')}, content: {item.get('content')}"
-            for item in history
-            if isinstance(item, dict)
+        formatted_history = "\n".join([
+            f"- Played: {item.get('title', '')} by {item.get('artist', '')}"
+            for item in history if isinstance(item, dict)
         ])
 
     formatted_listeners = ""
     if listeners:
-        formatted_listeners = ", ".join([
-            listener.get('name', listener.get('id'))
-            for listener in listeners
-            if isinstance(listener, dict)
+        formatted_listeners = "\n".join([
+            f"- {listener.get('name', listener.get('id'))}"
+            for listener in listeners if isinstance(listener, dict)
         ])
 
     formatted_genres = ""
     if genres:
-        formatted_genres = ", ".join([str(genre) for genre in genres])
+        formatted_genres = "\n".join([
+            f"- {str(genre)}" for genre in genres
+        ])
 
-    formatted_messages = "; ".join([
-        f"Message from {msg.get('from')}: {msg.get('content')}"
-        for msg in messages
-        if isinstance(msg, dict)
-    ])
+    formatted_messages = ""
+    if messages:
+        formatted_messages = "\n".join([
+            f"- Message from {msg.get('name') or msg.get('from', 'Unknown')}: {msg.get('content', '')}"
+            for msg in messages if isinstance(msg, dict)
+        ])
 
     formatted_context = ""
     if context:
         if isinstance(context, list) and len(context) == 1 and isinstance(context[0], dict):
-            formatted_context = ", ".join([f"{k}: {v}" for k, v in context[0].items() if v])
+            formatted_context = "\n".join([
+                f"- {k}: {v}" for k, v in context[0].items() if v
+            ])
         else:
             formatted_context = str(context)
 
