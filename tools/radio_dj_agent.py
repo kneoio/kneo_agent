@@ -34,6 +34,7 @@ class DJState(MessagesState):
     title: str
     artist: str
     genres: List[str]
+    song_description: str
     listeners: List[Dict[str, Any]]
     messages: List[Dict[str, Any]]
     file_path: Optional[str]
@@ -139,6 +140,7 @@ class RadioDJAgent:
                 state["selected_sound_fragment"] = ad
                 state["title"] = ad.get('title', 'Advertisement')
                 state["artist"] = ad.get('artist', 'Sponsor')
+                state["song_description"] = ad.get('description', '')
                 debug_log("AD event detected - setting action to ad")
                 return state
             else:
@@ -168,6 +170,7 @@ class RadioDJAgent:
                 state["title"] = song.get('title')
                 state["artist"] = song.get('artist')
                 state["genres"] = song.get('genres', [])
+                state["song_description"] = song.get('description', '')
 
                 debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
 
@@ -186,6 +189,7 @@ class RadioDJAgent:
                 debug_log("events", formatted_events)
                 debug_log("title", state["title"])
                 debug_log("artist", state["artist"])
+                debug_log("song_description", state["song_description"])
                 debug_log("genres", formatted_genres)
                 debug_log("history", formatted_history)
                 debug_log("listeners", formatted_listeners)
@@ -201,7 +205,8 @@ class RadioDJAgent:
                     genres=formatted_genres,
                     history=formatted_history,
                     listeners=formatted_listeners,
-                    messages=formatted_messages
+                    messages=formatted_messages,
+                    song_description=state["song_description"]
                 )
 
                 messages = [
@@ -337,6 +342,7 @@ class RadioDJAgent:
             "title": "Unknown",
             "artist": "Unknown",
             "genres": [],
+            "song_description": "",
             "listeners": memory_data.get("listeners", []),
             "history": memory_data.get("history", []),
             "context": memory_data.get("environment", []),

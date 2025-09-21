@@ -17,8 +17,7 @@ class InternetMCP:
             self.logger.info(f"internet.search q='{query}' max={max_results}")
             count = max_results if max_results > 0 else 0
             eng = engine or "BRAVE"
-            self.logger.info(f"internet.search engine={eng}")
-            if engine == "PERPLEXITY":
+            if eng == "PERPLEXITY":
                 pdata = await self.ask_perplexity(query, max_items=count or 0)
                 items = pdata.get("items", []) if isinstance(pdata, dict) else []
                 all_results = []
@@ -31,7 +30,7 @@ class InternetMCP:
                     })
             else:
                 all_results = await self._brave_search(query, count)
-            self.logger.info(f"internet.search returning general results={len(all_results)}")
+            self.logger.info(f"internet.search returning general results={len(all_results)}, search engine={eng}")
             return {
                 "success": True,
                 "query": query,
