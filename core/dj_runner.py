@@ -13,6 +13,7 @@ from mcp.mcp_client import MCPClient
 from mcp.queue_mcp import QueueMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from tools.audio_processor import AudioProcessor
+from tools.radio_dj import RadioDJ
 from tools.radio_dj_agent import RadioDJAgent
 
 
@@ -41,7 +42,17 @@ class DJRunner:
             self.agent_config,
             self.memory
         )
-        self.radio_dj_agent = RadioDJAgent(
+        #self.radio_dj_agent = RadioDJAgent(
+        #    config,
+        #    self.memory,
+        #    self.audio_processor,
+        #    self.agent_config,
+        #    self.brand,
+        #    mcp_client=self.mcp_client,
+        #    llm_client=llm_client,
+        #    llm_type=llm_type
+        #)
+        self.radio_dj = RadioDJ(
             config,
             self.memory,
             self.audio_processor,
@@ -113,15 +124,16 @@ class DJRunner:
     async def _handle_live_dj_broadcast(self) -> None:
         memory_data = self.memory.get_all_memory_data()
 
-        broadcast_success, song_id, title, artist = await self.radio_dj_agent.create_introduction(
+        broadcast_success, song_id, title, artist, broadcast_message = await self.radio_dj.run(
             brand=self.brand,
             memory_data=memory_data
         )
 
-        if broadcast_success:
-            self.logger.info(f"Successfully broadcasted live DJ intro: {title} by {artist}")
+        if not broadcast_success:
+            self.logger.info("Switching to prerecorded filler — no live DJ intro available")
+            await self._handle_prerecorded_broadcast()
         else:
-            self.logger.warning(f"Failed to broadcast live DJ content: {title} by {artist}")
+            self.logger.info(f"Successfully broadcasted live DJ intro: {title} by {artist}")
 
     async def cleanup(self):
         if hasattr(self, 'mcp_client') and not hasattr(self, '_external_mcp_client'):

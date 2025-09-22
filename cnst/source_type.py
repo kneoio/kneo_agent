@@ -1,7 +1,0 @@
-from enum import Enum
-
-class SourceType(Enum):
-    USERS_UPLOAD = "USERS_UPLOAD"
-    PRERECORDED = "PRERECORDED"
-    ORPHAN_RECOVERY = "ORPHAN_RECOVERY"
-    SUNO_PROMPT = "SUNO_PROMPT"

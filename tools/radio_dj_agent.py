@@ -77,7 +77,7 @@ class RadioDJAgent:
         self.queue_mcp = QueueMCP(mcp_client)
         self.graph = self._build_graph()
         self.search_engine = self.agent_config.get("search_engine_type")
-        debug_log(f"RadioDJAgent initialized, llm:{self.llm_type}, search engine:{self.search_engine}")
+        debug_log(f"RadioDJAgent v1 initialized, llm:{self.llm_type}, search engine:{self.search_engine}")
 
     def _build_graph(self):
         workflow = StateGraph(state_schema=DJState)

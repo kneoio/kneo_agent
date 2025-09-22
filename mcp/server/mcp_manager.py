@@ -63,22 +63,12 @@ async def test_prompt(req: PromptRequest):
 
 @app.post("/radio_dj/test/{llm}")
 async def radio_dj_test_auto(llm: LlmType, request: Request):
-    ct = request.headers.get("content-type", "")
     client = llm_factory.get_llm_client(llm, internet_mcp=internet)
-    vars = {}
+    data = await request.json()
+    vars = data.get("variables", {})
+    song_prompt = data.get("template", "")
+    print(song_prompt)
 
-    if ct.startswith("text/plain"):
-        raw = await request.body()
-        song_prompt = raw.decode("utf-8")
-    elif ct.startswith("application/json"):
-        data = await request.json()
-        vars = data.get("variables", {})  # Fixed typo: "varibales" -> "variables"
-        song_prompt = data.get("template", "")
-        print(song_prompt)
-    else:
-        song_prompt = ""
-
-    # Extract all required variables with defaults
     dj_name = vars.get("ai_dj_name", "")
     context = vars.get("context", "")
     brand = vars.get("brand", "")
