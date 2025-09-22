@@ -192,7 +192,10 @@ class RadioDJ:
             state["draft_text"] += f"\nGenres: {', '.join(state['genres'])}"
         if state["history"]:
             prev = state["history"][-1]
-            state["draft_text"] += f"\nHistory (optional): Played \"{prev.get('title')}\" by {prev.get('artist')}"
+            intro = prev.get("introSpeech", "")
+            state["draft_text"] += f"\nHistory (optional): Played \"{prev.get('title')}\" by {prev.get('artist')}."
+            if intro:
+                state["draft_text"] += f" Last intro speech was: {intro}"
         if state["context"]:
             if isinstance(state["context"], list) and len(state["context"]) == 1 and isinstance(state["context"][0],
                                                                                                 dict):

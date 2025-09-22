@@ -6,10 +6,7 @@ from cnst.memory_type import MemoryType
 def extract_memory_data(result: Dict[str, Any], memory_type: MemoryType) -> List[Dict[str, Any]]:
     logger = logging.getLogger(__name__)
     logger.debug(f"extract_memory_data called with memory_type: {memory_type.value}")
-
-    # Direct access - no nested map structure
     extracted_list = result.get(memory_type.value, [])
-
     logger.debug(f"extracted list length: {len(extracted_list)}")
     return extracted_list
 
