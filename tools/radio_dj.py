@@ -164,14 +164,18 @@ class RadioDJ:
                 state["selected_sound_fragment"] = song_list[1]
                 state["complimentary_sound_fragment"] = song_list[0]
                 state["has_complimentary"] = True
+                first_song_in_mix = state["complimentary_sound_fragment"]
+                debug_log(f"Has complimentary fragment: {state['has_complimentary']}")
+                debug_log(f"Saving complimentary fragment: {first_song_in_mix.get('title')}-{first_song_in_mix.get('artist')}")
+                self.audio_processor.save_to_history(first_song_in_mix.get("title"), first_song_in_mix.get("artist"), "") #to know dj about the played song
             else:
                 state["selected_sound_fragment"] = song_list[0]
                 state["complimentary_sound_fragment"] = {}
                 state["has_complimentary"] = False
 
             song = state["selected_sound_fragment"]
-            state["title"] = song.get("title", "Unknown")
-            state["artist"] = song.get("artist", "Unknown")
+            state["title"] = song.get("title")
+            state["artist"] = song.get("artist")
             state["genres"] = song.get("genres", [])
             state["song_description"] = song.get("description", "")
         else:
@@ -180,7 +184,6 @@ class RadioDJ:
             state["has_complimentary"] = False
             state["title"] = "Unknown"
             state["artist"] = "Unknown"
-
         return state
 
     @staticmethod
@@ -245,11 +248,12 @@ class RadioDJ:
         response = await self.llm.ainvoke(messages=messages, tools=tools)
 
         try:
-            debug_log(f"Raw draft before embellish:\n{state['draft_text']}")
+            debug_log(f"Raw ========== :\n{state['draft_text']}")
             llm_response = LlmResponse.from_response(response, self.llm_type)
             state["introduction_text"] = llm_response.actual_result
-            debug_log(f"Embellished intro: {state['introduction_text']}")
+            debug_log(f"Embellished >>>>>>>>>>>>>>> : {state['introduction_text']}")
             self._reset_message(state["messages"])
+            self._reset_event(state["events"])
         except Exception as e:
             self.logger.error(f"LLM Response parsing failed: {e}")
             state["introduction_text"] = state["draft_text"]
@@ -260,6 +264,7 @@ class RadioDJ:
             audio_data, reason = await self.audio_processor.generate_tts_audio(
                 state["introduction_text"], state["title"], state["artist"]
             )
+            self.audio_processor.save_to_history(state["title"], state["artist"], state["introduction_text"]) #even precorded case wil get to story (cprght issue)
             state["audio_data"] = audio_data
             if audio_data:
                 target_dir = "/home/kneobroadcaster/merged"
@@ -281,12 +286,21 @@ class RadioDJ:
     async def _broadcast_audio(self, state: DJState) -> DJState:
         try:
             if state.get("file_path") and state.get("selected_sound_fragment"):
-                result = await self.queue_mcp.add_to_queue_i_s(
-                    brand_name=self.brand,
-                    sound_fragment_uuid=state["selected_sound_fragment"].get("id"),
-                    file_path=state["file_path"],
-                    priority=10,
-                )
+                if state["has_complimentary"]:
+                    result = await self.queue_mcp.add_to_queue_s_i_s(
+                        brand_name=self.brand,
+                        fragment_uuid_1=state["complimentary_sound_fragment"].get("id"),
+                        fragment_uuid_2=state["selected_sound_fragment"].get("id"),
+                        file_path=state["file_path"],
+                        priority=10
+                    )
+                else:
+                    result = await self.queue_mcp.add_to_queue_i_s(
+                        brand_name=self.brand,
+                        sound_fragment_uuid=state["selected_sound_fragment"].get("id"),
+                        file_path=state["file_path"],
+                        priority=10
+                    )
                 state["broadcast_success"] = result
                 state["broadcast_message"] = (
                     f"Broadcasted: {state['title']} by {state['artist']}" if result else "Broadcast failed"

@@ -26,8 +26,6 @@ class AudioProcessor:
             return audio_data, message
 
         try:
-            self._save_to_history(title, artist, text)
-
             voice_id = self.agent_config.get('preferredVoice', 'nPczCjzI2devNBz1zQrb')
             audio_stream = self.elevenlabs_inst.text_to_speech.convert(
                 voice_id=voice_id,
@@ -50,7 +48,7 @@ class AudioProcessor:
             self.logger.error(f"TTS generation failed: {e}")
             return None, f"TTS generation failed: {str(e)}"
 
-    def _save_to_history(self, title: str, artist: str, text: str):
+    def save_to_history(self, title: str, artist: str, text: str):
         try:
             history_entry = {
                 "title": title,
