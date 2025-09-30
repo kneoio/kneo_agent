@@ -4,6 +4,7 @@ __pycache__/
 .venv
 .idea
 .vscode
+.aiassistant
 ci_cd
 metadata
 
