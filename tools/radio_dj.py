@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from langgraph.graph import MessagesState, StateGraph, END
 
 from api.interaction_memory import InteractionMemory
+from tools.song_intro_builder import build_song_intro_text, build_ad_intro_text
 from api.queue import Queue
 from cnst.llm_types import LlmType
 from cnst.play_list_item_type import PlaylistItemType
@@ -125,7 +126,7 @@ class RadioDJ:
             state["title"] = ad.get("title", "Advertisement")
             state["artist"] = ad.get("artist", "Sponsor")
             state["song_description"] = ad.get("description", "")
-            state["draft_text"] += f"\nAdvertisement: Break — \"{state['title']}\" by {state['artist']}"
+            state["draft_text"] += build_ad_intro_text(state["title"], state["artist"])
         else:
             self.logger.warning("No advertisement fragment available — skipping ad broadcast")
             state["broadcast_success"] = False
@@ -188,25 +189,15 @@ class RadioDJ:
 
     @staticmethod
     async def _build_song_intro(state: DJState) -> DJState:
-        state["draft_text"] += f"\nNow playing: \"{state['title']}\" by {state['artist']}"
-        if state["song_description"]:
-            state["draft_text"] += f"\nDescription: {state['song_description']}"
-        if state["genres"]:
-            state["draft_text"] += f"\nGenres: {', '.join(state['genres'])}"
-        if state["history"]:
-            prev = state["history"][-1]
-            intro = prev.get("introSpeech", "")
-            state["draft_text"] += f"\nHistory (optional): Played \"{prev.get('title')}\" by {prev.get('artist')}."
-            if intro:
-                state["draft_text"] += f" Last intro speech was: {intro}"
-        if state["context"]:
-            if isinstance(state["context"], list) and len(state["context"]) == 1 and isinstance(state["context"][0],
-                                                                                                dict):
-                ctx_lines = [f"{k}: {v}" for k, v in state["context"][0].items() if v]
-                ctx_text = ", ".join(ctx_lines)
-            else:
-                ctx_text = str(state["context"])
-            state["draft_text"] += f"\nAtmosphere hint (optional): {ctx_text}"
+        intro_text = build_song_intro_text(
+            title=state["title"],
+            artist=state["artist"],
+            song_description=state["song_description"],
+            genres=state["genres"],
+            history=state["history"],
+            context=state["context"]
+        )
+        state["draft_text"] += intro_text
         return state
 
     @staticmethod
