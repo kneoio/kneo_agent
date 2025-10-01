@@ -52,3 +52,26 @@ class QueueMCP:
         })
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
+
+    async def add_to_queue_i_s_i_s(self, brand_name: str,
+                                   fragment_uuid_1,
+                                   fragment_uuid_2,
+                                   file_path_1: Optional[str] = None,
+                                   file_path_2: Optional[str] = None,
+                                   priority: Optional[int] = 20
+                                   ) -> bool:
+        result = await self.mcp_client.call_tool("add_to_queue", {
+            "brand": brand_name,
+            "songIds": {
+                "song1": fragment_uuid_1,
+                "song2": fragment_uuid_2
+            },
+            "filePaths": {
+                "audio1": file_path_1,
+                "audio2": file_path_2
+            } if file_path_1 and file_path_2 else {},
+            "mergingMethod": "INTRO_SONG_INTRO_SONG",
+            "priority": priority
+        })
+        self.logger.info(f"Added to queue for brand {brand_name}: {result}")
+        return result

@@ -6,7 +6,7 @@ from elevenlabs import ElevenLabs
 
 from api.broadcaster_client import BroadcasterAPIClient
 from api.interaction_memory import InteractionMemory
-from api.sound_fragment import SoundFragment
+from api.sound_fragment_api import SoundFragmentApi
 from cnst.llm_types import LlmType
 from core.prerecorded import Prerecorded
 from mcp.mcp_client import MCPClient
@@ -26,7 +26,7 @@ class DJRunner:
         self.agent_config = brand_config.get('agent', {})
         self.talkativity = self.agent_config.get('talkativity', 0.3)
         self.mcp_client = mcp_client if mcp_client else MCPClient(config, True)
-        self.song_fetch_tool = SoundFragment(config)
+        self.song_fetch_tool = SoundFragmentApi(config)
         self.api_client = api_client
 
         self.memory = InteractionMemory(
@@ -124,7 +124,7 @@ class DJRunner:
     async def _handle_live_dj_broadcast(self) -> None:
         memory_data = self.memory.get_all_memory_data()
 
-        broadcast_success, song_id, title, artist, broadcast_message = await self.radio_dj.run(
+        broadcast_success, title, artist = await self.radio_dj.run(
             brand=self.brand,
             memory_data=memory_data
         )
