@@ -24,3 +24,4 @@ class DJState(MessagesState):
     broadcast_success: bool
     __end__: bool
     merging_type: MergingType
+    session_id: str

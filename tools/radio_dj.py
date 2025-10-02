@@ -44,7 +44,7 @@ class RadioDJ:
         self.brand = brand
         self.sound_fragments_mcp = SoundFragmentMCP(mcp_client)
         self.queue_mcp = QueueMCP(mcp_client)
-        self.target_dir = "/home/kneobroadcaster/merged"
+        self.target_dir = "/home/kneobroadcaster/to_merge"
         os.makedirs(self.target_dir, exist_ok=True)
         self.graph = self._build_graph()
         debug_log(f"RadioDJ v2 initialized with llm={self.llm_type}")
@@ -57,7 +57,8 @@ class RadioDJ:
             "history": memory_data.get("history", []),
             "context": memory_data.get("environment", []),
             "song_fragments": [],
-            "broadcast_success": False
+            "broadcast_success": False,
+            "session_id": uuid.uuid4().hex
         }
 
         result = await self.graph.ainvoke(initial_state)
@@ -203,31 +204,36 @@ class RadioDJ:
         else:
             targets = []
 
-        for song in targets:
+        for idx, song in enumerate(targets):
             try:
                 text = song.introduction_text
                 if not text:
                     continue
-                audio_data, reason = await self.audio_processor.generate_tts_audio(text, song.title, song.artist)
+                audio_data, reason = await self.audio_processor.generate_tts_audio(text)
                 if audio_data:
-                    self._save_audio_file(song, audio_data)
+                    short_id = song.id.replace("-", "")[:8]  # compact id
+                    if state["merging_type"] == MergingType.INTRO_SONG_INTRO_SONG:
+                        role = f"intro{idx + 1}_{short_id}"
+                    else:
+                        role = f"{idx}_{short_id}"
+                    short_name = f"{state['session_id']}_{state['merging_type'].name[:4].lower()}_{role}"
+                    self._save_audio_file(song, audio_data, state, short_name)
             except Exception as e:
                 self.logger.error(f"Error creating audio for {song.title}: {e}")
-        return state
 
-    def _save_audio_file(self, song: SoundFragment, audio_data: bytes) -> None:
+    def _save_audio_file(self, song: SoundFragment, audio_data: bytes, state: DJState, short_name: str) -> None:
         song.audio_data = audio_data
 
         chosen_ext = "mp3"
         if audio_data[:4] == b"RIFF" and audio_data[8:12] == b"WAVE":
             chosen_ext = "wav"
 
-        file_name = f"mixpla_{uuid.uuid4().hex}.{chosen_ext}"
+        file_name = f"{short_name}.{chosen_ext}"
         path = os.path.join(self.target_dir, file_name)
         with open(path, "wb") as f:
             f.write(audio_data)
         song.file_path = path
-        debug_log(f"Audio saved for {song.title}: {path}")
+        debug_log(f"Audio saved for {song.title} [{state['merging_type'].name}]: {path}")
 
     async def _broadcast_audio(self, state: DJState) -> DJState:
         try:

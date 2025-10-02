@@ -16,7 +16,7 @@ class AudioProcessor:
         self.memory = memory
         self.logger = logging.getLogger(__name__)
 
-    async def generate_tts_audio(self, text: str, title: str, artist: str) -> Tuple[Optional[bytes], str]:
+    async def generate_tts_audio(self, text: str) -> Tuple[Optional[bytes], str]:
         if not text:
             return None, "No text provided for TTS"
 
