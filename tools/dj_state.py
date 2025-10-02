@@ -5,6 +5,7 @@ from models.sound_fragment import SoundFragment
 
 
 class MergingType(Enum):
+    SONG_CROSSFADE_SONG = "SONG_CROSSFADE_SONG"
     INTRO_SONG = "INTRO_SONG"
     NOT_MIXED = "NOT_MIXED"
     SONG_INTRO_SONG = "SONG_INTRO_SONG"

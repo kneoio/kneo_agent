@@ -12,13 +12,9 @@ client = ElevenLabs(
     api_key=config.get("elevenlabs").get("api_key")
 )
 
-audio_stream = client.text_to_speech.convert(
-    voice_id="JBFqnCBsd6RMkjVDRZzb",
-    output_format="mp3_44100_128",
-    text="Testing ElevenLabs text-to-speech conversion.",
-    #model_id="eleven_multilingual_v2",
-    model_id="eleven_v3",
-)
+audio_stream = client.text_to_dialogue.convert(
+    inputs=[ { "text": "Hello, how are you?", "voice_id": "9BWtsMINqrJLrRacOk9x", },
+             { "text": "I'm doing well, thank you!", "voice_id": "IKne3meq5aSn9XLyUdCD", } ] )
 
 with open("test_basic.mp3", "wb") as f:
     for chunk in audio_stream:
@@ -26,3 +22,8 @@ with open("test_basic.mp3", "wb") as f:
             f.write(chunk)
 
 print("Generated test_basic.mp3")
+
+
+
+
+

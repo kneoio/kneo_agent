@@ -75,3 +75,20 @@ class QueueMCP:
         })
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
+
+    async def add_to_queue_crossfade(self, brand_name: str,
+                                     fragment_uuid_1,
+                                     fragment_uuid_2,
+                                     priority: Optional[int] = 20) -> bool:
+        result = await self.mcp_client.call_tool("add_to_queue", {
+            "brand": brand_name,
+            "songIds": {
+                "song1": fragment_uuid_1,
+                "song2": fragment_uuid_2
+            },
+            "mergingMethod": "SONG_CROSSFADE_SONG",
+            "priority": priority
+        })
+        self.logger.info(f"Added crossfade to queue for brand {brand_name}: {result}")
+        return result
+

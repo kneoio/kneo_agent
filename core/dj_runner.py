@@ -14,8 +14,6 @@ from mcp.queue_mcp import QueueMCP
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from tools.audio_processor import AudioProcessor
 from tools.radio_dj import RadioDJ
-from tools.radio_dj_agent import RadioDJAgent
-
 
 class DJRunner:
     def __init__(self, config: Dict, brand_config: Dict, api_client: BroadcasterAPIClient,
@@ -42,16 +40,7 @@ class DJRunner:
             self.agent_config,
             self.memory
         )
-        #self.radio_dj_agent = RadioDJAgent(
-        #    config,
-        #    self.memory,
-        #    self.audio_processor,
-        #    self.agent_config,
-        #    self.brand,
-        #    mcp_client=self.mcp_client,
-        #    llm_client=llm_client,
-        #    llm_type=llm_type
-        #)
+
         self.radio_dj = RadioDJ(
             config,
             self.memory,

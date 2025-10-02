@@ -92,7 +92,14 @@ class RadioDJ:
             {"end": END, "embellish": "embellish"},
         )
 
-        workflow.add_edge("build_song_intro", "embellish")
+        workflow.add_conditional_edges(
+            "build_song_intro",
+            lambda state: "broadcast_audio"
+            if state.get("merging_type") == MergingType.SONG_CROSSFADE_SONG
+            else "embellish",
+            {"broadcast_audio": "broadcast_audio", "embellish": "embellish"},
+        )
+
         workflow.add_edge("embellish", "create_audio")
         workflow.add_edge("create_audio", "broadcast_audio")
         workflow.add_edge("broadcast_audio", END)
@@ -142,10 +149,12 @@ class RadioDJ:
 
         if len(state["song_fragments"]) == 1:
             state["merging_type"] = MergingType.INTRO_SONG
+            # in RadioDJ._build_song_intro
         elif len(state["song_fragments"]) >= 2:
             state["merging_type"] = random.choice([
                 MergingType.SONG_INTRO_SONG,
-                MergingType.INTRO_SONG_INTRO_SONG
+                MergingType.INTRO_SONG_INTRO_SONG,
+                MergingType.SONG_CROSSFADE_SONG
             ])
 
         debug_log(f"Merging chosen: {state['merging_type'].name}")
@@ -269,6 +278,14 @@ class RadioDJ:
                     file_path_2=state["song_fragments"][1].file_path,
                     priority=10
                 )
+            elif state["merging_type"] == MergingType.SONG_CROSSFADE_SONG and len(state["song_fragments"]) >= 2:
+                result = await self.queue_mcp.add_to_queue_crossfade(
+                    brand_name=self.brand,
+                    fragment_uuid_1=state["song_fragments"][0].id,
+                    fragment_uuid_2=state["song_fragments"][1].id,
+                    priority=10
+                )
+
             else:
                 result = False
 
