@@ -17,6 +17,7 @@ from mcp.queue_mcp import QueueMCP
 from mcp.server.llm_response import LlmResponse
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from util.file_util import debug_log
+from util.randomizer import get_random_merging_type
 
 
 class RadioDJ:
@@ -149,13 +150,8 @@ class RadioDJ:
 
         if len(state["song_fragments"]) == 1:
             state["merging_type"] = MergingType.INTRO_SONG
-            # in RadioDJ._build_song_intro
-        elif len(state["song_fragments"]) >= 2:
-            state["merging_type"] = random.choice([
-                MergingType.SONG_INTRO_SONG,
-                MergingType.INTRO_SONG_INTRO_SONG,
-                MergingType.SONG_CROSSFADE_SONG
-            ])
+        else:
+            state["merging_type"] = get_random_merging_type()
 
         debug_log(f"Merging chosen: {state['merging_type'].name}")
 
