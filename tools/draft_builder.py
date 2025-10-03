@@ -5,7 +5,7 @@ def build_ad_intro_text(title: str, artist: str) -> str:
     return f"\nAdvertisement: Break — \"{title}\" by {artist}"
 
 
-def build_song_intro_text(
+def build_draft(
     title: str,
     artist: str,
     ai_dj_name: str,

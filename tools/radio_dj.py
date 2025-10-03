@@ -15,7 +15,7 @@ from mcp.server.llm_response import LlmResponse
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from models.sound_fragment import SoundFragment
 from tools.dj_state import DJState, MergingType
-from tools.song_intro_builder import build_song_intro_text, build_ad_intro_text
+from tools.draft_builder import build_draft, build_ad_intro_text
 from util.file_util import debug_log
 from util.randomizer import get_random_merging_type
 
@@ -136,10 +136,9 @@ class RadioDJ:
             self.logger.warning("No song fragments found")
         return state
 
-    @staticmethod
     async def _build_song_intro(self, state: DJState) -> DJState:
         for song in state["song_fragments"]:
-            song.draft_intro = build_song_intro_text(
+            song.draft_intro = build_draft(
                 title=song.title,
                 artist=song.artist,
                 ai_dj_name=self.ai_dj_name,
