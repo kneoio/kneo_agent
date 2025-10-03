@@ -1,14 +1,11 @@
 import logging
 import os
-import random
 import uuid
 from typing import Dict, Any, Tuple
 
 from langgraph.graph import StateGraph, END
+
 from api.interaction_memory import InteractionMemory
-from models.sound_fragment import SoundFragment
-from tools.dj_state import DJState, MergingType
-from tools.song_intro_builder import build_song_intro_text, build_ad_intro_text
 from api.queue import Queue
 from cnst.llm_types import LlmType
 from cnst.play_list_item_type import PlaylistItemType
@@ -16,6 +13,9 @@ from mcp.external.internet_mcp import InternetMCP
 from mcp.queue_mcp import QueueMCP
 from mcp.server.llm_response import LlmResponse
 from mcp.sound_fragment_mcp import SoundFragmentMCP
+from models.sound_fragment import SoundFragment
+from tools.dj_state import DJState, MergingType
+from tools.song_intro_builder import build_song_intro_text, build_ad_intro_text
 from util.file_util import debug_log
 from util.randomizer import get_random_merging_type
 
@@ -137,11 +137,13 @@ class RadioDJ:
         return state
 
     @staticmethod
-    async def _build_song_intro(state: DJState) -> DJState:
+    async def _build_song_intro(self, state: DJState) -> DJState:
         for song in state["song_fragments"]:
             song.draft_intro = build_song_intro_text(
                 title=song.title,
                 artist=song.artist,
+                ai_dj_name=self.ai_dj_name,
+                brand=self.brand,
                 song_description=song.description,
                 genres=song.genres,
                 history=state["history"],
@@ -154,15 +156,9 @@ class RadioDJ:
             state["merging_type"] = get_random_merging_type()
 
         debug_log(f"Merging chosen: {state['merging_type'].name}")
-
         return state
 
     async def _embellish(self, state: DJState) -> DJState:
-        base_prompt = self.agent_config["prompt"].format(
-            ai_dj_name=self.ai_dj_name,
-            brand=self.brand,
-        )
-
         targets = []
         if state["merging_type"] == MergingType.INTRO_SONG and len(state["song_fragments"]) >= 1:
             targets = [state["song_fragments"][0]]
@@ -173,7 +169,8 @@ class RadioDJ:
 
         for song in targets:
             draft = song.draft_intro or ""
-            full_prompt = f"{base_prompt}\nDraft:{draft}"
+            full_prompt = f"{self.agent_config['prompt']}\n\nInput:\n{draft}"
+
             prompt_messages = [
                 {"role": "system", "content": "Generate plain text"},
                 {"role": "user", "content": full_prompt}
@@ -198,6 +195,7 @@ class RadioDJ:
         self._reset_message(state.get("messages"))
         self._reset_event(state.get("events"))
         return state
+
 
     async def _create_audio(self, state: DJState) -> DJState:
         if state["merging_type"] == MergingType.INTRO_SONG and len(state["song_fragments"]) >= 1:
