@@ -176,9 +176,9 @@ class RadioDJ:
             ]
 
             allow_search = (
-                    song.type != PlaylistItemType.ADVERTISEMENT.value
-                    and not song.genres
-                    and not song.description
+                song.type != PlaylistItemType.ADVERTISEMENT.value
+                and not song.genres
+                and not song.description
             )
             tools = [InternetMCP.get_tool_definition(default_engine=self.search_engine)] if allow_search else None
 
@@ -187,6 +187,9 @@ class RadioDJ:
                 llm_response = LlmResponse.from_response(response, self.llm_type)
                 song.introduction_text = llm_response.actual_result
                 debug_log(f"Embellished intro for {song.title}: {song.introduction_text}")
+                self.ai_logger.info(
+                    f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
+                )
             except Exception as e:
                 self.logger.error(f"LLM Response parsing failed for {song.title}: {e}")
                 song.introduction_text = draft
@@ -194,7 +197,6 @@ class RadioDJ:
         self._reset_message(state.get("messages"))
         self._reset_event(state.get("events"))
         return state
-
 
     async def _create_audio(self, state: DJState) -> DJState:
         if state["merging_type"] == MergingType.INTRO_SONG and len(state["song_fragments"]) >= 1:
@@ -213,7 +215,7 @@ class RadioDJ:
                     continue
                 audio_data, reason = await self.audio_processor.generate_tts_audio(text)
                 if audio_data:
-                    short_id = song.id.replace("-", "")[:8]  # compact id
+                    short_id = song.id.replace("-", "")[:8]
                     if state["merging_type"] == MergingType.INTRO_SONG_INTRO_SONG:
                         role = f"intro{idx + 1}_{short_id}"
                     else:
