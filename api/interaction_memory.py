@@ -3,7 +3,6 @@
 import logging
 from typing import Any, Dict, Union
 
-
 class InteractionMemory:
     def __init__(self, api_client: Any, brand: str):
         self.api_client = api_client
