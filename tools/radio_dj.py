@@ -284,21 +284,22 @@ class RadioDJ:
             else:
                 result = False
 
+            debug_log(state["broadcast_success"])
             state["broadcast_success"] = result
 
-            if state["broadcast_success"]:
-                try:
-                    for song in state["song_fragments"]:
-                        intro_text = getattr(song, "introduction_text", "")
-                        if intro_text:
-                            history_entry = {
-                                "title": song.title,
-                                "artist": song.artist,
-                                "introSpeech": intro_text
-                            }
-                            self.memory.store_conversation_history(history_entry)
-                except Exception as e:
-                    self.logger.warning(f"Failed to save broadcast history: {e}")
+
+            try:
+                for song in state["song_fragments"]:
+                    intro_text = getattr(song, "introduction_text", "")
+                    if intro_text:
+                        history_entry = {
+                            "title": song.title,
+                            "artist": song.artist,
+                            "introSpeech": intro_text
+                        }
+                        self.memory.store_conversation_history(history_entry)
+            except Exception as e:
+                self.logger.warning(f"Failed to save broadcast history: {e}")
 
         except Exception as e:
             self.logger.error(f"Error broadcasting audio: {e}")
