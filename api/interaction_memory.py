@@ -16,7 +16,7 @@ class InteractionMemory:
                 "type": 'SONG_INTRO',
                 "title": content.get('title', ''),
                 "artist": content.get('artist', ''),
-                "content": content.get('content', '')
+                "introSpeech": content.get('content', '')
             }
             #self.ai_logger.info(f"STORING HISTORY for '{payload['title']}' by {payload['artist']}:\n{payload['content']}\n{'#'*80}\n")
             self.api_client.patch(f"ai/memory/history/brand/{self.brand}", data=payload)

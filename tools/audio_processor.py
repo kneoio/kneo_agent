@@ -47,18 +47,3 @@ class AudioProcessor:
         except Exception as e:
             self.logger.error(f"TTS generation failed: {e}")
             return None, f"TTS generation failed: {str(e)}"
-
-    def save_to_history(self, title: str, artist: str, text: str):
-        try:
-            history_entry = {
-                "title": title,
-                "artist": artist,
-                "content": text
-            }
-            success = self.memory.store_conversation_history(history_entry)
-            if success:
-                self.logger.info(f"Saved to history: '{title}' by {artist}")
-            else:
-                self.logger.warning("Failed to save to history")
-        except Exception as e:
-            self.logger.error(f"Error saving to history: {e}")

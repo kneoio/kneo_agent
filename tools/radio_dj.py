@@ -130,7 +130,6 @@ class RadioDJ:
 
         if state["song_fragments"]:
             first = state["song_fragments"][0]
-            self.audio_processor.save_to_history(first.title, first.artist, "")
             debug_log(f"Fetched {len(state['song_fragments'])} fragments, first: {first.title}-{first.artist}")
         else:
             self.logger.warning("No song fragments found")
@@ -289,7 +288,12 @@ class RadioDJ:
                     for song in state["song_fragments"]:
                         intro_text = getattr(song, "introduction_text", "")
                         if intro_text:
-                            self.audio_processor.save_to_history(song.title, song.artist, intro_text)
+                            history_entry = {
+                                "title": song.title,
+                                "artist": song.artist,
+                                "introSpeech": intro_text
+                            }
+                            self.memory.store_conversation_history(history_entry)
                 except Exception as e:
                     self.logger.warning(f"Failed to save broadcast history: {e}")
 
