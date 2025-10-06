@@ -10,7 +10,7 @@ def get_random_merging_type():
         _merge_pool = [
             MergingType.SONG_INTRO_SONG,
             MergingType.INTRO_SONG_INTRO_SONG,
-            #MergingType.SONG_CROSSFADE_SONG
+            MergingType.SONG_CROSSFADE_SONG
         ]
         random.shuffle(_merge_pool)
     return _merge_pool.pop()
