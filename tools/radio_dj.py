@@ -272,6 +272,7 @@ class RadioDJ:
                     file_path_2=state["song_fragments"][1].file_path,
                     priority=10
                 )
+
             elif state["merging_type"] == MergingType.SONG_CROSSFADE_SONG and len(state["song_fragments"]) >= 2:
                 result = await self.queue_mcp.add_to_queue_crossfade(
                     brand_name=self.brand,
@@ -282,6 +283,8 @@ class RadioDJ:
 
             else:
                 result = False
+
+            state["broadcast_success"] = result
 
             if state["broadcast_success"]:
                 try:
@@ -296,8 +299,6 @@ class RadioDJ:
                             self.memory.store_conversation_history(history_entry)
                 except Exception as e:
                     self.logger.warning(f"Failed to save broadcast history: {e}")
-
-            state["broadcast_success"] = result
 
         except Exception as e:
             self.logger.error(f"Error broadcasting audio: {e}")
