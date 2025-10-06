@@ -25,6 +25,7 @@ class InteractionMemory:
             return False
 
     def store_conversation_history(self, content: Union[str, Dict]) -> bool:
+        self.ai_logger.info(f"store CONVERSATION_HISTORY: {content}")
         return self.store_memory('CONVERSATION_HISTORY', content)
 
     def reset_messages(self) -> Dict[str, int]:
