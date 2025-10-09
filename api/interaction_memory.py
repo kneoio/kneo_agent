@@ -10,23 +10,9 @@ class InteractionMemory:
         self.logger = logging.getLogger(__name__)
         self.ai_logger = logging.getLogger('tools.interaction_tools.ai')
 
-    def store_memory(self, memory_type: str, content: Union[str, Dict]) -> bool:
-        if memory_type == "CONVERSATION_HISTORY":
-            payload = {
-                "type": 'SONG_INTRO',
-                "title": content.get('title', ''),
-                "artist": content.get('artist', ''),
-                "introSpeech": content.get('content', '')
-            }
-            #self.ai_logger.info(f"STORING HISTORY for '{payload['title']}' by {payload['artist']}:\n{payload['content']}\n{'#'*80}\n")
-            self.api_client.patch(f"ai/memory/history/brand/{self.brand}", data=payload)
-            return True
-        else:
-            return False
-
     def store_conversation_history(self, content: Union[str, Dict]) -> bool:
-        self.ai_logger.info(f"store CONVERSATION_HISTORY: {content}")
-        return self.store_memory('CONVERSATION_HISTORY', content)
+        self.ai_logger.info(f"PATCH CONVERSATION_HISTORY: {content}")
+        return self.api_client.patch(f"ai/memory/history/brand/{self.brand}", data=content)
 
     def reset_messages(self) -> Dict[str, int]:
         try:
@@ -121,14 +107,6 @@ class InteractionMemory:
                     'events': events_content,
                     'event_ids': event_ids
                 })
-
-            self.ai_logger.info(f"MEMORY DATA RETRIEVED:\n"
-                              f"Messages: {len(result['messages'])}\n"
-                              f"History: {len(result['history'])}\n"
-                              f"Listeners: {len(result['listeners'])}\n"
-                              f"Environment: {len(result['environment'])}\n"
-                              f"Events: {len(result['events'])}\n"
-                              f"{'+'*40}\n")
 
             return result
 

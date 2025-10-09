@@ -32,7 +32,7 @@ class DJRunner:
             api_client=self.api_client
         )
         elevenlabs_inst = ElevenLabs(api_key=config.get("elevenlabs").get("api_key"))
-        self.prerecorded = Prerecorded(elevenlabs_inst, self.agent_config.get("fillers"), self.brand)
+        self.prerecorded = Prerecorded(elevenlabs_inst, self.brand)
 
         self.audio_processor = AudioProcessor(
             elevenlabs_inst,

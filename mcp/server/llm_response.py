@@ -1,9 +1,9 @@
 import logging
 from typing import Optional
-
 from pydantic import BaseModel
-
 from cnst.llm_types import LlmType
+import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class LlmResponse(BaseModel):
         )
 
     @classmethod
-    def from_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
+    def parse_plain_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
         if llm_type == LlmType.GROQ:
             return cls._parse_groq(resp, llm_type)
         elif llm_type == LlmType.OPENAI:
@@ -142,3 +142,55 @@ class LlmResponse(BaseModel):
             end_pos += len(end_tag)
             return content[:start_pos] + content[end_pos:]
         return content
+
+    @classmethod
+    def parse_structured_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
+        if llm_type == LlmType.CLAUDE:
+            return cls._parse_claude_structured(resp, llm_type)
+        elif llm_type == LlmType.OPENAI:
+            return cls._parse_openai_structured(resp, llm_type)
+        elif llm_type == LlmType.GROQ:
+            return cls._parse_groq_structured(resp, llm_type)
+        else:
+            return cls._parse_claude_structured(resp, llm_type)
+
+    @classmethod
+    def _parse_claude_structured(cls, resp, llm_type: LlmType) -> 'LlmResponse':
+        base = cls._parse_claude(resp, llm_type)
+        raw = base.actual_result.strip()
+        match = re.search(r"(\[.*\]|\{.*\})", raw, re.DOTALL)
+        if match:
+            json_block = match.group(1).strip()
+            try:
+                json.loads(json_block)
+                base.actual_result = json_block
+            except Exception:
+                logger.warning("Claude structured parse: invalid JSON")
+        return base
+
+    @classmethod
+    def _parse_openai_structured(cls, resp, llm_type: LlmType) -> 'LlmResponse':
+        base = cls._parse_openai(resp, llm_type)
+        text = base.actual_result.strip()
+        try:
+            json.loads(text)
+        except Exception:
+            match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
+            if match:
+                text = match.group(1).strip()
+        base.actual_result = text
+        return base
+
+    @classmethod
+    def _parse_groq_structured(cls, resp, llm_type: LlmType) -> 'LlmResponse':
+        base = cls._parse_groq(resp, llm_type)
+        text = base.actual_result.strip()
+        match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
+        if match:
+            block = match.group(1).strip()
+            try:
+                json.loads(block)
+                base.actual_result = block
+            except Exception:
+                pass
+        return base

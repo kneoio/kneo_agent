@@ -12,11 +12,20 @@ from util.filler_generator import FillerGenerator
 
 
 class Prerecorded:
-    def __init__(self,elevenlabs_inst: ElevenLabs, fillers,  brand: str):
+    DEFAULT_FILLER_PROMPTS = [
+        "Eerie mood music with smooth transition, 4-6 seconds",
+        "Eerie ambient music with gentle fade out, 4-6 seconds",
+        "Huge epic braam with natural decay, 4-6 seconds",
+        "Deep epic braam with gradual fade, 4-6 seconds",
+        "Massive cinematic braam with soft ending, 4-6 seconds",
+    ]
+
+    def __init__(self, elevenlabs_inst: ElevenLabs, brand: str):
         self.logger = logging.getLogger(__name__)
-        self.fillers = fillers
-        self.filler_generator = FillerGenerator(elevenlabs_inst,  Path("metadata") / brand)
+        self.fillers = self.DEFAULT_FILLER_PROMPTS
+        self.filler_generator = FillerGenerator(elevenlabs_inst, Path("metadata") / brand)
         self.audio_files = self._load_audio_files()
+
 
     def _load_audio_files(self) -> List[Path]:
         audio_files = self.filler_generator.load_audio_files()
@@ -43,7 +52,7 @@ class Prerecorded:
             self.logger.error(f"Error reading audio file: {e}")
             return None, f"Failed to load prerecorded: {e}", ""
 
-    async def get_prerecorded_file_path(self, target_dir: str = "/home/kneobroadcaster/merged") -> Tuple[Optional[str], str]:
+    async def get_prerecorded_file_path(self, target_dir: str = "/home/kneobroadcaster/to_merge_filler") -> Tuple[Optional[str], str]:
         if not self.audio_files:
             return None, "No prerecorded files available"
         try:

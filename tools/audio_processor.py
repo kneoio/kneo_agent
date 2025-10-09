@@ -1,6 +1,6 @@
+import json
 import logging
 from typing import Dict, Any, Optional, Tuple
-
 from elevenlabs.client import ElevenLabs
 
 from api.interaction_memory import InteractionMemory
@@ -47,3 +47,16 @@ class AudioProcessor:
         except Exception as e:
             self.logger.error(f"TTS generation failed: {e}")
             return None, f"TTS generation failed: {str(e)}"
+
+    async def generate_tts_dialogue(self, dialogue_json: str) -> Tuple[Optional[bytes], str]:
+        try:
+            dialogue = json.loads(dialogue_json)
+            audio_stream = self.elevenlabs_inst.text_to_dialogue.convert(inputs=dialogue)
+            audio_data = b"".join(audio_stream)
+            if audio_data:
+                self.logger.info("Dialogue TTS generation successful")
+                return audio_data, "Generated multi-voice dialogue"
+            return None, "Dialogue TTS produced no data"
+        except Exception as e:
+            self.logger.error(f"Dialogue TTS failed: {e}")
+            return None, f"Dialogue TTS failed: {str(e)}"

@@ -60,6 +60,22 @@ async def test_prompt(req: PromptRequest):
             results_out.append(it.get("snippet", ""))
     return {"results": results_out, "llm": req.llm.name}
 
+@app.post("/radio_dj/test/{llm}/podcast")
+async def test_prompt(req: PromptRequest):
+    logger.info(f"REQ llm={req.llm.name} prompt_len={len(req.prompt)}")
+    q = req.prompt or ""
+    max_results = 3
+    results_out = []
+    if req.searchEngine == SearchEngine.Perplexity:
+        pdata = await internet.ask_perplexity(q, max_items=max_results)
+        for s in pdata.get("items", [])[:max_results]:
+            results_out.append(s)
+    else:
+        data = await internet.search_internet(q, max_results=max_results)
+        results = data.get("results", []) if isinstance(data, dict) else []
+        for it in results[:max_results]:
+            results_out.append(it.get("snippet", ""))
+    return {"results": results_out, "llm": req.llm.name}
 
 @app.post("/radio_dj/test/{llm}")
 async def radio_dj_test_auto(llm: LlmType, request: Request):
@@ -95,6 +111,6 @@ async def radio_dj_test_auto(llm: LlmType, request: Request):
         instant_message
     )
 
-    standardized_resp = LlmResponse.from_response(resp, llm)
+    standardized_resp = LlmResponse.parse_plain_response(resp, llm)
     return standardized_resp.model_dump()
 

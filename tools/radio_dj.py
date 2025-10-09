@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import uuid
 from typing import Dict, Any, Tuple
 
@@ -48,9 +49,11 @@ class RadioDJ:
         self.target_dir = "/home/kneobroadcaster/to_merge"
         os.makedirs(self.target_dir, exist_ok=True)
         self.graph = self._build_graph()
+        self.dialogue_probability = 0.5
         debug_log(f"RadioDJ v2 initialized with llm={self.llm_type}")
 
     async def run(self, brand: str, memory_data: Dict[str, Any]) -> Tuple[bool, str, str]:
+        self.ai_logger.info(f"---------------------Interaction started ------------------------------")
         initial_state = {
             "brand": brand,
             "events": memory_data.get("events", []),
@@ -72,6 +75,7 @@ class RadioDJ:
 
         workflow.add_node("fetch_song_fragment", self._fetch_song_fragment)
         workflow.add_node("build_song_intro", self._build_song_intro)
+        workflow.add_node("build_song_dialogue", self._build_song_dialogue)
         workflow.add_node("build_ad_intro", self._build_ad_intro)
         workflow.add_node("embellish", self._embellish)
         workflow.add_node("create_audio", self._create_audio)
@@ -95,17 +99,28 @@ class RadioDJ:
 
         workflow.add_conditional_edges(
             "build_song_intro",
-            lambda state: "broadcast_audio"
-            if state.get("merging_type") == MergingType.SONG_CROSSFADE_SONG
-            else "embellish",
-            {"broadcast_audio": "broadcast_audio", "embellish": "embellish"},
+            lambda state: "build_song_dialogue"
+            if state["song_fragments"]
+               and state["song_fragments"][0].description
+               and random.random() < getattr(state, "dialogue_probability", self.dialogue_probability)
+            else (
+                "broadcast_audio"
+                if state.get("merging_type") == MergingType.SONG_CROSSFADE_SONG
+                else "embellish"
+            ),
+            {
+                "build_song_dialogue": "build_song_dialogue",
+                "broadcast_audio": "broadcast_audio",
+                "embellish": "embellish",
+            },
         )
 
+        workflow.add_edge("build_song_dialogue", "create_audio")
         workflow.add_edge("embellish", "create_audio")
         workflow.add_edge("create_audio", "broadcast_audio")
         workflow.add_edge("broadcast_audio", END)
 
-        debug_log("Graph workflow built")
+        debug_log("Graph workflow built with dialogue branch")
         return workflow.compile()
 
     async def _build_ad_intro(self, state: DJState) -> DJState:
@@ -156,6 +171,50 @@ class RadioDJ:
         debug_log(f"Merging chosen: {state['merging_type'].name}")
         return state
 
+    async def _build_song_dialogue(self, state: DJState) -> DJState:
+        song = state["song_fragments"][0]
+        voice_a = self.agent_config.get("preferredVoice", "9BWtsMINqrJLrRacOk9x")
+        voice_b = self.agent_config.get("secondaryVoice", "IKne3meq5aSn9XLyUdCD")
+        host_name = self.ai_dj_name or "DJ"
+        guest_name = self.agent_config.get("secondaryVoiceName", "Music Expert")
+
+        mention_guest = random.choice([True, False])
+
+        if mention_guest:
+            guest_intro = (
+                f"{host_name} should introduce {guest_name} as an expert or invited guest "
+                f"(e.g. 'Now we have {guest_name} joining us to dive into this track'). "
+            )
+        else:
+            guest_intro = (
+                f"Do not mention {guest_name}'s name directly — make the conversation flow naturally "
+                f"as if between two familiar co-hosts. "
+            )
+
+        prompt = (
+            f"Generate a short 2-person radio dialogue (3–5 lines) between two DJs.\n"
+            f"The main host is {host_name}, the co-host is {guest_name}.\n"
+            f"{guest_intro}"
+            f"Song: {song.title} by {song.artist}.\n"
+            f"Description: {song.description}.\n"
+            f"Style: intelligent, immersive, modern electronic radio tone.\n"
+            f"Include optional expressive tags (e.g. [excited], [whispers], [laughs], [sighs]) "
+            f"to shape emotional delivery.\n"
+            f"Output strictly as a JSON array of objects like:\n"
+            f'  [{{"text": "[excited] Hi, this is {host_name} — welcome back!", "voice_id": "{voice_a}"}},\n'
+            f'   {{"text": "[warm] Thanks {host_name}, happy to join in.", "voice_id": "{voice_b}"}}].'
+        )
+
+        response = await self.llm.ainvoke(messages=[{"role": "user", "content": prompt}])
+        llm_response = LlmResponse.parse_structured_response(response, self.llm_type)
+        song.introduction_text = llm_response.actual_result
+
+        debug_log(
+            f"Built dialogue intro for {song.title}: {song.introduction_text} "
+            f"(guest_mentioned={mention_guest})"
+        )
+        return state
+
     async def _embellish(self, state: DJState) -> DJState:
         targets = []
         if state["merging_type"] == MergingType.INTRO_SONG and len(state["song_fragments"]) >= 1:
@@ -183,7 +242,7 @@ class RadioDJ:
 
             response = await self.llm.ainvoke(messages=prompt_messages, tools=tools)
             try:
-                llm_response = LlmResponse.from_response(response, self.llm_type)
+                llm_response = LlmResponse.parse_plain_response(response, self.llm_type)
                 song.introduction_text = llm_response.actual_result
                 debug_log(f"Embellished intro for {song.title}: {song.introduction_text}")
                 self.ai_logger.info(
@@ -212,7 +271,12 @@ class RadioDJ:
                 text = song.introduction_text
                 if not text:
                     continue
-                audio_data, reason = await self.audio_processor.generate_tts_audio(text)
+
+                if text.strip().startswith("["):
+                    audio_data, reason = await self.audio_processor.generate_tts_dialogue(text)
+                else:
+                    audio_data, reason = await self.audio_processor.generate_tts_audio(text)
+
                 if audio_data:
                     short_id = song.id.replace("-", "")[:8]
                     if state["merging_type"] == MergingType.INTRO_SONG_INTRO_SONG:
@@ -221,8 +285,11 @@ class RadioDJ:
                         role = f"{idx}_{short_id}"
                     short_name = f"{state['session_id']}_{state['merging_type'].name[:4].lower()}_{role}"
                     self._save_audio_file(song, audio_data, state, short_name)
+
             except Exception as e:
                 self.logger.error(f"Error creating audio for {song.title}: {e}")
+
+        return state
 
     def _save_audio_file(self, song: SoundFragment, audio_data: bytes, state: DJState, short_name: str) -> None:
         song.audio_data = audio_data
@@ -284,22 +351,24 @@ class RadioDJ:
             else:
                 result = False
 
-            debug_log(state["broadcast_success"])
+            debug_log(result)
             state["broadcast_success"] = result
+            state["broadcast_success"] = bool(result is True or (isinstance(result, dict) and result.get("success")))
 
-
-            try:
-                for song in state["song_fragments"]:
-                    intro_text = getattr(song, "introduction_text", "")
-                    if intro_text:
-                        history_entry = {
-                            "title": song.title,
-                            "artist": song.artist,
-                            "introSpeech": intro_text
-                        }
-                        self.memory.store_conversation_history(history_entry)
-            except Exception as e:
-                self.logger.warning(f"Failed to save broadcast history: {e}")
+            if state["broadcast_success"]:
+                try:
+                    for song in state["song_fragments"]:
+                        intro_text = getattr(song, "introduction_text", "")
+                        if intro_text:
+                            history_entry = {
+                                "title": song.title,
+                                "artist": song.artist,
+                                "introSpeech": intro_text,
+                                "status": "INITIATED"
+                            }
+                            self.memory.store_conversation_history(history_entry)
+                except Exception as e:
+                    self.logger.warning(f"Failed to save broadcast history: {e}")
 
         except Exception as e:
             self.logger.error(f"Error broadcasting audio: {e}")

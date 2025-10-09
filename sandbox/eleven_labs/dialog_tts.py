@@ -13,8 +13,21 @@ client = ElevenLabs(
 )
 
 audio_stream = client.text_to_dialogue.convert(
-    inputs=[ { "text": "Hello, how are you?", "voice_id": "9BWtsMINqrJLrRacOk9x", },
-             { "text": "I'm doing well, thank you!", "voice_id": "IKne3meq5aSn9XLyUdCD", } ] )
+    inputs=[
+        {
+            "text": "You ever notice how some tracks feel like a ritual? Not just music — something ancient in a machine rhythm.",
+            "voice_id": "9BWtsMINqrJLrRacOk9x"
+        },
+        {
+            "text": "Exactly. The pulse, the reverb — it’s like a congregation under strobe lights. Tonight we revisit one of those hymns.",
+            "voice_id": "IKne3meq5aSn9XLyUdCD"
+        },
+        {
+            "text": "This is 'House of God' — 1991 Original Italian Remix by D.H.S. Let it take you where words stop working.",
+            "voice_id": "9BWtsMINqrJLrRacOk9x"
+        }
+    ]
+)
 
 with open("test_basic.mp3", "wb") as f:
     for chunk in audio_stream:
@@ -22,8 +35,3 @@ with open("test_basic.mp3", "wb") as f:
             f.write(chunk)
 
 print("Generated test_basic.mp3")
-
-
-
-
-
