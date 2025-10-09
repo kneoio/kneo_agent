@@ -208,7 +208,9 @@ class RadioDJ:
         response = await self.llm.ainvoke(messages=[{"role": "user", "content": prompt}])
         llm_response = LlmResponse.parse_structured_response(response, self.llm_type)
         song.introduction_text = llm_response.actual_result
-
+        self.ai_logger.info(
+            f"{self.brand} FINAL_RESULT (DIALOG): {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
+        )
         debug_log(
             f"Built dialogue intro for {song.title}: {song.introduction_text}, brand: {self.brand} "
             f"(guest_mentioned={mention_guest})"
