@@ -210,7 +210,7 @@ class RadioDJ:
         song.introduction_text = llm_response.actual_result
 
         debug_log(
-            f"Built dialogue intro for {song.title}: {song.introduction_text} "
+            f"Built dialogue intro for {song.title}: {song.introduction_text}, brand: {self.brand} "
             f"(guest_mentioned={mention_guest})"
         )
         return state
