@@ -2,26 +2,30 @@ import logging
 import os
 import random
 import uuid
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Callable, Coroutine
 
 from langgraph.graph import StateGraph, END
 
 from api.interaction_memory import InteractionMemory
 from api.queue import Queue
 from cnst.llm_types import LlmType
-from cnst.play_list_item_type import PlaylistItemType
-from mcp.external.internet_mcp import InternetMCP
 from mcp.queue_mcp import QueueMCP
-from mcp.server.llm_response import LlmResponse
 from mcp.sound_fragment_mcp import SoundFragmentMCP
 from models.sound_fragment import SoundFragment
+from tools.ad_intro_builder import build_ad_intro
 from tools.dj_state import DJState, MergingType
-from tools.draft_builder import build_draft, build_ad_intro_text
+from tools.message_dialogue_builder import build_message_dialogue
+from tools.mini_podcast_builder import build_mini_podcast
+from tools.song_intro_builder import build_song_intro, embellish
 from util.file_util import debug_log
-from util.randomizer import get_random_merging_type
 
 
 class RadioDJ:
+    build_ad_intro: Callable[['RadioDJ', DJState], Coroutine[Any, Any, DJState]]
+    build_message_dialogue: Callable[['RadioDJ', DJState], Coroutine[Any, Any, DJState]]
+    build_mini_podcast: Callable[['RadioDJ', DJState], Coroutine[Any, Any, DJState]]
+    build_song_intro: Callable[['RadioDJ', DJState], Coroutine[Any, Any, DJState]]
+    embellish: Callable[['RadioDJ', DJState], Coroutine[Any, Any, DJState]]
 
     def __init__(self, config, memory: InteractionMemory, audio_processor, agent_config=None,
                  brand=None, mcp_client=None, debug=False, llm_client=None, llm_type=LlmType.CLAUDE):
@@ -74,70 +78,70 @@ class RadioDJ:
         workflow = StateGraph(state_schema=DJState)
 
         workflow.add_node("fetch_song_fragment", self._fetch_song_fragment)
-        workflow.add_node("build_song_intro", self._build_song_intro)
-        workflow.add_node("build_song_dialogue", self._build_song_dialogue)
-        workflow.add_node("build_ad_intro", self._build_ad_intro)
-        workflow.add_node("embellish", self._embellish)
+        workflow.add_node("build_ad_intro", self.build_ad_intro)
+        workflow.add_node("build_song_intro", self.build_song_intro)
+        workflow.add_node("build_message_dialogue", self.build_message_dialogue)
+        workflow.add_node("build_mini_podcast", self.build_mini_podcast)
+        workflow.add_node("embellish", self.embellish)
         workflow.add_node("create_audio", self._create_audio)
         workflow.add_node("broadcast_audio", self._broadcast_audio)
 
         workflow.set_entry_point("fetch_song_fragment")
 
+        def next_after_fetch(state):
+            if any(ev.get("type") == "AD" for ev in state["events"]):
+                return "build_ad_intro"
+            return "build_song_intro"
+
+        def next_after_ad(state):
+            if state.get("__end__"):
+                return "end"
+            return "embellish"
+
+        def next_after_song_intro(state):
+            if state.get("messages"):
+                return "build_message_dialogue"
+            if (
+                    state["song_fragments"]
+                    and state["song_fragments"][0].description
+                    and random.random() < getattr(state, "dialogue_probability", self.dialogue_probability)
+            ):
+                return "build_mini_podcast"
+            if state.get("merging_type") == MergingType.SONG_CROSSFADE_SONG:
+                return "broadcast_audio"
+            return "embellish"
+
         workflow.add_conditional_edges(
             "fetch_song_fragment",
-            lambda state: "build_ad_intro"
-            if any(ev.get("type") == "AD" for ev in state["events"])
-            else "build_song_intro",
+            next_after_fetch,
             {"build_ad_intro": "build_ad_intro", "build_song_intro": "build_song_intro"},
         )
 
         workflow.add_conditional_edges(
             "build_ad_intro",
-            lambda state: "end" if state.get("__end__") else "embellish",
+            next_after_ad,
             {"end": END, "embellish": "embellish"},
         )
 
         workflow.add_conditional_edges(
             "build_song_intro",
-            lambda state: "build_song_dialogue"
-            if state["song_fragments"]
-               and state["song_fragments"][0].description
-               and random.random() < getattr(state, "dialogue_probability", self.dialogue_probability)
-            else (
-                "broadcast_audio"
-                if state.get("merging_type") == MergingType.SONG_CROSSFADE_SONG
-                else "embellish"
-            ),
+            next_after_song_intro,
             {
-                "build_song_dialogue": "build_song_dialogue",
+                "build_message_dialogue": "build_message_dialogue",
+                "build_mini_podcast": "build_mini_podcast",
                 "broadcast_audio": "broadcast_audio",
                 "embellish": "embellish",
             },
         )
 
-        workflow.add_edge("build_song_dialogue", "create_audio")
+        workflow.add_edge("build_message_dialogue", "create_audio")
+        workflow.add_edge("build_mini_podcast", "create_audio")
         workflow.add_edge("embellish", "create_audio")
         workflow.add_edge("create_audio", "broadcast_audio")
         workflow.add_edge("broadcast_audio", END)
 
-        debug_log("Graph workflow built with dialogue branch")
+        debug_log("Graph workflow built with dialogue + message branch")
         return workflow.compile()
-
-    async def _build_ad_intro(self, state: DJState) -> DJState:
-        ad_list = await self.sound_fragments_mcp.get_brand_sound_fragment(
-            brand=self.brand,
-            fragment_type=PlaylistItemType.ADVERTISEMENT.value
-        )
-        if ad_list:
-            ad = SoundFragment.from_dict(ad_list[0])
-            ad.draft_intro = build_ad_intro_text(ad.title, ad.artist)
-            state["song_fragments"] = [ad]
-        else:
-            self.logger.warning("No advertisement fragment available — skipping ad broadcast")
-            state["broadcast_success"] = False
-            state["__end__"] = True
-        self._reset_event(state["events"])
-        return state
 
     async def _fetch_song_fragment(self, state: DJState) -> DJState:
         fragment_dicts = await self.sound_fragments_mcp.get_brand_sound_fragment(self.brand)
@@ -148,114 +152,6 @@ class RadioDJ:
             debug_log(f"Fetched {len(state['song_fragments'])} fragments, first: {first.title}-{first.artist}")
         else:
             self.logger.warning("No song fragments found")
-        return state
-
-    async def _build_song_intro(self, state: DJState) -> DJState:
-        for song in state["song_fragments"]:
-            song.draft_intro = build_draft(
-                title=song.title,
-                artist=song.artist,
-                ai_dj_name=self.ai_dj_name,
-                brand=self.brand,
-                song_description=song.description,
-                genres=song.genres,
-                history=state["history"],
-                context=state["context"]
-            )
-
-        if len(state["song_fragments"]) == 1:
-            state["merging_type"] = MergingType.INTRO_SONG
-        else:
-            state["merging_type"] = get_random_merging_type()
-
-        debug_log(f"Merging chosen: {state['merging_type'].name}")
-        return state
-
-    async def _build_song_dialogue(self, state: DJState) -> DJState:
-        song = state["song_fragments"][0]
-        voice_a = self.agent_config.get("preferredVoice", "9BWtsMINqrJLrRacOk9x")
-        voice_b = self.agent_config.get("secondaryVoice", "IKne3meq5aSn9XLyUdCD")
-        host_name = self.ai_dj_name or "DJ"
-        guest_name = self.agent_config.get("secondaryVoiceName", "Music Expert")
-
-        mention_guest = random.choice([True, False])
-
-        if mention_guest:
-            guest_intro = (
-                f"{host_name} should introduce {guest_name} as an expert or invited guest "
-                f"(e.g. 'Now we have {guest_name} joining us to dive into this track'). "
-            )
-        else:
-            guest_intro = (
-                f"Do not mention {guest_name}'s name directly — make the conversation flow naturally "
-                f"as if between two familiar co-hosts. "
-            )
-
-        prompt = (
-            f"Generate a short 2-person radio dialogue (3–5 lines) between two DJs.\n"
-            f"The main host is {host_name}, the co-host is {guest_name}.\n"
-            f"{guest_intro}"
-            f"Song: {song.title} by {song.artist}.\n"
-            f"Description: {song.description}.\n"
-            f"Style: intelligent, immersive, modern electronic radio tone.\n"
-            f"Include optional expressive tags (e.g. [excited], [whispers], [laughs], [sighs]) "
-            f"to shape emotional delivery.\n"
-            f"Output strictly as a JSON array of objects like:\n"
-            f'  [{{"text": "[excited] Hi, this is {host_name} — welcome back!", "voice_id": "{voice_a}"}},\n'
-            f'   {{"text": "[warm] Thanks {host_name}, happy to join in.", "voice_id": "{voice_b}"}}].'
-        )
-
-        response = await self.llm.ainvoke(messages=[{"role": "user", "content": prompt}])
-        llm_response = LlmResponse.parse_structured_response(response, self.llm_type)
-        song.introduction_text = llm_response.actual_result
-        self.ai_logger.info(
-            f"{self.brand} FINAL_RESULT (DIALOG): {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
-        )
-        debug_log(
-            f"Built dialogue intro for {song.title}: {song.introduction_text}, brand: {self.brand} "
-            f"(guest_mentioned={mention_guest})"
-        )
-        return state
-
-    async def _embellish(self, state: DJState) -> DJState:
-        targets = []
-        if state["merging_type"] == MergingType.INTRO_SONG and len(state["song_fragments"]) >= 1:
-            targets = [state["song_fragments"][0]]
-        elif state["merging_type"] == MergingType.SONG_INTRO_SONG and len(state["song_fragments"]) >= 2:
-            targets = [state["song_fragments"][1]]
-        elif state["merging_type"] == MergingType.INTRO_SONG_INTRO_SONG and len(state["song_fragments"]) >= 2:
-            targets = [state["song_fragments"][0], state["song_fragments"][1]]
-
-        for song in targets:
-            draft = song.draft_intro or ""
-            full_prompt = f"{self.agent_config['prompt']}\n\nInput:\n{draft}"
-
-            prompt_messages = [
-                {"role": "system", "content": "Generate plain text"},
-                {"role": "user", "content": full_prompt}
-            ]
-
-            allow_search = (
-                song.type != PlaylistItemType.ADVERTISEMENT.value
-                and not song.genres
-                and not song.description
-            )
-            tools = [InternetMCP.get_tool_definition(default_engine=self.search_engine)] if allow_search else None
-
-            response = await self.llm.ainvoke(messages=prompt_messages, tools=tools)
-            try:
-                llm_response = LlmResponse.parse_plain_response(response, self.llm_type)
-                song.introduction_text = llm_response.actual_result
-                debug_log(f"Embellished intro for {song.title}: {song.introduction_text}")
-                self.ai_logger.info(
-                    f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
-                )
-            except Exception as e:
-                self.logger.error(f"LLM Response parsing failed for {song.title}: {e}")
-                song.introduction_text = draft
-
-        self._reset_message(state.get("messages"))
-        self._reset_event(state.get("events"))
         return state
 
     async def _create_audio(self, state: DJState) -> DJState:
@@ -391,3 +287,9 @@ class RadioDJ:
                 ev_id = ev.get("id")
                 if ev_id:
                     self.memory.reset_event_by_id(ev_id)
+
+RadioDJ.build_song_intro = build_song_intro
+RadioDJ.embellish = embellish
+RadioDJ.build_ad_intro = build_ad_intro
+RadioDJ.build_mini_podcast = build_mini_podcast
+RadioDJ.build_message_dialogue = build_message_dialogue
