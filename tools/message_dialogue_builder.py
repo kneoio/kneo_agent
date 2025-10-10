@@ -32,15 +32,15 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
             "happy birthday", "hb", "congrats", "congratulations", "parabéns",
             "feliz aniversário", "с днём рождения", "с днем рождения",
             "құтты болсын", "туған күнің", "anniversary", "wedding",
-            "new job", "graduation", "baby", "🎉", "🥳"
+            "new job", "graduation", "baby"
         ],
         "THANKS": [
             "thank you", "thanks", "love the show", "great show", "amazing", "awesome",
-            "you rock", "adoro", "amo", "obrigado", "спасибо", "рахмет", "❤️", "🙏"
+            "you rock", "adoro", "amo", "obrigado", "спасибо", "рахмет"
         ],
         "CONDOLENCES": [
             "rip", "condolences", "sorry for your loss", "rest in peace", "luto",
-            "meus pêsames", "мои соболезнования", "қайғыңа ортақпын", "🖤", "🕯", "😢"
+            "meus pêsames", "мои соболезнования", "қайғыңа ортақпын"
         ],
         "COMPLAINT": [
             "too loud", "ads", "commercials", "skip", "boring", "lag", "buffering",
@@ -90,37 +90,25 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
         "GENERAL": "react naturally and keep it light",
     }[detected]
 
-    context = (
-        f"DetectedIntent: {detected}\n"
-        f"Tone: {tone}\n"
-        f"Senders: {sender}\n"
-        f"RawMessage: {text}\n"
-        f"Instruction: {self.ai_dj_name} and {guest_name} should {action}."
-    )
-
-    context += (
-        "\nAll listener messages are meant for on-air broadcast. "
-        "DJs should speak to the audience, not directly to the sender. "
-        "They are relaying what the listener said, possibly reacting or adding brief commentary."
-    )
-
-
-    prompt = (
-        "Generate a short 2–4 line dialogue between two radio hosts as a JSON array of objects "
-        "with keys 'text' and 'voice_id'. Keep lines concise; you may use brief tags like [warm], [excited], [soft].\n"
-        + context
-        + "\nIf DetectedIntent is SHOUTOUT, both hosts should briefly relay the listeners’ greeting to the audience and reply naturally on air.\n"
-        f'Voices: host→{voice_a}, cohost→{voice_b}\n'
-        f'Example: [{{"text":"[warm] Thanks for writing in!", "voice_id":"{voice_a}"}}, '
-        f'{{"text":"[soft] We appreciate you, {sender}.", "voice_id":"{voice_b}"}}]'
+    prompt = self.agent_config.get("messagePrompt").format(
+        detected=detected,
+        tone=tone,
+        sender=sender,
+        text=text,
+        action=action,
+        ai_dj_name=self.ai_dj_name,
+        guest_name=guest_name,
+        voice_a=voice_a,
+        voice_b=voice_b,
     )
 
     response = await self.llm.ainvoke(messages=[{"role": "user", "content": prompt}])
+
     llm_response = LlmResponse.parse_structured_response(response, self.llm_type)
     song.introduction_text = llm_response.actual_result
     self.ai_logger.info(
         f"{self.brand} FINAL_RESULT (DIALOG): {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
     )
     debug_log(f"Messages based dialogue intro: {song.introduction_text}, song: {song.title}, brand: {self.brand}")
-    self._reset_message(state.get("messages"))
+    self._reset_message(state.get('messages'))
     return state

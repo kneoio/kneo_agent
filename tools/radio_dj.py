@@ -45,6 +45,7 @@ class RadioDJ:
         self.memory = memory
         self.audio_processor = audio_processor
         self.agent_config = agent_config
+        self.preferredLang = self.agent_config.get("preferredLang")
         self.search_engine = self.agent_config.get("search_engine_type")
         self.ai_dj_name = self.agent_config.get("name")
         self.brand = brand
@@ -58,6 +59,7 @@ class RadioDJ:
 
     async def run(self, brand: str, memory_data: Dict[str, Any]) -> Tuple[bool, str, str]:
         self.ai_logger.info(f"---------------------Interaction started ------------------------------")
+        self.logger.info(f"---------------------Interaction started ------------------------------")
         initial_state = {
             "brand": brand,
             "events": memory_data.get("events", []),
@@ -99,10 +101,11 @@ class RadioDJ:
             return "embellish"
 
         def next_after_song_intro(state):
-            if state.get("messages"):
+            if state.get("messages") and self.agent_config.get("messagePrompt"):
                 return "build_message_dialogue"
             if (
-                    state["song_fragments"]
+                    self.agent_config.get("miniPodcastPrompt")
+                    and state["song_fragments"]
                     and state["song_fragments"][0].description
                     and random.random() < getattr(state, "dialogue_probability", self.dialogue_probability)
             ):
@@ -140,7 +143,7 @@ class RadioDJ:
         workflow.add_edge("create_audio", "broadcast_audio")
         workflow.add_edge("broadcast_audio", END)
 
-        debug_log("Graph workflow built with dialogue + message branch")
+        debug_log("Graph workflow built")
         return workflow.compile()
 
     async def _fetch_song_fragment(self, state: DJState) -> DJState:
