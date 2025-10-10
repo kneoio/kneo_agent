@@ -18,7 +18,7 @@ class BroadcasterAPIClient:
 
     def get(self, endpoint, params=None):
         url = f"{self.base_url}/{endpoint}"
-        self.logger.info(f"Making GET request to: {url} with params {params}")
+        #self.logger.info(f"Making GET request to: {url} with params {params}")
         try:
             response = requests.get(
                 url,

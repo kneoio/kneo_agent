@@ -90,17 +90,22 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
         "GENERAL": "react naturally and keep it light",
     }[detected]
 
-    prompt = self.agent_config.get("messagePrompt").format(
-        detected=detected,
-        tone=tone,
-        sender=sender,
-        text=text,
-        action=action,
-        ai_dj_name=self.ai_dj_name,
-        guest_name=guest_name,
-        voice_a=voice_a,
-        voice_b=voice_b,
-    )
+    try:
+        prompt = self.agent_config.get("messagePrompt").format(
+            detected=detected,
+            tone=tone,
+            sender=sender,
+            text=text,
+            action=action,
+            ai_dj_name=self.ai_dj_name,
+            guest_name=guest_name,
+            voice_a=voice_a,
+            voice_b=voice_b,
+        )
+    except Exception as e:
+        debug_log(f"[ERROR] messagePrompt formatting failed: {e}")
+        debug_log(f"Context → detected={detected}, tone={tone}, sender={sender}, text={text}, action={action}")
+        raise
 
     response = await self.llm.ainvoke(messages=[{"role": "user", "content": prompt}])
 

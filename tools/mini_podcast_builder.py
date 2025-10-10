@@ -15,16 +15,22 @@ async def build_mini_podcast(self, state: DJState) -> DJState:
     style_desc = lang_data.get("style", "intelligent, immersive, modern electronic radio tone")
     prompt_template = lang_data.get("prompt") or self.agent_config.get("miniPodcastPrompt")
 
-    prompt = prompt_template.format(
-        host_name=host_name,
-        guest_name=guest_name,
-        song_title=song.title,
-        song_artist=song.artist,
-        song_description=song.description,
-        style_desc=style_desc,
-        voice_a=voice_a,
-        voice_b=voice_b,
-    )
+    try:
+        prompt = prompt_template.format(
+            host_name=host_name,
+            guest_name=guest_name,
+            song_title=song.title,
+            song_artist=song.artist,
+            song_description=song.description,
+            style_desc=style_desc,
+            voice_a=voice_a,
+            voice_b=voice_b,
+        )
+    except Exception as e:
+        debug_log(f"[ERROR] miniPodcastPrompt formatting failed: {e}")
+        debug_log(
+            f"Context → host={host_name}, guest={guest_name}, song={song.title}, artist={song.artist}, desc={song.description}, style={style_desc}")
+        raise
 
     response = await self.llm.ainvoke(messages=[{"role": "user", "content": prompt}])
     llm_response = LlmResponse.parse_structured_response(response, self.llm_type)
