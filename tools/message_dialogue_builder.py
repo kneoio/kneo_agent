@@ -26,7 +26,7 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
             "shout out", "shoutout", "say hi", "hi to", "hello to", "hello", "hi",
             "hey", "what’s up", "greetings", "salut", "olá", "привет", "сәлем",
             "um abraço para", "beijo para", "olá para",
-            "передай привет", "privet", "сәлем айт", "салем айт", "dedicate to", "dedication to"
+            "передай привет", "Желаю", "privet", "сәлем айт", "салем айт", "dedicate to", "dedication to"
         ],
         "CONGRATS": [
             "happy birthday", "hb", "congrats", "congratulations", "parabéns",

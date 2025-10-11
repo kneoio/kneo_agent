@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import random
@@ -54,7 +55,7 @@ class RadioDJ:
         self.target_dir = "/home/kneobroadcaster/to_merge"
         os.makedirs(self.target_dir, exist_ok=True)
         self.graph = self._build_graph()
-        self.dialogue_probability = 0.5
+        self.dialogue_probability = self.agent_config.get("podcastMode")
         debug_log(f"RadioDJ v2 initialized with llm={self.llm_type}")
 
     async def run(self, brand: str, memory_data: Dict[str, Any]) -> Tuple[bool, str, str]:
@@ -173,9 +174,10 @@ class RadioDJ:
                 if not text:
                     continue
 
-                if text.strip().startswith("["):
+                try:
+                    json.loads(text)
                     audio_data, reason = await self.audio_processor.generate_tts_dialogue(text)
-                else:
+                except json.JSONDecodeError:
                     audio_data, reason = await self.audio_processor.generate_tts_audio(text)
 
                 if audio_data:

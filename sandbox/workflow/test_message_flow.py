@@ -12,7 +12,7 @@ from cnst.llm_types import LlmType
 
 class TestMessageFlow:
     def __init__(self):
-        prompt_path = os.path.join(os.path.dirname(__file__), "message_prompt.md")
+        prompt_path = os.path.join(os.path.dirname(__file__), "message_prompt_ru.md")
         prompt_text = open(prompt_path, "r", encoding="utf-8").read()
         self.agent_config = {
             "messagePrompt": prompt_text,
@@ -36,10 +36,10 @@ async def main():
 
     s = TestMessageFlow()
     s.llm = llm
-    s.llm_type = LlmType.GROQ
+    s.llm_type = LlmType.CLAUDE
 
     state =  DJState(
-        messages=[{"from": "user", "content": "shout out to all"}],
+        messages=[{"from": "Glok", "content": "Желаю всем участникам мероприятия JILT хорошо провести время."}],
         song_fragments=[
             SoundFragment(
                 title="Neon Horizon",
