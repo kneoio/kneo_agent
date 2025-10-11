@@ -19,7 +19,7 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
         text = ""
 
     tl = text.lower()
-    debug_log(f"messages arrived: {messages}")
+    debug_log(f"Messages arrived: {messages}")
 
     lex = {
         "SHOUTOUT": [
@@ -114,6 +114,6 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
     self.ai_logger.info(
         f"{self.brand} FINAL_RESULT (DIALOG): {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
     )
-    debug_log(f"Messages based dialogue intro: {song.introduction_text}, song: {song.title}, brand: {self.brand}")
+    debug_log(f"Messages based dialogue intro:\n{song.introduction_text}\n song: {song.title}, brand: {self.brand}")
     self._reset_message(state.get('messages'))
     return state

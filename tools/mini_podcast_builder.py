@@ -24,18 +24,19 @@ async def build_mini_podcast(self, state: DJState) -> DJState:
     except Exception as e:
         debug_log(f"[ERROR] miniPodcastPrompt formatting failed: {e}")
         debug_log(
-            f"Context → host={host_name}, guest={guest_name}, song={song.title}, artist={song.artist}, desc={song.description}, style={style_desc}")
+            f"Context → host={host_name}, guest={guest_name}, song={song.title}, artist={song.artist}, desc={song.description}, genres={song.genres}"
+        )
         raise
 
     response = await self.llm.ainvoke(messages=[{"role": "user", "content": prompt}])
-    debug_log(f"Response expecting podcast text: {response}")
+    debug_log(f"Response expecting podcast text:\n {response}")
     llm_response = LlmResponse.parse_structured_response(response, self.llm_type)
     song.introduction_text = llm_response.actual_result
 
     self.ai_logger.info(
-        f"{self.brand} FINAL_RESULT (PODCAST): {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
+        f"{self.brand} FINAL_RESULT (PODCAST): {llm_response.actual_result}\nREASONING: {llm_response.reasoning}\n"
     )
     debug_log(
-        f"Built mini podcast intro for {song.title}: {song.introduction_text}, brand: {self.brand}, lang={lang}"
+        f"Intro for brand: {self.brand}\n song: {song.title}\n{song.introduction_text}\nReasoning: {llm_response.reasoning}"
     )
     return state
