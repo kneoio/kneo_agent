@@ -9,11 +9,9 @@ from tools.mini_podcast_builder import build_mini_podcast
 from util.llm_factory import LlmFactory
 
 
-class TestMiniPodcast:
+class TestMiniPodcastFlow:
     def __init__(self, llm):
         self.llm = llm
-        #self.llm_type = LlmType.GROQ
-        self.llm_type = LlmType.CLAUDE
         self.ai_dj_name = "Veenuo"
         self.brand = "lumisonic"
         prompt_path = os.path.join(os.path.dirname(__file__), "mini_podcast_prompt.md")
@@ -35,7 +33,7 @@ async def main():
     internet_mcp = InternetMCP(app_manager.mcp_client)
     llm = llm_factory.get_llm_client(LlmType.GROQ, internet_mcp)
 
-    dummy = TestMiniPodcast(llm)
+    dummy = TestMiniPodcastFlow(llm)
     state = DJState(
         messages=[],
         events=[],
