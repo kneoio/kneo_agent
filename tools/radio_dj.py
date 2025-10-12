@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import uuid
+from datetime import datetime
 from typing import Dict, Any, Tuple, Callable, Coroutine
 
 from langgraph.graph import StateGraph, END
@@ -159,7 +160,10 @@ class RadioDJ:
         return state
 
     async def _create_audio(self, state: DJState) -> DJState:
-        if state["merging_type"] == MergingType.INTRO_SONG and len(state["song_fragments"]) >= 1:
+        # todo targets should be filled ou earlier (architecture)
+        if (state["merging_type"] == MergingType.INTRO_SONG or
+            state["merging_type"] == MergingType.MINIPODCAST_SONG or
+            state["merging_type"] == MergingType.MESSAGEDIALOG_INTRO_SONG) and len(state["song_fragments"]) >= 1:
             targets = [state["song_fragments"][0]]
         elif state["merging_type"] == MergingType.SONG_INTRO_SONG and len(state["song_fragments"]) >= 2:
             targets = [state["song_fragments"][1]]
@@ -182,11 +186,8 @@ class RadioDJ:
 
                 if audio_data:
                     short_id = song.id.replace("-", "")[:8]
-                    if state["merging_type"] == MergingType.INTRO_SONG_INTRO_SONG:
-                        role = f"intro{idx + 1}_{short_id}"
-                    else:
-                        role = f"{idx}_{short_id}"
-                    short_name = f"{state['session_id']}_{state['merging_type'].name[:4].lower()}_{role}"
+                    time_tag = datetime.now().strftime("%Hh%Mm%Ss")
+                    short_name = f"{state['merging_type'].name.lower()}_{short_id}_{time_tag}"
                     self._save_audio_file(song, audio_data, state, short_name)
 
             except Exception as e:
@@ -214,7 +215,9 @@ class RadioDJ:
                 state["broadcast_success"] = False
                 return state
 
-            if state["merging_type"] == MergingType.INTRO_SONG and state["song_fragments"][0].file_path:
+            if (state["merging_type"] == MergingType.INTRO_SONG or
+                state["merging_type"] == MergingType.MINIPODCAST_SONG or
+                state["merging_type"] == MergingType.MESSAGEDIALOG_INTRO_SONG) and state["song_fragments"][0].file_path:
                 result = await self.queue_mcp.add_to_queue_i_s(
                     brand_name=self.brand,
                     sound_fragment_uuid=state["song_fragments"][0].id,
@@ -261,15 +264,13 @@ class RadioDJ:
             if state["broadcast_success"]:
                 try:
                     for song in state["song_fragments"]:
-                        intro_text = getattr(song, "introduction_text", "")
-                        if intro_text:
-                            history_entry = {
-                                "title": song.title,
-                                "artist": song.artist,
-                                "introSpeech": intro_text,
-                                "status": "INITIATED"
-                            }
-                            self.memory.store_conversation_history(history_entry)
+                        history_entry = {
+                            "relevantSoundFragmentId": song.id,
+                            "title": song.title,
+                            "artist": song.artist,
+                            "introSpeech": song.introduction_text
+                        }
+                        self.memory.store_conversation_history(history_entry)
                 except Exception as e:
                     self.logger.warning(f"Failed to save broadcast history: {e}")
 
@@ -292,6 +293,7 @@ class RadioDJ:
                 ev_id = ev.get("id")
                 if ev_id:
                     self.memory.reset_event_by_id(ev_id)
+
 
 RadioDJ.build_song_intro = build_song_intro
 RadioDJ.embellish = embellish

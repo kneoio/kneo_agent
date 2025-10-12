@@ -57,7 +57,7 @@ async def embellish(self, state: DJState) -> DJState:
             try:
                 llm_response = LlmResponse.parse_plain_response(response, self.llm_type)
                 song.introduction_text = llm_response.actual_result
-                debug_log(f"Embellished intro for {song.title}: {song.introduction_text}")
+                debug_log(f"Embellished intro for {song.title}:\n{song.introduction_text}")
                 self.ai_logger.info(
                     f"{self.brand} FINAL_RESULT: {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
                 )

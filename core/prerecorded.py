@@ -61,7 +61,9 @@ class Prerecorded:
             ext = selected_file.suffix.lstrip('.').lower() or "mp3"
             if ext not in ("mp3", "wav"):
                 ext = "mp3"
-            file_name = f"temp_prerecorded_{uuid.uuid4().hex}.{ext}"
+            short_id = uuid.uuid4().hex[:8]
+            file_stem = selected_file.stem
+            file_name = f"{file_stem}_{short_id}.{ext}"
             dest_path = Path(target_dir) / file_name
             shutil.copy(selected_file, dest_path)
             self.logger.info(f"Using prerecorded audio: {selected_file} -> {dest_path}")

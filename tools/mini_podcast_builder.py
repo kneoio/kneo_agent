@@ -1,5 +1,5 @@
 from mcp.server.llm_response import LlmResponse
-from tools.dj_state import DJState
+from tools.dj_state import DJState, MergingType
 from util.file_util import debug_log
 
 async def build_mini_podcast(self, state: DJState) -> DJState:
@@ -39,4 +39,5 @@ async def build_mini_podcast(self, state: DJState) -> DJState:
     debug_log(
         f"Intro for brand: {self.brand}\n song: {song.title}\n{song.introduction_text}\nReasoning: {llm_response.reasoning}"
     )
+    state["merging_type"] = MergingType.MINIPODCAST_SONG
     return state

@@ -1,5 +1,5 @@
 from mcp.server.llm_response import LlmResponse
-from tools.dj_state import DJState
+from tools.dj_state import DJState, MergingType
 from util.file_util import debug_log
 
 async def build_message_dialogue(self, state: DJState) -> DJState:
@@ -116,4 +116,5 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
     )
     debug_log(f"Messages based intro:\n{song.introduction_text}\nsong: {song.title},brand: {self.brand}")
     self._reset_message(state.get('messages'))
+    state["merging_type"] = MergingType.MESSAGEDIALOG_INTRO_SONG
     return state
