@@ -187,7 +187,7 @@ class RadioDJ:
                 if audio_data:
                     short_id = song.id.replace("-", "")[:8]
                     time_tag = datetime.now().strftime("%Hh%Mm%Ss")
-                    short_name = f"{state['merging_type'].name.lower()}_{short_id}_{time_tag}"
+                    short_name = f"{self.brand}_{state['merging_type'].name.lower()}_{short_id}_{time_tag}"
                     self._save_audio_file(song, audio_data, state, short_name)
 
             except Exception as e:

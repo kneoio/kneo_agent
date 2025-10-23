@@ -35,9 +35,9 @@ class AudioProcessor:
             audio_stream = self.elevenlabs_inst.text_to_speech.convert(
                 voice_id=voice_id,
                 text=text[:1000],
-                #model_id="eleven_multilingual_v2",
+                # model_id="eleven_multilingual_v2",
                 model_id="eleven_v3",
-                #output_format="mp3_44100_128"
+                # output_format="mp3_44100_128"
                 output_format="mp3_44100_192"
             )
 
@@ -57,7 +57,8 @@ class AudioProcessor:
         dialogue = ""
         try:
             dialogue = json.loads(dialogue_json)
-            audio_stream = self.elevenlabs_inst.text_to_dialogue.convert(inputs=dialogue)
+            settings = {"volume_normalization": "on"}
+            audio_stream = self.elevenlabs_inst.text_to_dialogue.convert(inputs=dialogue, settings=settings)
             audio_data = b"".join(audio_stream)
             if audio_data:
                 self.logger.info("Dialogue TTS generation successful")
