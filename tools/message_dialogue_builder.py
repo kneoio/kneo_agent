@@ -1,5 +1,5 @@
 from mcp.server.llm_response import LlmResponse
-from tools.dj_state import DJState
+from tools.dj_state import DJState, MergingType
 from util.file_util import debug_log
 
 async def build_message_dialogue(self, state: DJState) -> DJState:
@@ -26,7 +26,7 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
             "shout out", "shoutout", "say hi", "hi to", "hello to", "hello", "hi",
             "hey", "what’s up", "greetings", "salut", "olá", "привет", "сәлем",
             "um abraço para", "beijo para", "olá para",
-            "передай привет", "privet", "сәлем айт", "салем айт", "dedicate to", "dedication to"
+            "передай привет", "Желаю", "privet", "сәлем айт", "салем айт", "dedicate to", "dedication to"
         ],
         "CONGRATS": [
             "happy birthday", "hb", "congrats", "congratulations", "parabéns",
@@ -114,6 +114,7 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
     self.ai_logger.info(
         f"{self.brand} FINAL_RESULT (DIALOG): {llm_response.actual_result}, \nREASONING: {llm_response.reasoning}\n"
     )
-    debug_log(f"Messages based dialogue intro:\n{song.introduction_text}\n song: {song.title}, brand: {self.brand}")
+    debug_log(f"Messages based intro:\n{song.introduction_text}\nsong: {song.title},brand: {self.brand}")
     self._reset_message(state.get('messages'))
+    state["merging_type"] = MergingType.MESSAGEDIALOG_INTRO_SONG
     return state

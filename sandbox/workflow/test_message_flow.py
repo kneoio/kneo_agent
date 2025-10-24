@@ -4,14 +4,15 @@ import logging
 from core.config import load_config
 from main import ApplicationManager
 from mcp.external.internet_mcp import InternetMCP
+from tools.dj_state import DJState
 from util.llm_factory import LlmFactory
 from tools.message_dialogue_builder import build_message_dialogue
 from models.sound_fragment import SoundFragment
 from cnst.llm_types import LlmType
 
-class TestMessageDialogue:
+class TestMessageFlow:
     def __init__(self):
-        prompt_path = os.path.join(os.path.dirname(__file__), "message_prompt.md")
+        prompt_path = os.path.join(os.path.dirname(__file__), "message_prompt_ru.md")
         prompt_text = open(prompt_path, "r", encoding="utf-8").read()
         self.agent_config = {
             "messagePrompt": prompt_text,
@@ -33,15 +34,21 @@ async def main():
     internet_mcp = InternetMCP(app_manager.mcp_client)
     llm = llm_factory.get_llm_client(LlmType.GROQ, internet_mcp)
 
-    s = TestMessageDialogue()
+    s = TestMessageFlow()
     s.llm = llm
-    s.llm_type = LlmType.GROQ
+    s.llm_type = LlmType.CLAUDE
 
-    song = SoundFragment(id="test_id", title="Song", artist="Artist", genres=["electronic"], description="desc")
-    state = {
-        "messages": [{"from": "user", "content": "shout out to all"}],
-        "song_fragments": [song]
-    }
+    state =  DJState(
+        messages=[{"from": "Glok", "content": "Желаю всем участникам мероприятия JILT хорошо провести время."}],
+        song_fragments=[
+            SoundFragment(
+                title="Neon Horizon",
+                artist="Lumisonic",
+                genres=["electronic"],
+                description="Bright electro-pop groove.",
+                id="test_id")
+        ],
+    )
     await build_message_dialogue(s, state)
     #print(song.introduction_text)
 

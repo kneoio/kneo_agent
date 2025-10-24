@@ -9,7 +9,7 @@ def get_random_merging_type(
     choices = [
         MergingType.INTRO_SONG_INTRO_SONG,
         MergingType.SONG_INTRO_SONG,
-        MergingType.SONG_CROSSFADE_SONG,
+        #MergingType.SONG_CROSSFADE_SONG,
     ]
     weights = [intro_song_intro_prob, song_intro_prob, crossfade_prob]
     return random.choices(choices, weights=weights, k=1)[0]

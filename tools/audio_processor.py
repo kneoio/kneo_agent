@@ -25,14 +25,19 @@ class AudioProcessor:
             audio_data, message, _ = await self.prerecorded.get_prerecorded_audio()
             return audio_data, message
 
+        if len(text) > 980:
+            self.logger.warning(f"TTS text length approaching limit: {len(text)} chars")
+        else:
+            self.logger.info(f"TTS text length -------> : {len(text)} chars")
+
         try:
             voice_id = self.agent_config.get('preferredVoice', 'nPczCjzI2devNBz1zQrb')
             audio_stream = self.elevenlabs_inst.text_to_speech.convert(
                 voice_id=voice_id,
-                text=text[:500],
-                #model_id="eleven_multilingual_v2",
+                text=text[:1000],
+                # model_id="eleven_multilingual_v2",
                 model_id="eleven_v3",
-                #output_format="mp3_44100_128"
+                # output_format="mp3_44100_128"
                 output_format="mp3_44100_192"
             )
 
@@ -49,9 +54,11 @@ class AudioProcessor:
             return None, f"TTS generation failed: {str(e)}"
 
     async def generate_tts_dialogue(self, dialogue_json: str) -> Tuple[Optional[bytes], str]:
+        dialogue = ""
         try:
             dialogue = json.loads(dialogue_json)
-            audio_stream = self.elevenlabs_inst.text_to_dialogue.convert(inputs=dialogue)
+            settings = {"volume_normalization": "on"}
+            audio_stream = self.elevenlabs_inst.text_to_dialogue.convert(inputs=dialogue, settings=settings)
             audio_data = b"".join(audio_stream)
             if audio_data:
                 self.logger.info("Dialogue TTS generation successful")
@@ -59,4 +66,5 @@ class AudioProcessor:
             return None, "Dialogue TTS produced no data"
         except Exception as e:
             self.logger.error(f"Dialogue TTS failed: {e}")
+            self.logger.error(f"Dialogue: {dialogue}")
             return None, f"Dialogue TTS failed: {str(e)}"
