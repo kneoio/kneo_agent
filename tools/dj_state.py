@@ -28,3 +28,7 @@ class DJState(MessagesState):
     __end__: bool
     merging_type: MergingType
     session_id: str
+    
+    intro_texts: List[str]
+    audio_file_paths: List[str]
+    song_ids: List[str]

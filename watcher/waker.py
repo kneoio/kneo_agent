@@ -1,121 +1,133 @@
 import time
-import requests
 import logging
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from queue import Queue
 
 from api.broadcaster_client import BroadcasterAPIClient
 from cnst.brand_status import BrandStatus
 from cnst.llm_types import LlmType
 from mcp.external.internet_mcp import InternetMCP
+from mcp.live_radio_stations_mcp import LiveRadioStationsMCP
+from mcp.mcp_client import MCPClient
+from models.live_container import LiveContainer
 from util.llm_factory import LlmFactory
 from core.dj_runner import DJRunner
 
 
 class Waker:
     def __init__(self, config: Dict, mcp_client=None):
-        broadcaster_config = config['broadcaster']
-        self.base_url = broadcaster_config['api_base_url']
-        self.api_key = broadcaster_config['api_key']
-        self.timeout = broadcaster_config['api_timeout']
         self.base_interval = 120
         self.current_interval = self.base_interval
         self.min_interval = 30
         self.max_interval = 180
         self.backoff_factor = 1.5
-        self.activity_threshold = 240  # secs
+        self.activity_threshold = 240
         self.config = config
-        self.mcp_client = mcp_client
         self.radio_station_name = None
         self.last_activity_time = time.time()
         self.brand_queue = Queue()
         self.llmFactory = LlmFactory(config)
+        self.loop = None
+        self.mcp_client = None
+        self.live_stations_mcp = None
 
-    def get_available_brands(self) -> Optional[List[Dict]]:
+    async def get_available_brands(self) -> Optional[LiveContainer]:
         try:
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
+            live_container = await self.live_stations_mcp.get_live_radio_stations()
+            if not live_container:
+                logging.warning("No live container data received from MCP")
+                return None
 
-            params = {
-                'status': [
-                    #BrandStatus.WAITING_FOR_CURATOR.value,
-                    BrandStatus.ON_LINE.value,
-                    BrandStatus.WARMING_UP.value,
-                    BrandStatus.QUEUE_SATURATED.value
-                ]
-            }
+            desired_statuses = [
+                BrandStatus.ON_LINE.value,
+                BrandStatus.WARMING_UP.value,
+                BrandStatus.QUEUE_SATURATED.value,
+                BrandStatus.WAITING_FOR_CURATOR.value
+            ]
 
-            response = requests.get(
-                f"{self.base_url}/ai/brands/status",
-                headers=headers,
-                params=params,
-                timeout=self.timeout
-            )
-            response.raise_for_status()
+            filtered_stations = [
+                station for station in live_container.radioStations
+                if station.radioStationStatus in desired_statuses
+            ]
 
-            data = response.json()
-            if isinstance(data, list):
-                for i, brand in enumerate(data):
-                    station_name = brand.get('radioStationName', 'Unknown')
-                    station_status = brand.get('radioStationStatus', 'Unknown')
-                    print(f"Brand -{i + 1}: {station_name} - {station_status}")
+            for i, station in enumerate(filtered_stations):
+                print(f"Brand -{i + 1}: {station.name} - {station.radioStationStatus}")
 
-            if data and isinstance(data, list) and len(data) > 0:
-                self.radio_station_name = data[0].get('radioStationName')
+            if filtered_stations:
+                self.radio_station_name = filtered_stations[0].name
+                filtered_container = LiveContainer(radioStations=filtered_stations)
+                return filtered_container
 
-            return data
-
-        except requests.exceptions.RequestException as e:
-            logging.error(f"API request failed: {e}")
             return None
+
         except Exception as e:
-            logging.error(f"Unexpected error: {e}")
+            logging.error(f"Error getting available brands from MCP: {e}")
             return None
 
-    def queue_brands(self, brands: List[Dict]):
+    def queue_brands(self, live_container: LiveContainer):
         queued_count = 0
-        for brand in brands:
-            status = brand.get("radioStationStatus")
-            if status == BrandStatus.QUEUE_SATURATED.value:
-                logging.info(f" >>>>>> Skipping brand due to queue saturated: {brand.get('radioStationName')}")
+        for station in live_container.radioStations:
+            if station.radioStationStatus == BrandStatus.QUEUE_SATURATED.value:
+                logging.info(f" >>>>>> Skipping brand due to queue saturated: {station.name}")
                 continue
-            self.brand_queue.put(brand)
+            self.brand_queue.put(station)
             queued_count += 1
 
         logging.info(f"Queued {queued_count} brands for processing")
 
-    def process_brand_queue(self) -> bool:
-        processed_any = False
+    async def _process_single_station(self, station):
+        try:
+            logging.info(f"Processing brand: {station.name}")
+            internet_mcp = InternetMCP(self.mcp_client)
+            api_client = BroadcasterAPIClient(self.config)
+            llmType = LlmType(station.prompt.llmType) if station.prompt.llmType else None
+            llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
+            runner = DJRunner(self.config, station, api_client, mcp_client=self.mcp_client, llm_client=llmClient, llm_type=llmType)
+
+            await asyncio.wait_for(runner.run(), timeout=120)
+            logging.info(f"Successfully processed brand: {station.name}")
+            return True
+        except asyncio.TimeoutError:
+            logging.error(f"Timeout processing brand: {station.name} (exceeded 120s)")
+            return False
+        except Exception as e:
+            logging.error(f"DJ Agent error for {station.name}: {e}")
+            return False
+        finally:
+            if 'runner' in locals() and hasattr(runner, 'cleanup'):
+                try:
+                    await runner.cleanup()
+                except Exception as e:
+                    logging.error(f"Cleanup error for {station.name}: {e}")
+            if 'api_client' in locals() and hasattr(api_client, 'close'):
+                try:
+                    await api_client.close()
+                except Exception as e:
+                    logging.error(f"API client close error for {station.name}: {e}")
+
+    async def process_brand_queue(self) -> bool:
+        tasks = []
+        stations = []
 
         while not self.brand_queue.empty():
-            brand = self.brand_queue.get()
-            station_name = brand.get("radioStationName")
+            station = self.brand_queue.get()
+            stations.append(station)
+            task = self._process_single_station(station)
+            tasks.append(task)
+            self.brand_queue.task_done()
 
-            try:
-                logging.info(f"Processing brand: {station_name}")
-                internet_mcp = InternetMCP(self.mcp_client)
-                api_client = BroadcasterAPIClient(self.config)
-                llmTypeStr = brand.get('agent', {}).get('llmType')
-                llmType = LlmType(llmTypeStr) if llmTypeStr is not None else None
-                llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
-                runner = DJRunner(self.config, brand, api_client, mcp_client=self.mcp_client, llm_client=llmClient, llm_type=llmType)
+        if not tasks:
+            return False
 
-                asyncio.run(runner.run())
-                processed_any = True
-            except Exception as e:
-                logging.error(f"DJ Agent error for {station_name}: {e}")
-            finally:
-                if 'runner' in locals() and hasattr(runner, 'cleanup'):
-                    asyncio.run(runner.cleanup())
-                if 'api_client' in locals() and hasattr(api_client, 'close'):
-                    asyncio.run(api_client.close())
-
-                self.brand_queue.task_done()
-
-        return processed_any
+        logging.info(f"Processing {len(tasks)} stations in parallel...")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        success_count = sum(1 for r in results if r is True)
+        logging.info(f"Processed {success_count}/{len(tasks)} stations successfully")
+        
+        return success_count > 0
 
     def update_interval(self, had_activity: bool):
         if had_activity:
@@ -131,27 +143,46 @@ class Waker:
             else:
                 self.current_interval = self.base_interval
 
+    async def _async_run(self):
+        logging.info("Starting Waker async loop")
+        
+        self.mcp_client = MCPClient(self.config, skip_initialization=True)
+        await self.mcp_client.connect()
+        self.live_stations_mcp = LiveRadioStationsMCP(self.mcp_client)
+        logging.info("Waker MCP client connected")
+        
+        try:
+            while True:
+                logging.info("Waker tick...")
+                had_activity = False
+
+                try:
+                    live_container = await self.get_available_brands()
+                    if live_container and len(live_container) > 0:
+                        self.queue_brands(live_container)
+                        had_activity = await self.process_brand_queue()
+                    else:
+                        logging.info("No matching brands found")
+
+                except Exception as e:
+                    logging.error(f"Waker error: {e}")
+
+                self.update_interval(had_activity)
+                next_run_time = datetime.now() + timedelta(seconds=self.current_interval)
+                logging.info(
+                    f"Sleeping for {self.current_interval} seconds - Next run at: {next_run_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                await asyncio.sleep(self.current_interval)
+        finally:
+            if self.mcp_client:
+                await self.mcp_client.disconnect()
+                logging.info("Waker MCP client disconnected")
+    
     def run(self) -> None:
-        logging.info("Starting Waker (queued single-thread mode)")
-        while True:
-            logging.info("Waker tick...")
-            had_activity = False
-
-            try:
-                # Get available brands and queue them
-                brands = self.get_available_brands()
-                if brands:
-                    self.queue_brands(brands)
-                    # Process all queued brands one by one
-                    had_activity = self.process_brand_queue()
-                else:
-                    logging.info("No matching brands found")
-
-            except Exception as e:
-                logging.error(f"Waker error: {e}")
-
-            self.update_interval(had_activity)
-            next_run_time = datetime.now() + timedelta(seconds=self.current_interval)
-            logging.info(
-                f"Sleeping for {self.current_interval} seconds - Next run at: {next_run_time.strftime('%Y-%m-%d %H:%M:%S')}")
-            time.sleep(self.current_interval)
+        logging.info("Starting Waker (queued single-thread mode with MCP)")
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        
+        try:
+            self.loop.run_until_complete(self._async_run())
+        finally:
+            self.loop.close()

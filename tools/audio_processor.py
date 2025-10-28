@@ -5,14 +5,15 @@ from elevenlabs.client import ElevenLabs
 
 from api.interaction_memory import InteractionMemory
 from core.prerecorded import Prerecorded
+from models.live_container import LiveRadioStation
 
 
 class AudioProcessor:
     def __init__(self, elevenlabs_inst: ElevenLabs, prerecorded: Prerecorded,
-                 agent_config: Dict[str, Any], memory: InteractionMemory):
+                 station: LiveRadioStation, memory: InteractionMemory):
         self.elevenlabs_inst = elevenlabs_inst
         self.prerecorded = prerecorded
-        self.agent_config = agent_config
+        self.station = station
         self.memory = memory
         self.logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class AudioProcessor:
             self.logger.info(f"TTS text length -------> : {len(text)} chars")
 
         try:
-            voice_id = self.agent_config.get('preferredVoice', 'nPczCjzI2devNBz1zQrb')
+            voice_id = self.station.tts.preferredVoice
             audio_stream = self.elevenlabs_inst.text_to_speech.convert(
                 voice_id=voice_id,
                 text=text[:1000],
