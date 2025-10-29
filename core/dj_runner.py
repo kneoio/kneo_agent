@@ -36,7 +36,6 @@ class DJRunner:
         )
 
         self.radio_dj = RadioDJV2(
-            config,
             station,
             self.audio_processor,
             mcp_client=self.mcp_client,
@@ -51,13 +50,6 @@ class DJRunner:
         if not hasattr(self, '_external_mcp_client'):
             await self.mcp_client.connect()
 
-        await self._feed_broadcast()
-        if not hasattr(self, '_external_mcp_client'):
-            await self.mcp_client.disconnect()
-
-        self.logger.info(f"DJ Agent run completed for brand: {self.brand}")
-
-    async def _feed_broadcast(self) -> None:
         try:
             broadcast_success, _, _ = await self.radio_dj.run()
             if broadcast_success:
@@ -67,6 +59,11 @@ class DJRunner:
         except Exception as e:
             self.logger.error(f"Error in _feed_broadcast: {e}")
             raise
+        if not hasattr(self, '_external_mcp_client'):
+            await self.mcp_client.disconnect()
+
+        self.logger.info(f"DJ Agent run completed for brand: {self.brand}")
+
 
     async def cleanup(self):
         if hasattr(self, 'mcp_client') and not hasattr(self, '_external_mcp_client'):

@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import uuid
 from datetime import datetime
 from typing import Tuple
 
@@ -15,7 +14,7 @@ from util.file_util import debug_log
 
 
 class RadioDJV2:
-    def __init__(self, config, station: LiveRadioStation, audio_processor,
+    def __init__(self, station: LiveRadioStation, audio_processor,
                  mcp_client=None, debug=False, llm_client=None, llm_type=LlmType.CLAUDE):
         self.debug = debug
         self.llm_type = llm_type
@@ -68,14 +67,8 @@ class RadioDJV2:
 
 
     async def _generate_intro(self, state: DJState) -> DJState:
-        prompts = self.station.prompt.prompts
-        
-        if not prompts:
-            self.logger.warning("No prompts available")
-            return state
-        
-        # Process each prompt (1 or 2)
-        for idx, prompt_item in enumerate(prompts):
+
+        for idx, prompt_item in enumerate(self.station.prompt.prompts):
             draft = prompt_item.draft or ""
             full_prompt = f"{prompt_item.prompt}\n\nInput:\n{draft}"
             
@@ -100,7 +93,6 @@ class RadioDJV2:
             self.logger.warning("No intro texts to generate audio for")
             return state
 
-        # Generate audio for each intro
         for idx, intro_text in enumerate(state["intro_texts"]):
             try:
                 try:
@@ -144,7 +136,6 @@ class RadioDJV2:
             num_songs = len(state["audio_file_paths"])
             
             if num_songs == 1:
-                # Single intro-song
                 result = await self.queue_mcp.add_to_queue_i_s(
                     brand_name=self.brand,
                     sound_fragment_uuid=state["song_ids"][0],
@@ -152,7 +143,6 @@ class RadioDJV2:
                     priority=10
                 )
             elif num_songs == 2:
-                # Double intro-song-intro-song
                 result = await self.queue_mcp.add_to_queue_i_s_i_s(
                     brand_name=self.brand,
                     fragment_uuid_1=state["song_ids"][0],

@@ -60,7 +60,6 @@ class RadioDJ:
         debug_log(f"RadioDJ v2 initialized with llm={self.llm_type}")
 
     async def run(self, brand: str, memory_data: Dict[str, Any]) -> Tuple[bool, str, str]:
-        self.ai_logger.info(f"---------------------Interaction started ------------------------------")
         self.logger.info(f"---------------------Interaction started ------------------------------")
         initial_state = {
             "brand": brand,
