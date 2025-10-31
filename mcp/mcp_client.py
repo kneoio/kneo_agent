@@ -93,7 +93,7 @@ class MCPClient:
             self.logger.error(f"Message timeout after {self.message_timeout}s")
             raise Exception(f"Message timeout after {self.message_timeout}s")
         except websockets.exceptions.ConnectionClosed as e:
-            self.logger.error(f"Connection closed during message: {e}")
+            self.logger.warning(f"Server closed connection: {e}")
             self.connection = None
             raise Exception(f"Connection closed: {e}")
 
@@ -127,6 +127,10 @@ class MCPClient:
         return response
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]):
+        if not self.connection:
+            self.logger.info("Connection lost, reconnecting...")
+            await self.connect()
+        
         message = {
             "jsonrpc": "2.0",
             "id": self.message_id,
@@ -137,7 +141,16 @@ class MCPClient:
             }
         }
         self.message_id += 1
-        response = await self.send_message(message)
+        
+        try:
+            response = await self.send_message(message)
+        except Exception as e:
+            if "Connection closed" in str(e) or "not established" in str(e):
+                self.logger.info("Connection lost during call, reconnecting and retrying...")
+                await self.connect()
+                response = await self.send_message(message)
+            else:
+                raise
 
         if "error" in response:
             raise Exception(f"MCP tool error: {response['error'].get('message', 'Unknown error')}")

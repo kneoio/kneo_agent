@@ -30,7 +30,7 @@ class RadioDJV2:
         self.llm = llm_client
         self.audio_processor = audio_processor
         self.station = station
-        self.brand = station.name
+        self.brand = station.slugName
         self.queue_mcp = QueueMCP(mcp_client)
         self.target_dir = "/home/kneobroadcaster/to_merge"
         os.makedirs(self.target_dir, exist_ok=True)

@@ -37,7 +37,7 @@ class Waker:
         try:
             live_container = await self.live_stations_mcp.get_live_radio_stations()
             if not live_container:
-                logging.warning("No live container data received from MCP")
+                logging.warning("No live radio stations found")
                 return None
 
             desired_statuses = [
