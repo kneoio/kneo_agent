@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
 from mcp.queue_mcp import QueueMCP
+from mcp.server.llm_response import LlmResponse
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
 from util.file_util import debug_log
@@ -74,12 +75,9 @@ class RadioDJV2:
             
             response = await self.llm.ainvoke(messages=[{"role": "user", "content": full_prompt}])
             
-            if self.llm_type == LlmType.CLAUDE:
-                intro_text = response.content[0].text if hasattr(response, 'content') else str(response)
-            else:
-                intro_text = response.content if hasattr(response, 'content') else str(response)
+            llm_response = LlmResponse.parse_plain_response(response, self.llm_type)
+            intro_text = llm_response.actual_result
             
-            intro_text = intro_text.strip()
             state["intro_texts"].append(intro_text)
             state["song_ids"].append(prompt_item.songId)
             
