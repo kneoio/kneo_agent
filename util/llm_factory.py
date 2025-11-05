@@ -58,10 +58,10 @@ class LlmFactory:
     def __init__(self, config: Dict):
         self.config = config
         self.clients = {}
+        self.llm_type = LlmType.GROQ
 
     def get_llm_client(self, llm_type: LlmType, internet_mcp=None):
-        if llm_type is None:
-            return None
+        self.llm_type = llm_type
 
         cache_key = f"{llm_type}_{internet_mcp is not None}"
         if cache_key in self.clients:

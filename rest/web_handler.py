@@ -6,8 +6,10 @@ from pydantic import BaseModel
 
 from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
+from cnst.translation_types import TranslationType
 from core.config import get_merged_config
 from llm.llm_request import invoke_intro
+from llm.llm_request import translate_prompt
 from mcp.external.internet_mcp import InternetMCP
 from util.llm_factory import LlmFactory
 
@@ -43,6 +45,10 @@ class PromptRequest(BaseModel):
     draft: str
     llm: LlmType
 
+class TranslateRequest(BaseModel):
+    toTranslate: str
+    translationType: TranslationType
+    language: str
 
 @app.get("/health")
 def health():
@@ -66,10 +72,24 @@ async def test_search(req: SearchRequest):
             results_out.append(it.get("snippet", ""))
     return {"results": results_out, "llm": req.llm.name}
 
+
+@app.post("/translate")
+async def translate(req: TranslateRequest):
+    client = llm_factory.get_llm_client(LlmType.GROQ)
+    if req.translationType == TranslationType.PROMPT:
+        translation_prompt = f"Translate the following prompt to {req.language}:\n{req.toTranslate}"
+    else:
+        translation_prompt = f"Translate the keywords in the following Groovy code to {req.language}:\n{req.toTranslate}"
+
+    translation_result = await translate_prompt(client, translation_prompt, req.toTranslate)
+    print(f"RAW: {translation_result}")
+    return {"result": translation_result.actual_result, "reasoning": translation_result.reasoning}
+
 @app.post("/prompt/test")
 async def test_prompt(req: PromptRequest):
     client = llm_factory.get_llm_client(req.llm, internet_mcp=internet)
     
     result = await invoke_intro(client, req.prompt, req.draft, req.llm)
+    print(f"RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
 
