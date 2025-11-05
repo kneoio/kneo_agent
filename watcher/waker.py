@@ -84,7 +84,8 @@ class Waker:
             api_client = BroadcasterAPIClient(self.config)
             llmType = LlmType(station.prompt.llmType) if station.prompt.llmType else None
             llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
-            runner = DJRunner(self.config, station, api_client, mcp_client=self.mcp_client, llm_client=llmClient, llm_type=llmType)
+            runner = DJRunner(self.config, station, api_client, mcp_client=self.mcp_client, llm_client=llmClient,
+                              llm_type=llmType)
 
             await asyncio.wait_for(runner.run(), timeout=120)
             logging.info(f"Successfully processed brand: {station.name}")
@@ -123,10 +124,10 @@ class Waker:
 
         logging.info(f"Processing {len(tasks)} stations in parallel...")
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         success_count = sum(1 for r in results if r is True)
         logging.info(f"Processed {success_count}/{len(tasks)} stations successfully")
-        
+
         return success_count > 0
 
     def update_interval(self, had_activity: bool):
@@ -145,12 +146,12 @@ class Waker:
 
     async def _async_run(self):
         logging.info("Starting Waker async loop")
-        
+
         self.mcp_client = MCPClient(self.config, skip_initialization=True)
         await self.mcp_client.connect()
         self.live_stations_mcp = LiveRadioStationsMCP(self.mcp_client)
         logging.info("Waker MCP client connected")
-        
+
         try:
             while True:
                 logging.info("Waker tick...")
@@ -161,8 +162,6 @@ class Waker:
                     if live_container and len(live_container) > 0:
                         self.queue_brands(live_container)
                         had_activity = await self.process_brand_queue()
-                    else:
-                        logging.info("No matching brands found")
 
                 except Exception as e:
                     logging.error(f"Waker error: {e}")
@@ -176,12 +175,12 @@ class Waker:
             if self.mcp_client:
                 await self.mcp_client.disconnect()
                 logging.info("Waker MCP client disconnected")
-    
+
     def run(self) -> None:
         logging.info("Starting Waker (queued single-thread mode with MCP)")
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        
+
         try:
             self.loop.run_until_complete(self._async_run())
         finally:

@@ -62,7 +62,7 @@ class InternetMCP:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers, timeout=30) as resp:
                     data = await resp.json()
-            web = data.get("web", {}) if isinstance(data, dict) else {}
+            web = data.get("rest", {}) if isinstance(data, dict) else {}
             items = web.get("results", []) if isinstance(web, dict) else []
             self.logger.info(f"internet.brave items_found={len(items)}")
             for item in items[:limit]:

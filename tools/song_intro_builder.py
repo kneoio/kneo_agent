@@ -1,6 +1,6 @@
 from cnst.play_list_item_type import PlaylistItemType
 from mcp.external.internet_mcp import InternetMCP
-from mcp.server.llm_response import LlmResponse
+from llm.llm_response import LlmResponse
 from tools.dj_state import DJState, MergingType
 from tools.draft_builder import build_draft
 from util.file_util import debug_log

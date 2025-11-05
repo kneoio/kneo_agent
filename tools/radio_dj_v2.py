@@ -7,11 +7,11 @@ from typing import Tuple
 from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
+from llm.llm_request import invoke_intro
 from mcp.queue_mcp import QueueMCP
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
 from util.file_util import debug_log
-
 
 class RadioDJV2:
     def __init__(self, station: LiveRadioStation, audio_processor,
@@ -39,7 +39,7 @@ class RadioDJV2:
 
     async def run(self) -> Tuple[bool, str, str]:
         self.logger.info(f"---------------------Interaction started ------------------------------")
-        
+
         initial_state = {
             "brand": self.brand,
             "intro_texts": [],
@@ -65,27 +65,18 @@ class RadioDJV2:
         debug_log("RadioDJV2 graph workflow built")
         return workflow.compile()
 
-
     async def _generate_intro(self, state: DJState) -> DJState:
 
         for idx, prompt_item in enumerate(self.station.prompt.prompts):
             draft = prompt_item.draft or ""
-            full_prompt = f"{prompt_item.prompt}\n\nInput:\n{draft}"
-            
-            response = await self.llm.ainvoke(messages=[{"role": "user", "content": full_prompt}])
-            
-            if self.llm_type == LlmType.CLAUDE:
-                intro_text = response.content[0].text if hasattr(response, 'content') else str(response)
-            else:
-                intro_text = response.content if hasattr(response, 'content') else str(response)
-            
-            intro_text = intro_text.strip()
-            state["intro_texts"].append(intro_text)
+            intro_text = await invoke_intro(self.llm, prompt_item.prompt, draft, self.llm_type)
+
+            state["intro_texts"].append(intro_text.actual_result)
             state["song_ids"].append(prompt_item.songId)
-            
-            self.ai_logger.info(f"{self.brand} INTRO {idx+1}: {intro_text}")
-            debug_log(f"Generated intro {idx+1} for {self.brand}")
-        
+
+            self.ai_logger.info(f"{self.brand} INTRO {idx + 1}: {intro_text}")
+            debug_log(f"Generated intro {idx + 1} for {self.brand}")
+
         return state
 
     async def _create_audio(self, state: DJState) -> DJState:
@@ -103,15 +94,15 @@ class RadioDJV2:
 
                 if audio_data:
                     time_tag = datetime.now().strftime("%Hh%Mm%Ss")
-                    short_name = f"{self.brand}_intro{idx+1}_{time_tag}"
+                    short_name = f"{self.brand}_intro{idx + 1}_{time_tag}"
                     file_path = self._save_audio_file(audio_data, short_name)
                     state["audio_file_paths"].append(file_path)
-                    debug_log(f"Audio {idx+1} saved: {file_path}")
+                    debug_log(f"Audio {idx + 1} saved: {file_path}")
                 else:
-                    self.logger.warning(f"No audio generated for intro {idx+1}: {reason}")
+                    self.logger.warning(f"No audio generated for intro {idx + 1}: {reason}")
 
             except Exception as e:
-                self.logger.error(f"Error creating audio {idx+1}: {e}")
+                self.logger.error(f"Error creating audio {idx + 1}: {e}")
 
         return state
 
@@ -134,7 +125,7 @@ class RadioDJV2:
                 return state
 
             num_songs = len(state["audio_file_paths"])
-            
+
             if num_songs == 1:
                 result = await self.queue_mcp.add_to_queue_i_s(
                     brand_name=self.brand,

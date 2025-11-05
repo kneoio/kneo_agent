@@ -16,7 +16,6 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def _parse_claude(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        # Inline extraction for Claude
         content = ""
         if hasattr(resp, "content") and isinstance(resp.content, list):
             parts = []
@@ -83,11 +82,9 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def _parse_openai(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        # Inline extraction for OpenAI
         content = ""
         try:
             if hasattr(resp, "choices") and resp.choices:
-                # Newer API structure
                 first_choice = resp.choices[0]
                 if hasattr(first_choice, "message"):
                     content = first_choice.message.get("content", "")

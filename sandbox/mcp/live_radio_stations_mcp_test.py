@@ -4,7 +4,6 @@ import json
 import sys
 from pathlib import Path
 
-# Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -14,6 +13,7 @@ from models.live_container import LiveContainer
 
 async def main():
     uri = "ws://localhost:38708"
+    #uri = "ws://mixpla.io:38708"
 
     try:
         async with websockets.connect(uri) as websocket:

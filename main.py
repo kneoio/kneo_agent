@@ -8,7 +8,7 @@ from core.logging_config import setup_logging
 from mcp.mcp_client import MCPClient
 from watcher.waker import Waker
 import uvicorn
-from mcp.server.mcp_manager import app as mcp_http_app
+from rest.web_handler import app as mcp_http_app
 
 
 class ApplicationManager:
