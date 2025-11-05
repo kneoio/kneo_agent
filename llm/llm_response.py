@@ -53,7 +53,6 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def _parse_groq(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        # Inline extraction for Groq
         content = getattr(resp, "content", "")
         if isinstance(content, list):
             parts = []
