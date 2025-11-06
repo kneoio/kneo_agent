@@ -53,19 +53,14 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def _parse_groq(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        content = getattr(resp, "content", "")
-        if isinstance(content, list):
-            parts = []
-            for block in content:
-                if isinstance(block, dict) and "text" in block:
-                    parts.append(block["text"])
-                elif hasattr(block, "text"):
-                    parts.append(block.text)
-            content = " ".join(parts)
-        elif isinstance(content, str):
-            content = content.strip()
-        else:
-            content = str(content)
+        content = ""
+        try:
+            if hasattr(resp, "choices") and resp.choices:
+                first_choice = resp.choices[0]
+                if hasattr(first_choice, "message"):
+                    content = first_choice.message.get("content", "")
+        except Exception as e:
+            logger.error("Error parsing Groq response: %s", e)
 
         if not content.strip():
             logger.warning("Groq response parsing returned empty content. Raw resp=%s", resp)
