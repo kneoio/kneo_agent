@@ -44,8 +44,7 @@ class DJRunner:
         )
 
     async def run(self) -> None:
-        self.logger.info(
-            f"Starting DJ Agent run for: {self.brand}, DJ: {self.station.djName}")
+        self.logger.info(f"Starting DJ run for: {self.brand}, DJ: {self.station.djName}, Scene: {self.station.info}")
 
         if not hasattr(self, '_external_mcp_client'):
             await self.mcp_client.connect()

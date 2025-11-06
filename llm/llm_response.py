@@ -8,22 +8,19 @@ import re
 logger = logging.getLogger(__name__)
 
 class LlmResponse(BaseModel):
-    raw_response: Any  # The raw AIMessage or response object
+    raw_response: Any
     llm_type: str
-    _structured_result: Optional[str] = None  # Override for structured responses
+    _structured_result: Optional[str] = None
 
     @property
     def actual_result(self) -> str:
-        """Extract the actual result content from the raw response."""
         if self._structured_result is not None:
             return self._structured_result
         return self._parse_content()
 
     @property 
     def reasoning(self) -> Optional[str]:
-        """Extract reasoning from the raw response."""
         if self.llm_type == LlmType.GROQ.name:
-            # Handle both AIMessage and dict formats
             if isinstance(self.raw_response, dict):
                 return self.raw_response.get("additional_kwargs", {}).get("reasoning_content")
             else:
@@ -34,19 +31,15 @@ class LlmResponse(BaseModel):
 
     @property
     def thinking(self) -> Optional[str]:
-        """Extract thinking content from the raw response."""
         content = self._get_content_string()
         return self._extract_between_tags(content, "thinking", str)
 
     @property
     def search_quality(self) -> Optional[int]:
-        """Extract search quality score from the raw response."""
         content = self._get_content_string()
         return self._extract_between_tags(content, "search_quality_score", int)
 
     def _get_content_string(self) -> str:
-        """Get the content as a string from the raw response."""
-        # Handle AIMessage format (Claude)
         if hasattr(self.raw_response, "content"):
             content = self.raw_response.content
             
@@ -63,7 +56,6 @@ class LlmResponse(BaseModel):
             else:
                 return str(content)
         
-        # Handle raw dict format (Groq, OpenAI)
         if isinstance(self.raw_response, dict):
             if "content" in self.raw_response:
                 return self.raw_response["content"]
@@ -74,7 +66,6 @@ class LlmResponse(BaseModel):
                 elif "text" in choice:
                     return choice["text"]
         
-        # Fallback for different response structures
         if hasattr(self.raw_response, "choices") and self.raw_response.choices:
             first_choice = self.raw_response.choices[0]
             if hasattr(first_choice, "message") and hasattr(first_choice.message, "content"):
@@ -85,10 +76,8 @@ class LlmResponse(BaseModel):
         return ""
 
     def _parse_content(self) -> str:
-        """Parse the actual result content, removing thinking/reasoning tags."""
         content = self._get_content_string()
-        
-        # Remove thinking and reasoning sections
+
         if self.thinking:
             content = self._remove_xml_section(content, "thinking")
         if self.reasoning and self.reasoning != self.thinking:
@@ -100,12 +89,10 @@ class LlmResponse(BaseModel):
 
     @classmethod
     def parse_plain_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        """Create LlmResponse from raw response, storing it for lazy parsing."""
         return cls(raw_response=resp, llm_type=llm_type.name)
 
     @classmethod
     def parse_structured_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        """Parse structured responses, potentially modifying the actual_result."""
         instance = cls.parse_plain_response(resp, llm_type)
         text = instance._parse_content().strip()  # Get raw parsed content without structured override
         match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)

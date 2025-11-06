@@ -69,6 +69,7 @@ class LiveRadioStation:
     slugName: str
     radioStationStatus: str
     djName: str
+    info: str
     tts: TtsConfig
     prompt: PromptConfig
     talkativity: float = 0.3
@@ -90,6 +91,7 @@ class LiveRadioStation:
             slugName=data.get("slugName"),
             radioStationStatus=data.get("radioStationStatus"),
             djName=data.get("djName"),
+            info=data.get("info", ""),
             tts=TtsConfig.from_dict(tts_data),
             prompt=prompt_config,
             talkativity=data.get("talkativity", 0.3),
