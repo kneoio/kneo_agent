@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel
 from cnst.llm_types import LlmType
 import json
@@ -8,107 +8,89 @@ import re
 logger = logging.getLogger(__name__)
 
 class LlmResponse(BaseModel):
-    actual_result: str
-    reasoning: Optional[str] = None
-    thinking: Optional[str] = None
-    search_quality: Optional[int] = None
+    raw_response: Any  # The raw AIMessage or response object
     llm_type: str
+    _structured_result: Optional[str] = None  # Override for structured responses
 
-    @classmethod
-    def _parse_claude(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        content = ""
-        if hasattr(resp, "content") and isinstance(resp.content, list):
-            parts = []
-            for block in resp.content:
-                if isinstance(block, dict) and "text" in block:
-                    parts.append(block["text"])
-                elif hasattr(block, "text"):
-                    parts.append(block.text)
-            content = " ".join(parts)
-        elif hasattr(resp, "content"):
-            content = str(resp.content)
+    @property
+    def actual_result(self) -> str:
+        """Extract the actual result content from the raw response."""
+        if self._structured_result is not None:
+            return self._structured_result
+        return self._parse_content()
 
-        if not content.strip():
-            logger.warning("Claude response parsing returned empty content. Raw resp=%s", resp)
+    @property 
+    def reasoning(self) -> Optional[str]:
+        """Extract reasoning from the raw response."""
+        content = self._get_content_string()
+        if self.llm_type == LlmType.GROQ.name:
+            return getattr(self.raw_response, "additional_kwargs", {}).get("reasoning_content")
+        else:
+            return self._extract_between_tags(content, "search_quality_reflection", str) or self._extract_between_tags(content, "thinking", str)
 
-        search_quality = cls._extract_between_tags(content, "search_quality_score", int)
-        reasoning = cls._extract_between_tags(content, "search_quality_reflection", str)
-        thinking = cls._extract_between_tags(content, "thinking", str)
+    @property
+    def thinking(self) -> Optional[str]:
+        """Extract thinking content from the raw response."""
+        content = self._get_content_string()
+        return self._extract_between_tags(content, "thinking", str)
 
-        cleaned_content = content
-        if thinking:
-            cleaned_content = cls._remove_xml_section(cleaned_content, "thinking")
-        if reasoning:
-            cleaned_content = cls._remove_xml_section(cleaned_content, "search_quality_reflection")
-        if search_quality:
-            cleaned_content = cls._remove_xml_section(cleaned_content, "search_quality_score")
+    @property
+    def search_quality(self) -> Optional[int]:
+        """Extract search quality score from the raw response."""
+        content = self._get_content_string()
+        return self._extract_between_tags(content, "search_quality_score", int)
 
-        # For Claude, if no explicit reasoning tag but thinking is present, use thinking as reasoning
-        if reasoning is None and thinking is not None:
-            reasoning = thinking
+    def _get_content_string(self) -> str:
+        """Get the content as a string from the raw response."""
+        if hasattr(self.raw_response, "content"):
+            content = self.raw_response.content
+            if isinstance(content, list):
+                parts = []
+                for block in content:
+                    if isinstance(block, dict) and "text" in block:
+                        parts.append(block["text"])
+                    elif hasattr(block, "text"):
+                        parts.append(block.text)
+                return " ".join(parts)
+            elif isinstance(content, str):
+                return content
+            else:
+                return str(content)
+        return ""
 
-        return cls(
-            actual_result=cleaned_content.strip(),
-            reasoning=reasoning,
-            thinking=thinking,
-            search_quality=search_quality,
-            llm_type=llm_type.name
-        )
-
-    @classmethod
-    def _parse_groq(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        content = ""
-        try:
-            if hasattr(resp, "choices") and resp.choices:
-                first_choice = resp.choices[0]
-                if hasattr(first_choice, "message"):
-                    content = first_choice.message.get("content", "")
-        except Exception as e:
-            logger.error("Error parsing Groq response: %s", e)
-
-        if not content.strip():
-            logger.warning("Groq response parsing returned empty content. Raw resp=%s", resp)
-
-        reasoning = getattr(resp, "additional_kwargs", {}).get("reasoning_content")
-
-        return cls(
-            actual_result=content.strip(),
-            reasoning=reasoning,
-            search_quality=None,
-            llm_type=llm_type.name
-        )
-
-    @classmethod
-    def _parse_openai(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        content = ""
-        try:
-            if hasattr(resp, "choices") and resp.choices:
-                first_choice = resp.choices[0]
-                if hasattr(first_choice, "message"):
-                    content = first_choice.message.get("content", "")
-                elif hasattr(first_choice, "text"):
-                    content = first_choice.text
-        except Exception as e:
-            logger.error("Error parsing OpenAI response: %s", e)
-
-        if not content.strip():
-            logger.warning("OpenAI response parsing returned empty content. Raw resp=%s", resp)
-
-        return cls(
-            actual_result=content.strip(),
-            reasoning=None,
-            search_quality=None,
-            llm_type=llm_type.name
-        )
+    def _parse_content(self) -> str:
+        """Parse the actual result content, removing thinking/reasoning tags."""
+        content = self._get_content_string()
+        
+        # Remove thinking and reasoning sections
+        if self.thinking:
+            content = self._remove_xml_section(content, "thinking")
+        if self.reasoning and self.reasoning != self.thinking:
+            content = self._remove_xml_section(content, "search_quality_reflection")
+        if self.search_quality:
+            content = self._remove_xml_section(content, "search_quality_score")
+            
+        return content.strip()
 
     @classmethod
     def parse_plain_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        if llm_type == LlmType.GROQ:
-            return cls._parse_groq(resp, llm_type)
-        elif llm_type == LlmType.OPENAI:
-            return cls._parse_openai(resp, llm_type)
-        else:  # default Claude
-            return cls._parse_claude(resp, llm_type)
+        """Create LlmResponse from raw response, storing it for lazy parsing."""
+        return cls(raw_response=resp, llm_type=llm_type.name)
+
+    @classmethod
+    def parse_structured_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
+        """Parse structured responses, potentially modifying the actual_result."""
+        instance = cls.parse_plain_response(resp, llm_type)
+        text = instance._parse_content().strip()  # Get raw parsed content without structured override
+        match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
+        if match:
+            json_block = match.group(1).strip()
+            try:
+                json.loads(json_block)
+                instance._structured_result = json_block
+            except Exception:
+                logger.warning("Structured parse: invalid JSON")
+        return instance
 
     @staticmethod
     def _extract_between_tags(content: str, tag: str, convert_type=str):
@@ -137,55 +119,3 @@ class LlmResponse(BaseModel):
             end_pos += len(end_tag)
             return content[:start_pos] + content[end_pos:]
         return content
-
-    @classmethod
-    def parse_structured_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        if llm_type == LlmType.CLAUDE:
-            return cls._parse_claude_structured(resp, llm_type)
-        elif llm_type == LlmType.OPENAI:
-            return cls._parse_openai_structured(resp, llm_type)
-        elif llm_type == LlmType.GROQ:
-            return cls._parse_groq_structured(resp, llm_type)
-        else:
-            return cls._parse_claude_structured(resp, llm_type)
-
-    @classmethod
-    def _parse_claude_structured(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        base = cls._parse_claude(resp, llm_type)
-        raw = base.actual_result.strip()
-        match = re.search(r"(\[.*\]|\{.*\})", raw, re.DOTALL)
-        if match:
-            json_block = match.group(1).strip()
-            try:
-                json.loads(json_block)
-                base.actual_result = json_block
-            except Exception:
-                logger.warning("Claude structured parse: invalid JSON")
-        return base
-
-    @classmethod
-    def _parse_openai_structured(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        base = cls._parse_openai(resp, llm_type)
-        text = base.actual_result.strip()
-        try:
-            json.loads(text)
-        except Exception:
-            match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
-            if match:
-                text = match.group(1).strip()
-        base.actual_result = text
-        return base
-
-    @classmethod
-    def _parse_groq_structured(cls, resp, llm_type: LlmType) -> 'LlmResponse':
-        base = cls._parse_groq(resp, llm_type)
-        text = base.actual_result.strip()
-        match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
-        if match:
-            block = match.group(1).strip()
-            try:
-                json.loads(block)
-                base.actual_result = block
-            except Exception:
-                pass
-        return base
