@@ -43,6 +43,10 @@ class LlmResponse(BaseModel):
         if search_quality:
             cleaned_content = cls._remove_xml_section(cleaned_content, "search_quality_score")
 
+        # For Claude, if no explicit reasoning tag but thinking is present, use thinking as reasoning
+        if reasoning is None and thinking is not None:
+            reasoning = thinking
+
         return cls(
             actual_result=cleaned_content.strip(),
             reasoning=reasoning,
