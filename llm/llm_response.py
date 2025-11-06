@@ -22,10 +22,14 @@ class LlmResponse(BaseModel):
     @property 
     def reasoning(self) -> Optional[str]:
         """Extract reasoning from the raw response."""
-        content = self._get_content_string()
         if self.llm_type == LlmType.GROQ.name:
-            return getattr(self.raw_response, "additional_kwargs", {}).get("reasoning_content")
+            # Handle both AIMessage and dict formats
+            if isinstance(self.raw_response, dict):
+                return self.raw_response.get("additional_kwargs", {}).get("reasoning_content")
+            else:
+                return getattr(self.raw_response, "additional_kwargs", {}).get("reasoning_content")
         else:
+            content = self._get_content_string()
             return self._extract_between_tags(content, "search_quality_reflection", str) or self._extract_between_tags(content, "thinking", str)
 
     @property
@@ -42,8 +46,10 @@ class LlmResponse(BaseModel):
 
     def _get_content_string(self) -> str:
         """Get the content as a string from the raw response."""
+        # Handle AIMessage format (Claude)
         if hasattr(self.raw_response, "content"):
             content = self.raw_response.content
+            
             if isinstance(content, list):
                 parts = []
                 for block in content:
@@ -56,6 +62,26 @@ class LlmResponse(BaseModel):
                 return content
             else:
                 return str(content)
+        
+        # Handle raw dict format (Groq, OpenAI)
+        if isinstance(self.raw_response, dict):
+            if "content" in self.raw_response:
+                return self.raw_response["content"]
+            elif "choices" in self.raw_response and self.raw_response["choices"]:
+                choice = self.raw_response["choices"][0]
+                if "message" in choice and "content" in choice["message"]:
+                    return choice["message"]["content"]
+                elif "text" in choice:
+                    return choice["text"]
+        
+        # Fallback for different response structures
+        if hasattr(self.raw_response, "choices") and self.raw_response.choices:
+            first_choice = self.raw_response.choices[0]
+            if hasattr(first_choice, "message") and hasattr(first_choice.message, "content"):
+                return first_choice.message.content
+            elif hasattr(first_choice, "text"):
+                return first_choice.text
+        
         return ""
 
     def _parse_content(self) -> str:
