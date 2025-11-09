@@ -12,6 +12,7 @@ class ToolEnabledLLMClient:
     def __init__(self, base_client):
         self.base_client = base_client
         self.tool_functions = {}
+        self.llm_type = None
 
     def bind_tool_function(self, name: str, func: Callable):
         self.tool_functions[name] = func
@@ -65,7 +66,9 @@ class LlmFactory:
 
         cache_key = f"{llm_type}_{internet_mcp is not None}"
         if cache_key in self.clients:
-            return self.clients[cache_key]
+            client = self.clients[cache_key]
+            client.llm_type = llm_type
+            return client
 
         base_client = None
         if llm_type == LlmType.CLAUDE:
@@ -85,6 +88,7 @@ class LlmFactory:
 
         if base_client is not None:
             client = ToolEnabledLLMClient(base_client)
+            client.llm_type = llm_type
 
             if internet_mcp:
                 client.bind_tool_function("search_internet", internet_mcp.search_internet)

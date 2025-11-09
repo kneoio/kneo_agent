@@ -9,9 +9,10 @@ from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from core.config import get_merged_config
 from llm.llm_request import invoke_intro
-from llm.llm_request import translate_prompt
+from llm.llm_request import translate_content
 from mcp.external.internet_mcp import InternetMCP
 from util.llm_factory import LlmFactory
+from util.template_loader import render_template
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
@@ -76,12 +77,14 @@ async def test_search(req: SearchRequest):
 @app.post("/translate")
 async def translate(req: TranslateRequest):
     client = llm_factory.get_llm_client(LlmType.GROQ)
-    if req.translationType == TranslationType.PROMPT:
-        translation_prompt = f"Translate the following prompt to {req.language}:\n{req.toTranslate}"
-    else:
-        translation_prompt = f"Translate the keywords in the following Groovy code to {req.language}:\n{req.toTranslate}"
+    
+    template_path = "translation/prompt.hbs" if req.translationType == TranslationType.PROMPT else "translation/code.hbs"
+    to_translate_text = render_template(template_path, {
+        "language": req.language,
+        "toTranslate": req.toTranslate
+    })
 
-    translation_result = await translate_prompt(client, translation_prompt, req.toTranslate)
+    translation_result = await translate_content(client, to_translate_text)
     print(f"RAW: {translation_result}")
     return {"result": translation_result.actual_result, "reasoning": translation_result.reasoning}
 
