@@ -85,7 +85,7 @@ async def translate(req: TranslateRequest):
     })
 
     translation_result = await translate_content(client, to_translate_text)
-    print(f"RAW: {translation_result}")
+    # print(f"RAW: {translation_result}")
     return {"result": translation_result.actual_result, "reasoning": translation_result.reasoning}
 
 @app.post("/prompt/test")
@@ -93,6 +93,6 @@ async def test_prompt(req: PromptRequest):
     client = llm_factory.get_llm_client(req.llm, internet_mcp=internet)
     
     result = await invoke_intro(client, req.prompt, req.draft, req.llm)
-    print(f"RAW: {result}")
+    print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
 
