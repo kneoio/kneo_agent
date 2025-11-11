@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Optional, Tuple
 from elevenlabs.client import ElevenLabs
 
 from api.interaction_memory import InteractionMemory
