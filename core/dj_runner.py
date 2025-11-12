@@ -6,19 +6,18 @@ from elevenlabs import ElevenLabs
 from api.broadcaster_client import BroadcasterAPIClient
 from api.interaction_memory import InteractionMemory
 from cnst.llm_types import LlmType
-from core.prerecorded import Prerecorded
-from mcp.mcp_client import MCPClient
 from models.live_container import LiveRadioStation
 from tools.audio_processor import AudioProcessor
 from tools.radio_dj_v2 import RadioDJV2
 
+
 class DJRunner:
     def __init__(self, config: Dict, station: LiveRadioStation, api_client: BroadcasterAPIClient,
-                 mcp_client=None, llm_client=None, llm_type=LlmType.CLAUDE):
+                 mcp_client=None, llm_client=None, llm_type=LlmType.GROQ):
         self.logger = logging.getLogger(__name__)
         self.station = station
         self.brand = station.name
-        self.mcp_client = mcp_client if mcp_client else MCPClient(config, True)
+        self.mcp_client = mcp_client
         self.api_client = api_client
 
         self.memory = InteractionMemory(
@@ -26,11 +25,9 @@ class DJRunner:
             api_client=self.api_client
         )
         elevenlabs_inst = ElevenLabs(api_key=config.get("elevenlabs").get("api_key"))
-        self.prerecorded = Prerecorded(elevenlabs_inst, self.brand)
 
         self.audio_processor = AudioProcessor(
             elevenlabs_inst,
-            self.prerecorded,
             station,
             self.memory
         )

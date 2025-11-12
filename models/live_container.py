@@ -26,6 +26,8 @@ class PromptItem:
     promptType: Optional[str] = None
     llmType: Optional[str] = None
     searchEngineType: Optional[str] = None
+    startTime: Optional[str] = None
+    oneTimeRun: bool = False
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PromptItem':
@@ -35,7 +37,9 @@ class PromptItem:
             prompt=data.get("prompt", ""),
             promptType=data.get("promptType"),
             llmType=data.get("llmType"),
-            searchEngineType=data.get("searchEngineType")
+            searchEngineType=data.get("searchEngineType"),
+            startTime=data.get("startTime"),
+            oneTimeRun=bool(data.get("oneTimeRun", False))
         )
 
 
@@ -72,9 +76,7 @@ class LiveRadioStation:
     info: str
     tts: TtsConfig
     prompt: PromptConfig
-    talkativity: float = 0.3
     preferredLang: Optional[str] = None
-    podcastMode: float = 0.0
     songsCount: int = 1
 
     @classmethod
@@ -94,9 +96,7 @@ class LiveRadioStation:
             info=data.get("info", ""),
             tts=TtsConfig.from_dict(tts_data),
             prompt=prompt_config,
-            talkativity=data.get("talkativity", 0.3),
             preferredLang=data.get("preferredLang"),
-            podcastMode=data.get("podcastMode", 0.0),
             songsCount=songs_count
         )
 

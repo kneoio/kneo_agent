@@ -4,15 +4,12 @@ from typing import Optional, Tuple
 from elevenlabs.client import ElevenLabs
 
 from api.interaction_memory import InteractionMemory
-from core.prerecorded import Prerecorded
 from models.live_container import LiveRadioStation
 
 
 class AudioProcessor:
-    def __init__(self, elevenlabs_inst: ElevenLabs, prerecorded: Prerecorded,
-                 station: LiveRadioStation, memory: InteractionMemory):
+    def __init__(self, elevenlabs_inst: ElevenLabs, station: LiveRadioStation, memory: InteractionMemory):
         self.elevenlabs_inst = elevenlabs_inst
-        self.prerecorded = prerecorded
         self.station = station
         self.memory = memory
         self.logger = logging.getLogger(__name__)
@@ -23,8 +20,7 @@ class AudioProcessor:
 
         if "copyright" in text.lower():
             self.logger.warning("Copyright content detected")
-            audio_data, message, _ = await self.prerecorded.get_prerecorded_audio()
-            return audio_data, message
+            return None, "TTS conversion resulted in empty audio due to copyright content"
 
         if len(text) > 980:
             self.logger.warning(f"TTS text length approaching limit: {len(text)} chars")

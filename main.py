@@ -41,7 +41,7 @@ class ApplicationManager:
 
     def initialize_waker(self):
         try:
-            self.waker = Waker(self.config, mcp_client=self.mcp_client)
+            self.waker = Waker(self.config)
             return True
         except Exception as e:
             self.logger.error(f"Failed to initialize Waker: {e}")
