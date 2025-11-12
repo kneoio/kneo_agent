@@ -11,13 +11,19 @@ class QueueMCP:
     async def add_to_queue_i_s(self, brand_name: str,
                                sound_fragment_uuid,
                                file_path: Optional[str] = None,
-                               priority: Optional[int] = 20) -> bool:
+                               priority: Optional[int] = 20,
+                               expected_start_time: Optional[str] = None) -> bool:
         result = await self.mcp_client.call_tool("add_to_queue", {
             "brand": brand_name,
-            "songIds": {"song1": sound_fragment_uuid},
-            "filePaths": {"audio1": file_path} if file_path else {},
+            "songIds": {
+                "song1": sound_fragment_uuid
+            },
+            "filePaths": {
+                "audio1": file_path
+            } if file_path else {},
             "mergingMethod": "INTRO_SONG",
-            "priority": priority
+            "priority": priority,
+            "expectedStartTime": expected_start_time
         })
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
@@ -26,14 +32,21 @@ class QueueMCP:
                                  fragment_uuid_1,
                                  fragment_uuid_2,
                                  file_path: Optional[str] = None,
-                                 priority: Optional[int] = 20
+                                 priority: Optional[int] = 20,
+                                 expected_start_time: Optional[str] = None
                                  ) -> bool:
         result = await self.mcp_client.call_tool("add_to_queue", {
             "brand": brand_name,
-            "songIds": {"song1": fragment_uuid_1, "song2": fragment_uuid_2},
-            "filePaths": {"audio1": file_path} if file_path else {},
+            "songIds": {
+                "song1": fragment_uuid_1,
+                "song2": fragment_uuid_2
+            },
+            "filePaths": {
+                "audio1": file_path
+            } if file_path else {},
             "mergingMethod": "SONG_INTRO_SONG",
-            "priority": priority
+            "priority": priority,
+            "expectedStartTime": expected_start_time
         })
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
@@ -43,7 +56,8 @@ class QueueMCP:
                                    fragment_uuid_2,
                                    file_path_1: Optional[str] = None,
                                    file_path_2: Optional[str] = None,
-                                   priority: Optional[int] = 20
+                                   priority: Optional[int] = 20,
+                                   expected_start_time: Optional[str] = None
                                    ) -> bool:
         result = await self.mcp_client.call_tool("add_to_queue", {
             "brand": brand_name,
@@ -56,7 +70,8 @@ class QueueMCP:
                 "audio2": file_path_2
             } if file_path_1 and file_path_2 else {},
             "mergingMethod": "INTRO_SONG_INTRO_SONG",
-            "priority": priority
+            "priority": priority,
+            "expectedStartTime": expected_start_time
         })
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
@@ -64,7 +79,8 @@ class QueueMCP:
     async def add_to_queue_crossfade(self, brand_name: str,
                                      fragment_uuid_1,
                                      fragment_uuid_2,
-                                     priority: Optional[int] = 20) -> bool:
+                                     priority: Optional[int] = 20,
+                                     expected_start_time: Optional[str] = None) -> bool:
         result = await self.mcp_client.call_tool("add_to_queue", {
             "brand": brand_name,
             "songIds": {
@@ -72,7 +88,8 @@ class QueueMCP:
                 "song2": fragment_uuid_2
             },
             "mergingMethod": "SONG_CROSSFADE_SONG",
-            "priority": priority
+            "priority": priority,
+            "expectedStartTime": expected_start_time
         })
         self.logger.info(f"Added crossfade to queue for brand {brand_name}: {result}")
         return result

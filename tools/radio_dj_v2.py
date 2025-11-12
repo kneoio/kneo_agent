@@ -29,13 +29,13 @@ class RadioDJV2:
 
         self.llm = llm_client
         self.audio_processor = audio_processor
-        self.station = station
+        self.live_station = station
         self.brand = station.slugName
         self.queue_mcp = QueueMCP(mcp_client)
         self.target_dir = "/home/kneobroadcaster/to_merge"
         os.makedirs(self.target_dir, exist_ok=True)
         self.graph = self._build_graph()
-        debug_log(f"RadioDJV2 initialized with llm={self.llm_type}, songsCount={self.station.songsCount}")
+        debug_log(f"RadioDJV2 initialized with llm={self.llm_type}, songsCount={self.live_station.songsCount}")
 
     async def run(self) -> Tuple[bool, str, str]:
         self.logger.info(f"---------------------Interaction started ------------------------------")
@@ -67,7 +67,7 @@ class RadioDJV2:
 
     async def _generate_intro(self, state: DJState) -> DJState:
 
-        for idx, prompt_item in enumerate(self.station.prompt.prompts):
+        for idx, prompt_item in enumerate(self.live_station.prompt.prompts):
             draft = prompt_item.draft or ""
             intro_text = await invoke_intro(self.llm, prompt_item.prompt, draft, self.llm_type)
 
@@ -125,13 +125,15 @@ class RadioDJV2:
                 return state
 
             num_songs = len(state["audio_file_paths"])
+            expected_start_time = next((p.startTime for p in self.live_station.prompt.prompts if getattr(p, "oneTimeRun", False) and getattr(p, "startTime", None)), None)
 
             if num_songs == 1:
                 result = await self.queue_mcp.add_to_queue_i_s(
                     brand_name=self.brand,
                     sound_fragment_uuid=state["song_ids"][0],
                     file_path=state["audio_file_paths"][0],
-                    priority=10
+                    priority=10,
+                    expected_start_time=expected_start_time
                 )
             elif num_songs == 2:
                 result = await self.queue_mcp.add_to_queue_i_s_i_s(
@@ -140,7 +142,8 @@ class RadioDJV2:
                     fragment_uuid_2=state["song_ids"][1],
                     file_path_1=state["audio_file_paths"][0],
                     file_path_2=state["audio_file_paths"][1],
-                    priority=10
+                    priority=10,
+                    expected_start_time=expected_start_time
                 )
             else:
                 self.logger.error(f"Unexpected number of songs: {num_songs}")

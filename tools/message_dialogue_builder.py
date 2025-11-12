@@ -4,9 +4,9 @@ from util.file_util import debug_log
 
 async def build_message_dialogue(self, state: DJState) -> DJState:
     song = state["song_fragments"][0]
-    voice_a = self.station.tts.preferredVoice
-    voice_b = self.station.tts.secondaryVoice
-    guest_name = self.station.tts.secondaryVoiceName
+    voice_a = self.live_station.tts.preferredVoice
+    voice_b = self.live_station.tts.secondaryVoice
+    guest_name = self.live_station.tts.secondaryVoiceName
     messages = state["messages"]
 
     if messages:
@@ -91,7 +91,7 @@ async def build_message_dialogue(self, state: DJState) -> DJState:
     }[detected]
 
     try:
-        prompt = self.station.prompt.messagePrompt.format(
+        prompt = self.live_station.prompt.messagePrompt.format(
             detected=detected,
             tone=tone,
             sender=sender,

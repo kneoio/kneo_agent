@@ -15,7 +15,7 @@ class DJRunner:
     def __init__(self, config: Dict, station: LiveRadioStation, api_client: BroadcasterAPIClient,
                  mcp_client=None, llm_client=None, llm_type=LlmType.GROQ):
         self.logger = logging.getLogger(__name__)
-        self.station = station
+        self.live_station = station
         self.brand = station.name
         self.mcp_client = mcp_client
         self.api_client = api_client
@@ -41,7 +41,7 @@ class DJRunner:
         )
 
     async def run(self) -> None:
-        self.logger.info(f"Starting DJ run for: {self.brand}, DJ: {self.station.djName}, Scene: {self.station.info}")
+        self.logger.info(f"Starting DJ run for: {self.brand}, DJ: {self.live_station.djName}, Scene: {self.live_station.info}")
 
         if not hasattr(self, '_external_mcp_client'):
             await self.mcp_client.connect()

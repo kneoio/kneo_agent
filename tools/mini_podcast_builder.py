@@ -4,11 +4,11 @@ from util.file_util import debug_log
 
 async def build_mini_podcast(self, state: DJState) -> DJState:
     song = state["song_fragments"][0]
-    voice_a = self.station.tts.preferredVoice
-    voice_b = self.station.tts.secondaryVoice
+    voice_a = self.live_station.tts.preferredVoice
+    voice_b = self.live_station.tts.secondaryVoice
     host_name = self.ai_dj_name
-    guest_name = self.station.tts.secondaryVoiceName
-    prompt_template = self.station.prompt.miniPodcastPrompt
+    guest_name = self.live_station.tts.secondaryVoiceName
+    prompt_template = self.live_station.prompt.miniPodcastPrompt
 
     try:
         prompt = prompt_template.format(
