@@ -88,6 +88,9 @@ class Waker:
                     logging.error(f"Waker error: {e}")
 
                 self._update_interval(had_activity)
+                next_run_ts = time.time() + self.current_interval
+                next_run_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(next_run_ts))
+                logging.info(f"Waker sleeping for {self.current_interval:.0f}s. Next run at {next_run_str}")
                 await asyncio.sleep(self.current_interval)
         finally:
             await self.mcp_client.disconnect()
