@@ -13,7 +13,7 @@ class QueueMCP:
                                file_path: Optional[str] = None,
                                priority: Optional[int] = 20,
                                expected_start_time: Optional[str] = None) -> bool:
-        result = await self.mcp_client.call_tool("add_to_queue", {
+        payload = {
             "brand": brand_name,
             "songIds": {
                 "song1": sound_fragment_uuid
@@ -23,8 +23,11 @@ class QueueMCP:
             } if file_path else {},
             "mergingMethod": "INTRO_SONG",
             "priority": priority,
-            "expectedStartTime": expected_start_time
-        })
+        }
+        if expected_start_time is not None:
+            payload["expectedStartTime"] = expected_start_time
+
+        result = await self.mcp_client.call_tool("add_to_queue", payload)
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
 
@@ -35,7 +38,7 @@ class QueueMCP:
                                  priority: Optional[int] = 20,
                                  expected_start_time: Optional[str] = None
                                  ) -> bool:
-        result = await self.mcp_client.call_tool("add_to_queue", {
+        payload = {
             "brand": brand_name,
             "songIds": {
                 "song1": fragment_uuid_1,
@@ -46,8 +49,11 @@ class QueueMCP:
             } if file_path else {},
             "mergingMethod": "SONG_INTRO_SONG",
             "priority": priority,
-            "expectedStartTime": expected_start_time
-        })
+        }
+        if expected_start_time is not None:
+            payload["expectedStartTime"] = expected_start_time
+
+        result = await self.mcp_client.call_tool("add_to_queue", payload)
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
 
@@ -59,7 +65,7 @@ class QueueMCP:
                                    priority: Optional[int] = 20,
                                    expected_start_time: Optional[str] = None
                                    ) -> bool:
-        result = await self.mcp_client.call_tool("add_to_queue", {
+        payload = {
             "brand": brand_name,
             "songIds": {
                 "song1": fragment_uuid_1,
@@ -71,8 +77,11 @@ class QueueMCP:
             } if file_path_1 and file_path_2 else {},
             "mergingMethod": "INTRO_SONG_INTRO_SONG",
             "priority": priority,
-            "expectedStartTime": expected_start_time
-        })
+        }
+        if expected_start_time is not None:
+            payload["expectedStartTime"] = expected_start_time
+
+        result = await self.mcp_client.call_tool("add_to_queue", payload)
         self.logger.info(f"Added to queue for brand {brand_name}: {result}")
         return result
 
@@ -81,7 +90,7 @@ class QueueMCP:
                                      fragment_uuid_2,
                                      priority: Optional[int] = 20,
                                      expected_start_time: Optional[str] = None) -> bool:
-        result = await self.mcp_client.call_tool("add_to_queue", {
+        payload = {
             "brand": brand_name,
             "songIds": {
                 "song1": fragment_uuid_1,
@@ -89,8 +98,10 @@ class QueueMCP:
             },
             "mergingMethod": "SONG_CROSSFADE_SONG",
             "priority": priority,
-            "expectedStartTime": expected_start_time
-        })
+        }
+        if expected_start_time is not None:
+            payload["expectedStartTime"] = expected_start_time
+
+        result = await self.mcp_client.call_tool("add_to_queue", payload)
         self.logger.info(f"Added crossfade to queue for brand {brand_name}: {result}")
         return result
-
