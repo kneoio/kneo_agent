@@ -126,14 +126,14 @@ class RadioDJV2:
 
             num_songs = len(state["audio_file_paths"])
             expected_start_time = next((p.startTime for p in self.live_station.prompt.prompts if getattr(p, "oneTimeRun", False) and getattr(p, "startTime", None)), None)
+            priority = 9 if expected_start_time is not None else 10
 
             if num_songs == 1:
                 result = await self.queue_mcp.add_to_queue_i_s(
                     brand_name=self.brand,
                     sound_fragment_uuid=state["song_ids"][0],
                     file_path=state["audio_file_paths"][0],
-                    priority=10,
-                    expected_start_time=expected_start_time
+                    priority=priority
                 )
             elif num_songs == 2:
                 result = await self.queue_mcp.add_to_queue_i_s_i_s(
@@ -142,8 +142,7 @@ class RadioDJV2:
                     fragment_uuid_2=state["song_ids"][1],
                     file_path_1=state["audio_file_paths"][0],
                     file_path_2=state["audio_file_paths"][1],
-                    priority=10,
-                    expected_start_time=expected_start_time
+                    priority=priority
                 )
             else:
                 self.logger.error(f"Unexpected number of songs: {num_songs}")

@@ -14,10 +14,18 @@ from mcp.external.internet_mcp import InternetMCP
 from util.llm_factory import LlmFactory
 from util.template_loader import render_template
 
+import asyncpg
+import httpx
+from fastapi import Request
+
 app = FastAPI()
 logger = logging.getLogger(__name__)
-
+ 
 cfg = get_merged_config("config.yaml")
+telegram_cfg = cfg.get("telegram", {})
+db_cfg = cfg.get("database", {})
+TELEGRAM_TOKEN = telegram_cfg.get("token")
+DB_DSN = db_cfg.get("dsn")
 server_cfg = cfg.get("mcp_server", {})
 cors_cfg = server_cfg.get("cors", {})
 allow_origins = cors_cfg.get("allow_origins", ["*"])
@@ -55,6 +63,39 @@ class TranslateRequest(BaseModel):
 def health():
     return {"status": "ok"}
 
+@app.on_event("startup")
+async def startup():
+    app.state.db = await asyncpg.create_pool(DB_DSN)
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(req: Request):
+    data = await req.json()
+    message = data.get("message", {})
+    chat = message.get("chat", {})
+    chat_id = chat.get("id")
+    text = message.get("text")
+
+    if not chat_id or not text:
+        return {"ok": False, "reason": "no message"}
+
+    async with app.state.db.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO mixpla__chat_log (author, reg_date, last_mod_user, last_mod_date, brand, data)
+            VALUES ($1, NOW(), $1, NOW(), 'default', jsonb_build_array(jsonb_build_object('role','user','text',$2)))
+            ON CONFLICT (author)
+            DO UPDATE SET
+                data = mixpla__chat_log.data || jsonb_build_array(jsonb_build_object('role','user','text',$2)),
+                last_mod_date = NOW();
+        """, chat_id, text)
+
+    reply = f"Got your message: {text}"
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            json={"chat_id": chat_id, "text": reply}
+        )
+
+    return {"ok": True}
 
 @app.post("/internet_search/test")
 async def test_search(req: SearchRequest):

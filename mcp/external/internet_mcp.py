@@ -14,7 +14,7 @@ class InternetMCP:
 
     async def search_internet(self, query: str, max_results: int = 5, engine: str | None = None) -> Dict[str, Any]:
         try:
-            self.logger.info(f"internet.search q='{query}' max={max_results}")
+            self.logger.info(f" -----> : internet.search q='{query}' max={max_results}")
             count = max_results if max_results > 0 else 0
             eng = engine or "BRAVE"
             if eng == "PERPLEXITY":
@@ -183,5 +183,11 @@ class InternetMCP:
                 self.logger.warning("internet_mcp configuration not found - using empty config")
                 self._config_warning_logged = True
             return {}
+
+        if not hasattr(self, '_config_loaded_logged'):
+            brave_key = tool_cfg.get("brave_api_key", "")
+            perplexity_key = tool_cfg.get("perplexity_api_key", "")
+            self.logger.info(f"internet_mcp config loaded: brave_key={'present' if brave_key else 'missing'}, perplexity_key={'present' if perplexity_key else 'missing'}")
+            self._config_loaded_logged = True
 
         return tool_cfg

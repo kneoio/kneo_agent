@@ -60,8 +60,13 @@ class LlmFactory:
         self.config = config
         self.clients = {}
         self.llm_type = LlmType.GROQ
+        self.logger = None
 
     def get_llm_client(self, llm_type: LlmType, internet_mcp=None):
+        if not self.logger:
+            import logging
+            self.logger = logging.getLogger(__name__)
+            
         self.llm_type = llm_type
 
         cache_key = f"{llm_type}_{internet_mcp is not None}"
@@ -92,6 +97,9 @@ class LlmFactory:
 
             if internet_mcp:
                 client.bind_tool_function("search_internet", internet_mcp.search_internet)
+                self.logger.info(f"LLM client ({llm_type.name}) initialized with internet_mcp tools enabled")
+            else:
+                self.logger.info(f"LLM client ({llm_type.name}) initialized without internet tools")
 
             self.clients[cache_key] = client
             return client

@@ -123,6 +123,7 @@ class MCPClient:
             "params": {}
         }
         self.message_id += 1
+        self.logger.debug(f"Listing MCP tools with message: {message}")
         response = await self.send_message(message)
         return response
 
@@ -142,6 +143,8 @@ class MCPClient:
         }
         self.message_id += 1
         
+        self.logger.debug(f"Calling MCP tool '{tool_name}' with arguments: {arguments}")
+        
         try:
             response = await self.send_message(message)
         except Exception as e:
@@ -153,7 +156,9 @@ class MCPClient:
                 raise
 
         if "error" in response:
-            raise Exception(f"MCP tool error: {response['error'].get('message', 'Unknown error')}")
+            error_details = response['error']
+            self.logger.error(f"MCP tool '{tool_name}' error: {error_details}")
+            raise Exception(f"MCP tool error: {error_details.get('message', 'Unknown error')}")
 
         result = response.get("result", {})
         content = result.get("content", [])

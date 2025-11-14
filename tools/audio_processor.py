@@ -34,7 +34,8 @@ class AudioProcessor:
                 text=text[:1000],
                 # model_id="eleven_multilingual_v2",
                 model_id="eleven_v3",
-                output_format="mp3_44100_128"
+                #output_format="mp3_44100_128"
+                output_format="mp3_44100_192"
             )
 
             audio_data = b''.join(audio_stream)

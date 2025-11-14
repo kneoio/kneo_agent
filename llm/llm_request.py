@@ -1,15 +1,30 @@
 from typing import Any
+import logging
 
 from cnst.llm_types import LlmType
 from llm.llm_response import LlmResponse
+from mcp.external.internet_mcp import InternetMCP
+
+logger = logging.getLogger(__name__)
 
 
 async def invoke_intro(llm_client: Any, prompt: str, draft: str, llm_type: LlmType) -> 'LlmResponse':
     full_prompt = f"{prompt}\n\nInput:\n{draft}"
-    response = await llm_client.ainvoke(messages=[
-        {"role": "system", "content": "You are a professional radio DJ"},
-        {"role": "user", "content": full_prompt}
-    ])
+    
+    tools = None
+    if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
+        tools = [InternetMCP.get_tool_definition()]
+        logger.info(f"invoke_intro: Internet tools enabled for {llm_type.name}")
+    else:
+        logger.debug(f"invoke_intro: No internet tools available for {llm_type.name}")
+    
+    response = await llm_client.ainvoke(
+        messages=[
+            {"role": "system", "content": "You are a professional radio DJ"},
+            {"role": "user", "content": full_prompt}
+        ],
+        tools=tools
+    )
     return LlmResponse.parse_plain_response(response, llm_type)
 
 
