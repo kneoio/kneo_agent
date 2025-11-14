@@ -2,6 +2,7 @@ from typing import Any
 import logging
 
 from cnst.llm_types import LlmType
+from cnst.search_engine import SearchEngine
 from llm.llm_response import LlmResponse
 from mcp.external.internet_mcp import InternetMCP
 
@@ -13,8 +14,9 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, llm_type: LlmTy
     
     tools = None
     if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
-        tools = [InternetMCP.get_tool_definition()]
-        logger.info(f"invoke_intro: Internet tools enabled for {llm_type.name}")
+        internet_tool = SearchEngine.Perplexity.value
+        tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
+        logger.info(f'invoke_intro: Internet tools "{internet_tool}" enabled for {llm_type.name}')
     else:
         logger.debug(f"invoke_intro: No internet tools available for {llm_type.name}")
     

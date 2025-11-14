@@ -27,7 +27,7 @@ class Waker:
         self.BASE_INTERVAL = 60
         self.TIMEOUT_PER_STATION = 300
         self.MIN_INTERVAL = 30
-        self.MAX_INTERVAL = 180
+        self.MAX_INTERVAL = 120
         self.BACKOFF_FACTOR = 1.5
         self.ACTIVITY_THRESHOLD = 240
         self.current_interval = self.BASE_INTERVAL
@@ -35,7 +35,7 @@ class Waker:
     async def _process_single_station(self, station):
         try:
             logging.info(f"Processing brand: {station.name}")
-            internet_mcp = InternetMCP(mcp_client=self.mcp_client, config=self.config)
+            internet_mcp = InternetMCP(mcp_client=self.mcp_client, config=self.config, default_engine="Perplexity")
             api_client = BroadcasterAPIClient(self.config)
             llmType = LlmType(station.prompt.llmType) if station.prompt.llmType else None
             llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)

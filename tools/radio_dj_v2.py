@@ -15,7 +15,7 @@ from util.file_util import debug_log
 
 class RadioDJV2:
     def __init__(self, station: LiveRadioStation, audio_processor,
-                 mcp_client=None, debug=False, llm_client=None, llm_type=LlmType.CLAUDE):
+                 mcp_client=None, debug=False, llm_client=None, llm_type=LlmType.GROQ):
         self.debug = debug
         self.llm_type = llm_type
         self.logger = logging.getLogger(__name__)

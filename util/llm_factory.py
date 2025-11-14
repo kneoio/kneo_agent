@@ -109,7 +109,7 @@ class LlmFactory:
 
 async def generate_dj_intro_text(llm_client, prompt, dj_name, context, brand, events, title, artist, genres, history,
                                  listeners, instant_message):
-    tools = [InternetMCP.get_tool_definition()]
+    tools = [InternetMCP.get_tool_definition(default_engine="Perplexity")]
 
     formatted_messages = ""
     if instant_message:

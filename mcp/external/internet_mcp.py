@@ -7,16 +7,22 @@ from core.config import get_tool_config
 
 class InternetMCP:
 
-    def __init__(self, mcp_client=None, config=None):
+    def __init__(self, mcp_client=None, config=None, default_engine: str = "Brave"):
         self.mcp_client = mcp_client
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
+        # Store a default engine to use when the tool call doesn't pass one explicitly
+        self.default_engine = default_engine if default_engine in ["Brave", "Perplexity"] else "Brave"
+        self.logger.info(f"InternetMCP initialized with default engine: {self.default_engine}")
 
     async def search_internet(self, query: str, max_results: int = 5, engine: str | None = None) -> Dict[str, Any]:
         try:
             self.logger.info(f" -----> : internet.search q='{query}' max={max_results}")
             count = max_results if max_results > 0 else 0
-            eng = engine or "BRAVE"
+            # Respect the engine provided by the tool call; otherwise use instance default
+            self.logger.info(f"internet.search engine param received: {engine}")
+            eng = (engine or getattr(self, 'default_engine', 'Brave')).upper()
+            self.logger.info(f"internet.search using engine: {eng}")
             if eng == "PERPLEXITY":
                 pdata = await self.ask_perplexity(query, max_items=count or 0)
                 items = pdata.get("items", []) if isinstance(pdata, dict) else []
