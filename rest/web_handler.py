@@ -134,6 +134,6 @@ async def test_prompt(req: PromptRequest):
     client = llm_factory.get_llm_client(req.llm, internet_mcp=internet)
     
     result = await invoke_intro(client, req.prompt, req.draft, req.llm)
-    #print(f" >>>> RAW: {result}")
+    print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
 

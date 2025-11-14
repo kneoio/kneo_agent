@@ -24,7 +24,7 @@ class Waker:
         self.llmFactory = LlmFactory(config)
         self.last_activity_time = time.time()
 
-        self.BASE_INTERVAL = 120
+        self.BASE_INTERVAL = 60
         self.TIMEOUT_PER_STATION = 300
         self.MIN_INTERVAL = 30
         self.MAX_INTERVAL = 180
