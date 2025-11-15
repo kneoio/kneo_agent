@@ -23,13 +23,9 @@ class DJState(MessagesState):
     history: List[dict]
     context: List[str]
     song_fragments: List[SoundFragment]
-    dialogue: bool
-
-    broadcast_success: bool
-    __end__: bool
-    merging_type: MergingType
-    session_id: str
-    
+    brand: str
     intro_texts: List[str]
     audio_file_paths: List[str]
     song_ids: List[str]
+    broadcast_success: bool
+    dialogue_states: List[bool]

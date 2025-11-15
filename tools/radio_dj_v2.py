@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from datetime import datetime
@@ -36,7 +35,7 @@ class RadioDJV2:
             "audio_file_paths": [],
             "song_ids": [],
             "broadcast_success": False,
-            "dialogue": False
+            "dialogue_states": []
         }
 
         result = await self.graph.ainvoke(initial_state)
@@ -56,7 +55,6 @@ class RadioDJV2:
         return workflow.compile()
 
     async def _generate_intro(self, state: DJState) -> DJState:
-
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
             self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}")
@@ -66,9 +64,10 @@ class RadioDJV2:
 
             state["intro_texts"].append(intro_text.actual_result)
             state["song_ids"].append(prompt_item.songId)
-            state["dialogue"] = prompt_item.dialogue
+            state["dialogue_states"].append(prompt_item.dialogue)
 
-            self.ai_logger.info(f"{self.brand} INTRO {idx + 1}:\n {intro_text}")
+            self.ai_logger.info(f"{self.brand} INTRO: {idx + 1}:\n {intro_text}")
+            self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
 
         return state
 
@@ -77,9 +76,10 @@ class RadioDJV2:
             self.logger.warning("No intro texts to generate audio for")
             return state
 
-        for idx, intro_text in enumerate(state["intro_texts"]):
+        for idx, (intro_text, is_dialogue) in enumerate(zip(state["intro_texts"], state["dialogue_states"])):
             try:
-                if state["dialogue"]:
+                self.ai_logger.info(f"{self.brand} DIALOGUE MODE: {is_dialogue} for intro {idx + 1}")
+                if is_dialogue:
                     audio_data, reason = await self.audio_processor.generate_tts_dialogue(intro_text)
                 else:
                     audio_data, reason = await self.audio_processor.generate_tts_audio(intro_text)
@@ -89,6 +89,7 @@ class RadioDJV2:
                     short_name = f"{self.brand}_intro{idx + 1}_{time_tag}"
                     file_path = self._save_audio_file(audio_data, short_name)
                     state["audio_file_paths"].append(file_path)
+                    self.ai_logger.info(f"{self.brand} AUDIO: {idx + 1}: {file_path}")
                 else:
                     self.logger.warning(f"No audio generated for intro {idx + 1}: {reason}")
 
