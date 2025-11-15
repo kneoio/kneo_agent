@@ -29,7 +29,7 @@ class RadioDJV2:
 
     async def run(self) -> Tuple[bool, str, str]:
         self.logger.info(f"---------------------Interaction started ------------------------------")
-        self.ai_logger.info(f"{self.brand} ---- Interaction started ----")
+        self.ai_logger.info(f"{self.brand} - Start ---------------------------------")
         initial_state = {
             "brand": self.brand,
             "intro_texts": [],
@@ -59,15 +59,16 @@ class RadioDJV2:
 
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
-            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name} DRAFT: {draft}")
-            self.ai_logger.info(f"{self.brand} PROMPT: {prompt_item.prompt}")
+            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}")
+            self.ai_logger.info(f"{self.brand} DRAFT:\n {draft}")
+            self.ai_logger.info(f"{self.brand} PROMPT:\n {prompt_item.prompt}")
             intro_text = await invoke_intro(self.llm, prompt_item.prompt, draft, self.llm_type)
 
             state["intro_texts"].append(intro_text.actual_result)
             state["song_ids"].append(prompt_item.songId)
             state["dialogue"] = prompt_item.dialogue
 
-            self.ai_logger.info(f"{self.brand} INTRO {idx + 1}: {intro_text}")
+            self.ai_logger.info(f"{self.brand} INTRO {idx + 1}:\n {intro_text}")
 
         return state
 
@@ -141,7 +142,8 @@ class RadioDJV2:
                 return state
 
             state["broadcast_success"] = bool(result is True or (isinstance(result, dict) and result.get("success")))
-
+            self.ai_logger.info(f"{self.brand} RESULT: {state['broadcast_success']}")
+            self.ai_logger.info(f"{self.brand} - End ---------------------------------")
         except Exception as e:
             self.logger.error(f"Error broadcasting audio: {e}")
             state["broadcast_success"] = False
