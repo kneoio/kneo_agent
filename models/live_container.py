@@ -28,6 +28,7 @@ class PromptItem:
     searchEngineType: Optional[str] = None
     startTime: Optional[str] = None
     oneTimeRun: bool = False
+    dialogue: bool = False
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PromptItem':
@@ -39,31 +40,8 @@ class PromptItem:
             llmType=data.get("llmType"),
             searchEngineType=data.get("searchEngineType"),
             startTime=data.get("startTime"),
-            oneTimeRun=bool(data.get("oneTimeRun", False))
-        )
-
-
-@dataclass
-class PromptConfig:
-    prompts: List[PromptItem] = field(default_factory=list)
-    messagePrompt: Optional[str] = None
-    miniPodcastPrompt: Optional[str] = None
-    llmType: Optional[str] = None
-    searchEngineType: Optional[str] = None
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'PromptConfig':
-        prompts_data = data.get("prompts", [])
-        prompts = [PromptItem.from_dict(p) for p in prompts_data]
-        llm_type = prompts[0].llmType if prompts else data.get("llmType")
-        search_engine = prompts[0].searchEngineType if prompts else data.get("searchEngineType")
-        
-        return cls(
-            prompts=prompts,
-            messagePrompt=data.get("messagePrompt"),
-            miniPodcastPrompt=data.get("miniPodcastPrompt"),
-            llmType=llm_type,
-            searchEngineType=search_engine
+            oneTimeRun=bool(data.get("oneTimeRun", False)),
+            dialogue=bool(data.get("dialogue", False))
         )
 
 
@@ -75,18 +53,23 @@ class LiveRadioStation:
     djName: str
     info: str
     tts: TtsConfig
-    prompt: PromptConfig
+    prompts: List[PromptItem] = field(default_factory=list)
+    messagePrompt: Optional[str] = None
+    miniPodcastPrompt: Optional[str] = None
     preferredLang: Optional[str] = None
     songsCount: int = 1
+    llmType: Optional[str] = None
+    searchEngineType: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'LiveRadioStation':
         tts_data = data.get("tts", {})
-        
-        prompts_list = data.get("prompts", [])
-        prompt_config = PromptConfig.from_dict({"prompts": prompts_list})
-        
+        prompts_list = [PromptItem.from_dict(p) for p in data.get("prompts", [])]
         songs_count = len(prompts_list) if prompts_list else 1
+        
+        # Get llmType and searchEngineType from the first prompt if available
+        llm_type = prompts_list[0].llmType if prompts_list else None
+        search_engine = prompts_list[0].searchEngineType if prompts_list else None
         
         return cls(
             name=data.get("name"),
@@ -95,9 +78,13 @@ class LiveRadioStation:
             djName=data.get("djName"),
             info=data.get("info", ""),
             tts=TtsConfig.from_dict(tts_data),
-            prompt=prompt_config,
+            prompts=prompts_list,
+            messagePrompt=data.get("messagePrompt"),
+            miniPodcastPrompt=data.get("miniPodcastPrompt"),
             preferredLang=data.get("preferredLang"),
-            songsCount=songs_count
+            songsCount=songs_count,
+            llmType=llm_type,
+            searchEngineType=search_engine
         )
 
 

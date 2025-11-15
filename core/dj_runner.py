@@ -32,9 +32,11 @@ class DJRunner:
             self.memory
         )
 
+        from cnst.paths import MERGED_AUDIO_DIR
         self.radio_dj = RadioDJV2(
             station,
             self.audio_processor,
+            target_dir=str(MERGED_AUDIO_DIR),
             mcp_client=self.mcp_client,
             llm_client=llm_client,
             llm_type=llm_type

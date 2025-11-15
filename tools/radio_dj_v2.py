@@ -11,41 +11,32 @@ from llm.llm_request import invoke_intro
 from mcp.queue_mcp import QueueMCP
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
-from util.file_util import debug_log
+
 
 class RadioDJV2:
-    def __init__(self, station: LiveRadioStation, audio_processor,
-                 mcp_client=None, debug=False, llm_client=None, llm_type=LlmType.GROQ):
-        self.debug = debug
+    def __init__(self, station: LiveRadioStation, audio_processor, target_dir: str,
+                 mcp_client=None, llm_client=None, llm_type=LlmType.GROQ):
         self.llm_type = llm_type
         self.logger = logging.getLogger(__name__)
         self.ai_logger = logging.getLogger("tools.interaction_tools.ai")
-
-        if self.debug:
-            self.logger.setLevel(logging.DEBUG)
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-            self.logger.addHandler(handler)
-
         self.llm = llm_client
         self.audio_processor = audio_processor
         self.live_station = station
         self.brand = station.slugName
         self.queue_mcp = QueueMCP(mcp_client)
-        self.target_dir = "/home/kneobroadcaster/to_merge"
-        os.makedirs(self.target_dir, exist_ok=True)
+        self.target_dir = target_dir
         self.graph = self._build_graph()
-        debug_log(f"RadioDJV2 initialized with llm={self.llm_type}, songsCount={self.live_station.songsCount}")
 
     async def run(self) -> Tuple[bool, str, str]:
         self.logger.info(f"---------------------Interaction started ------------------------------")
-
+        self.ai_logger.info(f"{self.brand} ---- Interaction started ----")
         initial_state = {
             "brand": self.brand,
             "intro_texts": [],
             "audio_file_paths": [],
             "song_ids": [],
-            "broadcast_success": False
+            "broadcast_success": False,
+            "dialogue": False
         }
 
         result = await self.graph.ainvoke(initial_state)
@@ -62,20 +53,21 @@ class RadioDJV2:
         workflow.add_edge("generate_intro", "create_audio")
         workflow.add_edge("create_audio", "broadcast_audio")
         workflow.add_edge("broadcast_audio", END)
-        debug_log("RadioDJV2 graph workflow built")
         return workflow.compile()
 
     async def _generate_intro(self, state: DJState) -> DJState:
 
-        for idx, prompt_item in enumerate(self.live_station.prompt.prompts):
+        for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
+            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name} DRAFT: {draft}")
+            self.ai_logger.info(f"{self.brand} PROMPT: {prompt_item.prompt}")
             intro_text = await invoke_intro(self.llm, prompt_item.prompt, draft, self.llm_type)
 
             state["intro_texts"].append(intro_text.actual_result)
             state["song_ids"].append(prompt_item.songId)
+            state["dialogue"] = prompt_item.dialogue
 
             self.ai_logger.info(f"{self.brand} INTRO {idx + 1}: {intro_text}")
-            debug_log(f"Generated intro {idx + 1} for {self.brand}")
 
         return state
 
@@ -86,10 +78,9 @@ class RadioDJV2:
 
         for idx, intro_text in enumerate(state["intro_texts"]):
             try:
-                try:
-                    json.loads(intro_text)
+                if state["dialogue"]:
                     audio_data, reason = await self.audio_processor.generate_tts_dialogue(intro_text)
-                except json.JSONDecodeError:
+                else:
                     audio_data, reason = await self.audio_processor.generate_tts_audio(intro_text)
 
                 if audio_data:
@@ -97,7 +88,6 @@ class RadioDJV2:
                     short_name = f"{self.brand}_intro{idx + 1}_{time_tag}"
                     file_path = self._save_audio_file(audio_data, short_name)
                     state["audio_file_paths"].append(file_path)
-                    debug_log(f"Audio {idx + 1} saved: {file_path}")
                 else:
                     self.logger.warning(f"No audio generated for intro {idx + 1}: {reason}")
 
@@ -125,7 +115,8 @@ class RadioDJV2:
                 return state
 
             num_songs = len(state["audio_file_paths"])
-            expected_start_time = next((p.startTime for p in self.live_station.prompt.prompts if getattr(p, "oneTimeRun", False) and getattr(p, "startTime", None)), None)
+            expected_start_time = next((p.startTime for p in self.live_station.prompts if
+                                      getattr(p, "oneTimeRun", False) and getattr(p, "startTime", None)), None)
             priority = 9 if expected_start_time is not None else 10
 
             if num_songs == 1:
@@ -149,7 +140,6 @@ class RadioDJV2:
                 state["broadcast_success"] = False
                 return state
 
-            debug_log(f"Broadcast result: {result}")
             state["broadcast_success"] = bool(result is True or (isinstance(result, dict) and result.get("success")))
 
         except Exception as e:

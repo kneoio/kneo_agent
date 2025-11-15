@@ -23,6 +23,7 @@ class DJState(MessagesState):
     history: List[dict]
     context: List[str]
     song_fragments: List[SoundFragment]
+    dialogue: bool
 
     broadcast_success: bool
     __end__: bool

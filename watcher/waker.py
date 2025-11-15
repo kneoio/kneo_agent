@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import time
 from queue import Queue
 from typing import Dict
@@ -12,6 +13,7 @@ from mcp.external.internet_mcp import InternetMCP
 from mcp.live_radio_stations_mcp import LiveRadioStationsMCP
 from mcp.mcp_client import MCPClient
 from util.llm_factory import LlmFactory
+from cnst.paths import MERGED_AUDIO_DIR
 
 
 class Waker:
@@ -23,6 +25,10 @@ class Waker:
         self.brand_queue = Queue()
         self.llmFactory = LlmFactory(config)
         self.last_activity_time = time.time()
+
+        self.target_dir = str(MERGED_AUDIO_DIR)
+        os.makedirs(self.target_dir, exist_ok=True)
+        logging.info(f"Created/verified target directory at: {self.target_dir}")
 
         self.BASE_INTERVAL = 60
         self.TIMEOUT_PER_STATION = 300
@@ -40,7 +46,9 @@ class Waker:
             llmType = LlmType(station.prompt.llmType) if station.prompt.llmType else None
             llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
             runner = DJRunner(self.config, station, api_client,
-                              mcp_client=self.mcp_client, llm_client=llmClient, llm_type=llmType)
+                           mcp_client=self.mcp_client, 
+                           llm_client=llmClient, 
+                           llm_type=llmType)
 
             await asyncio.wait_for(runner.run(), timeout=self.TIMEOUT_PER_STATION)
             return True

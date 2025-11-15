@@ -52,7 +52,10 @@ class Prerecorded:
             self.logger.error(f"Error reading audio file: {e}")
             return None, f"Failed to load prerecorded: {e}", ""
 
-    async def get_prerecorded_file_path(self, target_dir: str = "/home/kneobroadcaster/to_merge_filler") -> Tuple[Optional[str], str]:
+    async def get_prerecorded_file_path(self, target_dir: str = None) -> Tuple[Optional[str], str]:
+        from cnst.paths import FILLER_AUDIO_DIR
+        if target_dir is None:
+            target_dir = str(FILLER_AUDIO_DIR)
         if not self.audio_files:
             return None, "No prerecorded files available"
         try:

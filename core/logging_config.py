@@ -47,7 +47,6 @@ def setup_logging(console_level=logging.INFO, file_level=logging.DEBUG, log_dire
     file_handler.setLevel(file_level)
     root_logger.addHandler(file_handler)
 
-    # Setup separate loggers for prompts and AI outputs
     setup_ai_loggers(absolute_log_directory, rotate_when, rotate_interval, rotate_backup_count)
 
     logging.info(f"Logging setup complete. Logs directed to {log_file_path} with rotation.")
@@ -55,9 +54,6 @@ def setup_logging(console_level=logging.INFO, file_level=logging.DEBUG, log_dire
 
 
 def setup_ai_loggers(log_directory, rotate_when='midnight', rotate_interval=1, rotate_backup_count=7):
-    """Setup shared logger for AI prompts and outputs"""
-
-    # Combined AI logger for both prompts and outputs
     ai_logger = logging.getLogger('tools.interaction_tools.ai')
     ai_logger.setLevel(logging.INFO)
     ai_logger.propagate = False
