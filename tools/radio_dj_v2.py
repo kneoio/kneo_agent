@@ -6,13 +6,17 @@ from typing import Tuple
 from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
+from core.brans_memory_manager import BrandMemoryManager
 from llm.llm_request import invoke_intro
 from mcp.queue_mcp import QueueMCP
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
 
 
+
 class RadioDJV2:
+    memory_manager = BrandMemoryManager()
+
     def __init__(self, station: LiveRadioStation, audio_processor, target_dir: str,
                  mcp_client=None, llm_client=None, llm_type=LlmType.GROQ):
         self.llm_type = llm_type
@@ -60,7 +64,12 @@ class RadioDJV2:
             self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}")
             self.ai_logger.info(f"{self.brand} DRAFT:\n {draft}")
             self.ai_logger.info(f"{self.brand} PROMPT:\n {prompt_item.prompt}")
-            intro_text = await invoke_intro(self.llm, prompt_item.prompt, draft, self.llm_type)
+
+            raw_mem_list = RadioDJV2.memory_manager.get(self.brand)
+            raw_mem = "\n".join(raw_mem_list)
+            full_prompt = f"Recent on-air memory:\n{raw_mem}\n\n{prompt_item.prompt}"
+
+            intro_text = await invoke_intro(self.llm, full_prompt, draft, self.llm_type)
 
             state["intro_texts"].append(intro_text.actual_result)
             state["song_ids"].append(prompt_item.songId)
@@ -68,6 +77,8 @@ class RadioDJV2:
 
             self.ai_logger.info(f"{self.brand} INTRO: {idx + 1}:\n {intro_text}")
             self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
+
+            RadioDJV2.memory_manager.add(self.brand, intro_text.actual_result)
 
         return state
 
@@ -77,8 +88,10 @@ class RadioDJV2:
             return state
 
         for idx, (intro_text, is_dialogue) in enumerate(zip(state["intro_texts"], state["dialogue_states"])):
+
             try:
                 self.ai_logger.info(f"{self.brand} DIALOGUE MODE: {is_dialogue} for intro {idx + 1}")
+
                 if is_dialogue:
                     audio_data, reason = await self.audio_processor.generate_tts_dialogue(intro_text)
                 else:
@@ -105,8 +118,10 @@ class RadioDJV2:
 
         file_name = f"{short_name}.{chosen_ext}"
         path = os.path.join(self.target_dir, file_name)
+
         with open(path, "wb") as f:
             f.write(audio_data)
+
         return path
 
     async def _broadcast_audio(self, state: DJState) -> DJState:
@@ -117,8 +132,12 @@ class RadioDJV2:
                 return state
 
             num_songs = len(state["audio_file_paths"])
-            expected_start_time = next((p.startTime for p in self.live_station.prompts if
-                                      getattr(p, "oneTimeRun", False) and getattr(p, "startTime", None)), None)
+            expected_start_time = next(
+                (p.startTime for p in self.live_station.prompts
+                 if getattr(p, "oneTimeRun", False) and getattr(p, "startTime", None)),
+                None
+            )
+
             priority = 9 if expected_start_time is not None else 10
 
             if num_songs == 1:
@@ -142,9 +161,13 @@ class RadioDJV2:
                 state["broadcast_success"] = False
                 return state
 
-            state["broadcast_success"] = bool(result is True or (isinstance(result, dict) and result.get("success")))
+            state["broadcast_success"] = bool(
+                result is True or (isinstance(result, dict) and result.get("success"))
+            )
+
             self.ai_logger.info(f"{self.brand} RESULT: {state['broadcast_success']}")
             self.ai_logger.info(f"{self.brand} - End ---------------------------------")
+
         except Exception as e:
             self.logger.error(f"Error broadcasting audio: {e}")
             state["broadcast_success"] = False

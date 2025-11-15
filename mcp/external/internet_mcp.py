@@ -11,7 +11,6 @@ class InternetMCP:
         self.mcp_client = mcp_client
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
-        # Store a default engine to use when the tool call doesn't pass one explicitly
         self.default_engine = default_engine if default_engine in ["Brave", "Perplexity"] else "Brave"
         self.logger.info(f"InternetMCP initialized with default engine: {self.default_engine}")
 
@@ -19,7 +18,6 @@ class InternetMCP:
         try:
             self.logger.info(f" -----> : internet.search q='{query}' max={max_results}")
             count = max_results if max_results > 0 else 0
-            # Respect the engine provided by the tool call; otherwise use instance default
             self.logger.info(f"internet.search engine param received: {engine}")
             eng = (engine or getattr(self, 'default_engine', 'Brave')).upper()
             self.logger.info(f"internet.search using engine: {eng}")
@@ -54,9 +52,6 @@ class InternetMCP:
                 "error": str(e)
             }
 
-    
-
-
     async def _brave_search(self, query: str, limit: int) -> List[Dict[str, Any]]:
         tool_cfg = self._get_tool_config()
         api_key = tool_cfg.get("brave_api_key", "")
@@ -85,7 +80,6 @@ class InternetMCP:
             self.logger.error(f"Brave search failed: {e}")
         self.logger.info(f"internet.brave results={len(results)}")
         return results
-
 
     def _create_summary(self, results: List[Dict[str, Any]]) -> str:
         if not results:
@@ -137,7 +131,8 @@ class InternetMCP:
         if not api_key:
             return {}
         url = "https://api.perplexity.ai/chat/completions"
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "accept": "application/json"}
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+                   "accept": "application/json"}
         payload = {
             "model": "sonar",
             "messages": [
@@ -193,7 +188,8 @@ class InternetMCP:
         if not hasattr(self, '_config_loaded_logged'):
             brave_key = tool_cfg.get("brave_api_key", "")
             perplexity_key = tool_cfg.get("perplexity_api_key", "")
-            self.logger.info(f"internet_mcp config loaded: brave_key={'present' if brave_key else 'missing'}, perplexity_key={'present' if perplexity_key else 'missing'}")
+            self.logger.info(
+                f"internet_mcp config loaded: brave_key={'present' if brave_key else 'missing'}, perplexity_key={'present' if perplexity_key else 'missing'}")
             self._config_loaded_logged = True
 
         return tool_cfg

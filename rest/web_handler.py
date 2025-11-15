@@ -11,6 +11,7 @@ from core.config import get_merged_config
 from llm.llm_request import invoke_intro
 from llm.llm_request import translate_content
 from mcp.external.internet_mcp import InternetMCP
+from tools.radio_dj_v2 import RadioDJV2
 from util.llm_factory import LlmFactory
 from util.template_loader import render_template
 
@@ -136,4 +137,9 @@ async def test_prompt(req: PromptRequest):
     result = await invoke_intro(client, req.prompt, req.draft, req.llm)
     print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
+
+@app.get("/debug/brand_memory")
+async def debug_brand_memory():
+    return RadioDJV2.memory_manager.memory
+
 
