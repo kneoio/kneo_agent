@@ -43,7 +43,7 @@ class Waker:
             logging.info(f"Processing brand: {station.name}")
             internet_mcp = InternetMCP(mcp_client=self.mcp_client, config=self.config, default_engine="Perplexity")
             api_client = BroadcasterAPIClient(self.config)
-            llmType = LlmType(station.prompt.llmType) if station.prompt.llmType else None
+            llmType = LlmType(station.llmType) if station.llmType else None
             llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
             runner = DJRunner(self.config, station, api_client,
                            mcp_client=self.mcp_client, 
