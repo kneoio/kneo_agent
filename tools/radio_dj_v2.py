@@ -19,7 +19,10 @@ class RadioDJV2:
     memory_manager = BrandMemoryManager()
 
     def __init__(self, station: LiveRadioStation, audio_processor, target_dir: str,
-                 mcp_client=None, llm_client=None, llm_type=LlmType.GROQ):
+                 mcp_client=None, llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
+        if db_pool is None:
+            raise ValueError("db_pool parameter is required for RadioDJV2 initialization")
+            
         self.llm_type = llm_type
         self.logger = logging.getLogger(__name__)
         self.ai_logger = logging.getLogger("tools.interaction_tools.ai")
@@ -29,9 +32,9 @@ class RadioDJV2:
         self.brand = station.slugName
         self.queue_mcp = QueueMCP(mcp_client)
         self.target_dir = target_dir
-        self.graph = self._build_graph()
         self.db = db_pool
         self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
+        self.graph = self._build_graph()
 
     async def run(self) -> Tuple[bool, str, str]:
         self.logger.info(f"---------------------Interaction started ------------------------------")

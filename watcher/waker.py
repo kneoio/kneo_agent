@@ -45,10 +45,22 @@ class Waker:
             api_client = BroadcasterAPIClient(self.config)
             llmType = LlmType(station.llmType) if station.llmType else None
             llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
-            runner = DJRunner(self.config, station, api_client,
-                           mcp_client=self.mcp_client, 
-                           llm_client=llmClient, 
-                           llm_type=llmType)
+            
+            # Get the database pool from the FastAPI app state
+            from rest.web_handler import app
+            if not hasattr(app.state, 'db'):
+                logging.error("Database pool not found in app.state")
+                return False
+                
+            runner = DJRunner(
+                config=self.config, 
+                station=station, 
+                api_client=api_client,
+                mcp_client=self.mcp_client, 
+                llm_client=llmClient, 
+                llm_type=llmType,
+                db_pool=app.state.db
+            )
 
             await asyncio.wait_for(runner.run(), timeout=self.TIMEOUT_PER_STATION)
             return True
