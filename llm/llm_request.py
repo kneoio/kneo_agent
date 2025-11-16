@@ -30,6 +30,22 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, llm_type: LlmTy
     return LlmResponse.parse_plain_response(response, llm_type)
 
 
+async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'LlmResponse':
+    tools = None
+    if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
+        internet_tool = SearchEngine.Perplexity.value
+        tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
+        logger.info(f'invoke_chat: Internet tools "{internet_tool}" enabled for {llm_type.name}')
+    else:
+        logger.debug(f"invoke_chat: No internet tools available for {llm_type.name}")
+
+    response = await llm_client.ainvoke(
+        messages=messages,
+        tools=tools
+    )
+    return LlmResponse.parse_plain_response(response, llm_type)
+
+
 async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> 'LlmResponse':
     full_prompt = f"{prompt}\n\nInput:\n{to_translate}"
     response = await llm_client.ainvoke(messages=[

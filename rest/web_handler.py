@@ -10,7 +10,7 @@ from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from core.config import get_merged_config
-from llm.llm_request import invoke_intro, translate_content
+from llm.llm_request import invoke_intro, invoke_chat, translate_content
 from mcp.external.internet_mcp import InternetMCP
 from memory.brand_summarizer import BrandSummarizer
 from memory.brand_user_summorizer import BrandUserSummarizer
@@ -130,23 +130,32 @@ async def telegram_webhook(req: Request):
     preview = text if len(text) <= 120 else text[:117] + "..."
     logger.info(f"Telegram webhook: received chat_id={chat_id}, name={name}, text='{preview}'")
 
-    await app.state.user_memory.add(chat_id, name, brand, text)
-    logger.info(f"Telegram webhook: saved message for chat_id={chat_id}")
-
-    summarizer = BrandUserSummarizer(
-        app.state.db,
-        llm_factory.get_llm_client(LlmType.GROQ),
-        LlmType.GROQ
-    )
-    listener_summary = await summarizer.summarize(brand)
-
-    result = await invoke_intro(
+    data_state = await app.state.user_memory.load(chat_id)
+    history = data_state["history"] if data_state else []
+    
+    messages = [{"role": "system", "content": "You are Mixplaclone, a helpful assistant of the radio station, chatting privately with a listener."}]
+    
+    for h in history[-19:]:  # Leave room for current message
+        role = "assistant" if h.get("role") == "assistant" else "user"
+        content = h.get("text", "")
+        if content:
+            messages.append({"role": role, "content": content})
+    
+    messages.append({"role": "user", "content": text})
+    
+    result = await invoke_chat(
         llm_client=llm_factory.get_llm_client(LlmType.GROQ),
-        prompt=f"Reply warmly as a DJ speaking privately to the listener.\nListener summary:\n{listener_summary}",
-        draft=text,
+        messages=messages,
         llm_type=LlmType.GROQ
     )
     reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
+
+    if not data_state:
+        history = [{"role": "user", "text": text}, {"role": "assistant", "text": reply}]
+    else:
+        history.extend([{"role": "user", "text": text}, {"role": "assistant", "text": reply}])
+        history = history[-50:]  # Keep last 50 messages (25 exchanges)
+    await app.state.user_memory.save(chat_id, name, brand, history)
 
     async with httpx.AsyncClient() as client:
         await client.post(

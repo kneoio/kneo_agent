@@ -65,7 +65,9 @@ class RadioDJV2:
         return workflow.compile()
 
     async def _generate_intro(self, state):
-        raw_mem = "\n".join(RadioDJV2.memory_manager.get(self.brand))
+        memory_entries = RadioDJV2.memory_manager.get(self.brand)
+        memory_texts = [entry["text"] for entry in memory_entries if isinstance(entry, dict) and "text" in entry]
+        raw_mem = "\n".join(memory_texts)
         listener_summary = await self.user_summary.summarize(self.brand)
         summary_row = await self._load_brand_summary()
         long_summary = summary_row["summary"] if summary_row else ""
