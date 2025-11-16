@@ -1,3 +1,5 @@
+import json
+
 class UserMemoryManager:
     def __init__(self, db_pool):
         self.db = db_pool
@@ -8,7 +10,16 @@ class UserMemoryManager:
                 "SELECT user_id, telegram_name, brand, history FROM mixpla__user_memory WHERE user_id = $1",
                 user_id
             )
-            return dict(row) if row else None
+            if not row:
+                return None
+            d = dict(row)
+            h = d.get("history")
+            if isinstance(h, str):
+                try:
+                    d["history"] = json.loads(h)
+                except Exception:
+                    d["history"] = []
+            return d
 
     async def save(self, user_id: int, telegram_name: str, brand: str, history):
         async with self.db.acquire() as conn:
@@ -22,7 +33,7 @@ class UserMemoryManager:
                 WHERE user_id = $1
                 RETURNING 1
                 """,
-                user_id, telegram_name, brand, history
+                user_id, telegram_name, brand, json.dumps(history)
             )
             if not updated:
                 await conn.execute(
@@ -30,7 +41,7 @@ class UserMemoryManager:
                     INSERT INTO mixpla__user_memory (last_mod_date, user_id, telegram_name, brand, history)
                     VALUES (NOW(), $1, $2, $3, $4)
                     """,
-                    user_id, telegram_name, brand, history
+                    user_id, telegram_name, brand, json.dumps(history)
                 )
 
     async def add(self, user_id: int, telegram_name: str, brand: str, text: str):
