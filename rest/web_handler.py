@@ -2,6 +2,7 @@ import logging
 import asyncpg
 import httpx
 import sys
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -18,6 +19,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import asyncio
 
 # Import application components
 from rest.app_state import AppState
@@ -56,12 +58,36 @@ async def lifespan(app: FastAPI):
     logger.info("Starting application lifespan...")
     pool = None
     try:
+        # Resolve DSN and SSL
+        env_dsn = os.getenv("DATABASE_URL") or os.getenv("DB_DSN")
+        effective_dsn = env_dsn or DB_DSN
+        if not effective_dsn:
+            logger.error("No database DSN provided (missing config and env DATABASE_URL/DB_DSN)")
+            raise RuntimeError("Missing database DSN")
+
+        db_cfg_local = cfg.get("database", {})
+        ssl_required = bool(db_cfg_local.get("ssl", False) or os.getenv("DB_SSL") in {"1", "true", "True"})
+
         # Log configuration
-        logger.info(f"Database DSN (first 20 chars): {DB_DSN[:20]}..." if DB_DSN else "WARNING: DB_DSN is not set!")
+        source = "env" if env_dsn else "config"
+        logger.info(f"Using {source} DSN (first 20 chars): {effective_dsn[:20]}... | SSL: {ssl_required}")
         
         # Initialize database pool
         logger.info("Initializing database connection pool...")
-        pool = await asyncpg.create_pool(DB_DSN)
+        attempts = 5
+        delay = 3
+        last_exc = None
+        for i in range(1, attempts + 1):
+            try:
+                pool = await asyncpg.create_pool(effective_dsn, ssl=True if ssl_required else None)
+                break
+            except Exception as e:
+                last_exc = e
+                logger.error(f"DB pool creation attempt {i}/{attempts} failed: {e}")
+                if i < attempts:
+                    await asyncio.sleep(delay)
+        if not pool and last_exc:
+            raise last_exc
         if pool:
             logger.info("Database pool created successfully")
             app.state.db = pool

@@ -96,12 +96,15 @@ class Waker:
 
         # Initialize DB pool once
         db_cfg = self.config.get("database", {}) if isinstance(self.config, dict) else {}
-        dsn = db_cfg.get("dsn")
+        env_dsn = os.getenv("DATABASE_URL") or os.getenv("DB_DSN")
+        dsn = env_dsn or db_cfg.get("dsn")
         if not dsn:
-            logging.error("Database DSN not found in config; cannot initialize DB pool")
+            logging.error("Database DSN not found (missing config and env DATABASE_URL/DB_DSN);")
             return
-        logging.info(f"Initializing DB pool for Waker (first 20 chars): {dsn[:20]}...")
-        self.db_pool = await asyncpg.create_pool(dsn)
+        ssl_required = bool(db_cfg.get("ssl", False) or os.getenv("DB_SSL") in {"1", "true", "True"})
+        source = "env" if env_dsn else "config"
+        logging.info(f"Initializing DB pool for Waker using {source} DSN (first 20 chars): {dsn[:20]}... | SSL: {ssl_required}")
+        self.db_pool = await asyncpg.create_pool(dsn, ssl=True if ssl_required else None)
         logging.info("DB pool for Waker initialized")
 
         try:
