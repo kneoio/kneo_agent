@@ -1,27 +1,10 @@
 import logging
-import asyncpg
-import httpx
 import sys
-import os
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('app.log')
-    ]
-)
-logger = logging.getLogger(__name__)
-
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import asyncio
-
-# Import application components
 from rest.app_state import AppState
 from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
@@ -36,101 +19,73 @@ from memory.user_memory_manager import UserMemoryManager
 from tools.radio_dj_v2 import RadioDJV2
 from util.llm_factory import LlmFactory
 from util.template_loader import render_template
+from util.db_manager import DBManager
 
-# Load configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 cfg = get_merged_config("config.yaml")
-telegram_cfg = cfg.get("telegram", {})
-db_cfg = cfg.get("database", {})
-TELEGRAM_TOKEN = telegram_cfg.get("token")
-DB_DSN = db_cfg.get("dsn")
-server_cfg = cfg.get("mcp_server", {})
-cors_cfg = server_cfg.get("cors", {})
-allow_origins = cors_cfg.get("allow_origins", ["*"])
-allow_methods = cors_cfg.get("allow_methods", ["*"])
-allow_headers = cors_cfg.get("allow_headers", ["*"])
+telegram_cfg = cfg["telegram"]
+TELEGRAM_TOKEN = telegram_cfg["token"]
+server_cfg = cfg["web_server"]
+cors_cfg = server_cfg["cors"]
+allow_origins = cors_cfg["allow_origins"]
+allow_methods = cors_cfg["allow_methods"]
+allow_headers = cors_cfg["allow_headers"]
 
-# Initialize services
 llm_factory = LlmFactory(cfg)
 internet = InternetMCP(config=cfg)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting application lifespan...")
-    pool = None
     try:
-        # Resolve DSN and SSL
-        env_dsn = os.getenv("DATABASE_URL") or os.getenv("DB_DSN")
-        effective_dsn = env_dsn or DB_DSN
-        if not effective_dsn:
-            logger.error("No database DSN provided (missing config and env DATABASE_URL/DB_DSN)")
-            raise RuntimeError("Missing database DSN")
+        logger.info("Initializing database connection...")
+        await DBManager.init()
+        app.state.db = DBManager.get_pool()
 
-        db_cfg_local = cfg.get("database", {})
-        ssl_required = bool(db_cfg_local.get("ssl", False) or os.getenv("DB_SSL") in {"1", "true", "True"})
-
-        # Log configuration
-        source = "env" if env_dsn else "config"
-        logger.info(f"Using {source} DSN (first 20 chars): {effective_dsn[:20]}... | SSL: {ssl_required}")
-        
-        # Initialize database pool
-        logger.info("Initializing database connection pool...")
-        attempts = 5
-        delay = 3
-        last_exc = None
-        for i in range(1, attempts + 1):
-            try:
-                pool = await asyncpg.create_pool(effective_dsn, ssl=True if ssl_required else None)
-                break
-            except Exception as e:
-                last_exc = e
-                logger.error(f"DB pool creation attempt {i}/{attempts} failed: {e}")
-                if i < attempts:
-                    await asyncio.sleep(delay)
-        if not pool and last_exc:
-            raise last_exc
-        if pool:
-            logger.info("Database pool created successfully")
-            app.state.db = pool
-        else:
-            logger.error("Failed to create database pool")
-            raise RuntimeError("Failed to create database pool")
-        
-        # Initialize services
         logger.info("Initializing BrandMemoryManager...")
         app.state.brand_memory = BrandMemoryManager()
-        
+
         logger.info("Initializing UserMemoryManager...")
-        app.state.user_memory = UserMemoryManager(pool)
-        
+        app.state.user_memory = UserMemoryManager(app.state.db)
+
         logger.info("Initializing BrandSummarizer...")
         app.state.summarizer = BrandSummarizer(
             llm_client=llm_factory.get_llm_client(LlmType.GROQ),
-            db_pool=pool,
+            db_pool=app.state.db,
             memory_manager=RadioDJV2.memory_manager,
             llm_type=LlmType.GROQ
         )
-        
+
         logger.info("Application startup completed successfully")
         yield
-        
+
     except Exception as e:
         logger.error(f"Error during application startup: {str(e)}", exc_info=True)
         raise
-        
+
     finally:
         logger.info("Shutting down application...")
-        if pool:
-            logger.info("Closing database pool...")
-            await pool.close()
+        try:
+            await DBManager.close()
             logger.info("Database pool closed")
+        except Exception as e:
+            logger.warning(f"Error during DB pool close: {e}")
 
-# Initialize FastAPI app
+
 logger.info("Initializing FastAPI application...")
 app = FastAPI(lifespan=lifespan)
 app.state = AppState()  # type: ignore
 logger.info("FastAPI application initialized")
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
@@ -150,15 +105,16 @@ class PromptRequest(BaseModel):
     draft: str
     llm: LlmType
 
+
 class TranslateRequest(BaseModel):
     toTranslate: str
     translationType: TranslationType
     language: str
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
 
 
 @app.post("/telegram/webhook")
@@ -199,6 +155,7 @@ async def telegram_webhook(req: Request):
 
     return {"ok": True}
 
+
 @app.post("/internet_search/test")
 async def test_search(req: SearchRequest):
     logger.info(f"REQ llm={req.llm.name} prompt_len={len(req.prompt)}")
@@ -220,7 +177,7 @@ async def test_search(req: SearchRequest):
 @app.post("/translate")
 async def translate(req: TranslateRequest):
     client = llm_factory.get_llm_client(LlmType.GROQ)
-    
+
     template_path = "translation/prompt.hbs" if req.translationType == TranslationType.PROMPT else "translation/code.hbs"
     to_translate_text = render_template(template_path, {
         "language": req.language,
@@ -228,27 +185,29 @@ async def translate(req: TranslateRequest):
     })
 
     translation_result = await translate_content(client, to_translate_text)
-    # print(f"RAW: {translation_result}")
     return {"result": translation_result.actual_result, "reasoning": translation_result.reasoning}
+
 
 @app.post("/prompt/test")
 async def test_prompt(req: PromptRequest):
     client = llm_factory.get_llm_client(req.llm, internet_mcp=internet)
-    
+
     result = await invoke_intro(client, req.prompt, req.draft, req.llm)
     print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
+
 
 @app.post("/debug/summarize/{brand}")
 async def debug_summarize(brand: str):
     result = await app.state.summarizer.summarize(brand)
     return {"summary": result}
 
+
 @app.get("/debug/brand_memory")
 async def debug_brand_memory():
     return RadioDJV2.memory_manager.memory
 
-# debug: view current listener summary
+
 @app.get("/debug/listener_summary/{brand}")
 async def debug_listener_summary(brand: str):
     summarizer = BrandUserSummarizer(
@@ -257,6 +216,3 @@ async def debug_listener_summary(brand: str):
         LlmType.GROQ
     )
     return {"summary": await summarizer.summarize(brand)}
-
-
-

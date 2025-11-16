@@ -3,6 +3,7 @@ from typing import Dict, Callable
 
 from langchain_anthropic import ChatAnthropic
 from langchain_groq import ChatGroq
+from openai import AsyncOpenAI
 
 from cnst.llm_types import LlmType
 from mcp.external.internet_mcp import InternetMCP
@@ -61,6 +62,14 @@ class LlmFactory:
         self.clients = {}
         self.llm_type = LlmType.GROQ
         self.logger = None
+        # Initialize OpenAI client for Moonshot (Kimi)
+        self.moonshot_client = None
+        moonshot_cfg = self.config.get('moonshot', {})
+        if moonshot_cfg.get('api_key'):
+            self.moonshot_client = AsyncOpenAI(
+                api_key=moonshot_cfg.get('api_key'),
+                base_url="https://api.moonshot.ai/v1"
+            )
 
     def get_llm_client(self, llm_type: LlmType, internet_mcp=None):
         if not self.logger:
@@ -90,6 +99,10 @@ class LlmFactory:
                 temperature=cfg.get('temperature'),
                 api_key=cfg.get('api_key')
             )
+        elif llm_type == LlmType.KIMI and self.moonshot_client:
+            # For Moonshot (Kimi), we'll use the AsyncOpenAI client directly
+            # since it's compatible with the OpenAI API
+            return self.moonshot_client
 
         if base_client is not None:
             client = ToolEnabledLLMClient(base_client)

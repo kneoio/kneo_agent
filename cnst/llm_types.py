@@ -5,3 +5,4 @@ class LlmType(Enum):
     CLAUDE = "CLAUDE"
     OPENAI = "OPENAI"
     GROQ = "GROQ"
+    KIMI = "KIMI"

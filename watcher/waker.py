@@ -3,7 +3,6 @@ import logging
 import os
 import time
 from queue import Queue
-import asyncpg
 from typing import Dict
 
 from api.broadcaster_client import BroadcasterAPIClient
@@ -14,6 +13,7 @@ from mcp.external.internet_mcp import InternetMCP
 from mcp.live_radio_stations_mcp import LiveRadioStationsMCP
 from mcp.mcp_client import MCPClient
 from util.llm_factory import LlmFactory
+from util.db_manager import DBManager
 from cnst.paths import MERGED_AUDIO_DIR
 
 
@@ -94,17 +94,16 @@ class Waker:
         await self.mcp_client.connect()
         self.live_stations_mcp = LiveRadioStationsMCP(self.mcp_client)
 
-        # Initialize DB pool once
+        # Initialize DB pool once (config only)
         db_cfg = self.config.get("database", {}) if isinstance(self.config, dict) else {}
-        env_dsn = os.getenv("DATABASE_URL") or os.getenv("DB_DSN")
-        dsn = env_dsn or db_cfg.get("dsn")
+        dsn = db_cfg.get("dsn")
         if not dsn:
-            logging.error("Database DSN not found (missing config and env DATABASE_URL/DB_DSN);")
+            logging.error("Database DSN not found in config; cannot initialize DB pool")
             return
-        ssl_required = bool(db_cfg.get("ssl", False) or os.getenv("DB_SSL") in {"1", "true", "True"})
-        source = "env" if env_dsn else "config"
-        logging.info(f"Initializing DB pool for Waker using {source} DSN (first 20 chars): {dsn[:20]}... | SSL: {ssl_required}")
-        self.db_pool = await asyncpg.create_pool(dsn, ssl=True if ssl_required else None)
+        ssl_required = bool(db_cfg.get("ssl", False))
+        logging.info(f"Initializing DB pool for Waker (config DSN first 20): {dsn[:20]}... | SSL: {ssl_required}")
+        await DBManager.init(dsn, ssl=ssl_required)
+        self.db_pool = DBManager.get_pool()
         logging.info("DB pool for Waker initialized")
 
         try:
@@ -127,10 +126,11 @@ class Waker:
                 await asyncio.sleep(self.current_interval)
         finally:
             await self.mcp_client.disconnect()
-            if self.db_pool:
-                logging.info("Closing Waker DB pool...")
-                await self.db_pool.close()
+            try:
+                await DBManager.close()
                 logging.info("Waker DB pool closed")
+            except Exception as e:
+                logging.warning(f"Error closing Waker DB pool: {e}")
 
     def _update_interval(self, had_activity: bool):
         if had_activity:

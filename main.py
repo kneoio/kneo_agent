@@ -53,13 +53,32 @@ class ApplicationManager:
             self.http_server.should_exit = True
 
     def start_http_server(self):
-        server_cfg = self.config.get("mcp_server", {})
+        server_cfg = self.config.get("web_server", {})
         host = server_cfg.get("host", "0.0.0.0")
-        port = int(server_cfg.get("port", 8081))
-        config = uvicorn.Config(mcp_http_app, host=host, port=port, log_level="info")
+        port = int(server_cfg.get("port"))
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Starting HTTP server on http://{host}:{port}")
+        
+        config = uvicorn.Config(
+            mcp_http_app,
+            host=host,
+            port=port,
+            log_level="info",
+            reload=False,
+            workers=1,
+            loop="asyncio"
+        )
         self.http_server = uvicorn.Server(config)
-        self.http_thread = threading.Thread(target=self.http_server.run, daemon=True)
+        self.http_thread = threading.Thread(
+            target=self.http_server.run,
+            daemon=True,
+            kwargs={"sockets": None}
+        )
         self.http_thread.start()
+        
+        import time
+        time.sleep(1)  # Give the server a moment to start
 
 
 def run_scheduler(waker, app_manager):
@@ -90,8 +109,6 @@ async def async_main():
         logger.warning("Broadcaster API base URL not found in config or config loading failed.")
 
     app_manager = ApplicationManager(config)
-
-    #atexit.register(lambda: asyncio.create_task(app_manager.cleanup_mcp_client()))
 
     try:
         logger.info("Waiting for MCP client connection...")

@@ -1,3 +1,6 @@
+from datetime import datetime, UTC
+
+
 class BrandMemoryManager:
     def __init__(self):
         self.memory = {}
@@ -12,8 +15,14 @@ class BrandMemoryManager:
 
     def add(self, brand: str, text: str):
         cleaned = self.clean(text)
+        entry = {
+            "t": datetime.now(UTC).isoformat(timespec="seconds"),
+            "text": cleaned
+        }
+
         m = self.memory.setdefault(brand, [])
-        m.append(cleaned)
+        m.append(entry)
+
         if len(m) > 20:
             m[:] = m[-20:]
 
