@@ -1,4 +1,5 @@
 import json
+import asyncio
 from typing import Dict, Callable
 
 from langchain_anthropic import ChatAnthropic
@@ -78,7 +79,12 @@ class LlmFactory:
             
         self.llm_type = llm_type
 
-        cache_key = f"{llm_type}_{internet_mcp is not None}"
+        try:
+            loop = asyncio.get_running_loop()
+            loop_id = id(loop)
+        except RuntimeError:
+            loop_id = 0
+        cache_key = f"{llm_type}_{internet_mcp is not None}_{loop_id}"
         if cache_key in self.clients:
             client = self.clients[cache_key]
             client.llm_type = llm_type
