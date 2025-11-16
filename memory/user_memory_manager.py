@@ -5,26 +5,33 @@ class UserMemoryManager:
     async def load(self, user_id: int):
         async with self.db.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT user, telegram_name, brand, history FROM mixpla__user_memory WHERE user = $1",
+                "SELECT user_id, telegram_name, brand, history FROM mixpla__user_memory WHERE user_id = $1",
                 user_id
             )
             return dict(row) if row else None
 
     async def save(self, user_id: int, telegram_name: str, brand: str, history):
         async with self.db.acquire() as conn:
-            await conn.execute(
+            updated = await conn.fetchval(
                 """
-                INSERT INTO mixpla__user_memory (last_mod_date, user, telegram_name, brand, history)
-                VALUES (NOW(), $1, $2, $3, $4)
-                ON CONFLICT (user)
-                DO UPDATE SET
-                    last_mod_date = NOW(),
-                    telegram_name = EXCLUDED.telegram_name,
-                    brand = EXCLUDED.brand,
-                    history = EXCLUDED.history;
+                UPDATE mixpla__user_memory
+                SET last_mod_date = NOW(),
+                    telegram_name = $2,
+                    brand = $3,
+                    history = $4
+                WHERE user_id = $1
+                RETURNING 1
                 """,
                 user_id, telegram_name, brand, history
             )
+            if not updated:
+                await conn.execute(
+                    """
+                    INSERT INTO mixpla__user_memory (last_mod_date, user_id, telegram_name, brand, history)
+                    VALUES (NOW(), $1, $2, $3, $4)
+                    """,
+                    user_id, telegram_name, brand, history
+                )
 
     async def add(self, user_id: int, telegram_name: str, brand: str, text: str):
         data = await self.load(user_id)
@@ -49,15 +56,6 @@ class UserMemoryManager:
         from llm.llm_request import invoke_intro
         summary = await invoke_intro(llm_client, prompt, text, llm_type)
         return summary.actual_result
-
-
-    async def add(self, user_id: int, telegram_name: str, brand: str, text: str):
-        data = await self.load(user_id)
-        history = data["history"] if data else []
-        history.append({"role": "user", "text": text})
-        if len(history) > 30:
-            history = history[-30:]
-        await self.save(user_id, telegram_name, brand, history)
 
     async def clear(self, user_id: int):
         async with self.db.acquire() as conn:
