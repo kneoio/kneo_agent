@@ -6,7 +6,8 @@ from typing import Tuple
 from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
-from core.brans_memory_manager import BrandMemoryManager
+from memory.brand_user_summorizer import BrandUserSummarizer
+from memory.brans_memory_manager import BrandMemoryManager
 from llm.llm_request import invoke_intro
 from mcp.queue_mcp import QueueMCP
 from models.live_container import LiveRadioStation
@@ -29,6 +30,8 @@ class RadioDJV2:
         self.queue_mcp = QueueMCP(mcp_client)
         self.target_dir = target_dir
         self.graph = self._build_graph()
+        self.db = db_pool
+        self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
 
     async def run(self) -> Tuple[bool, str, str]:
         self.logger.info(f"---------------------Interaction started ------------------------------")
@@ -58,27 +61,26 @@ class RadioDJV2:
         workflow.add_edge("broadcast_audio", END)
         return workflow.compile()
 
-    async def _generate_intro(self, state: DJState) -> DJState:
-        for idx, prompt_item in enumerate(self.live_station.prompts):
-            draft = prompt_item.draft or ""
-            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}")
-            self.ai_logger.info(f"{self.brand} DRAFT:\n {draft}")
-            self.ai_logger.info(f"{self.brand} PROMPT:\n {prompt_item.prompt}")
+    async def _generate_intro(self, state):
+        raw_mem = "\n".join(RadioDJV2.brand_raw_memory.get(self.brand))
+        listener_summary = await self.user_summary.summarize(self.brand)
+        summary_row = await self._load_brand_summary()
+        long_summary = summary_row["summary"] if summary_row else ""
 
-            raw_mem_list = RadioDJV2.memory_manager.get(self.brand)
-            raw_mem = "\n".join(raw_mem_list)
-            full_prompt = f"Recent on-air memory:\n{raw_mem}\n\n{prompt_item.prompt}"
+        for p in self.station.prompts:
+            full_prompt = (
+                f"On-air memory:\n{raw_mem}\n\n"
+                f"Brand summary:\n{long_summary}\n\n"
+                f"Listener mood:\n{listener_summary}\n\n"
+                f"{p.prompt}"
+            )
 
-            intro_text = await invoke_intro(self.llm, full_prompt, draft, self.llm_type)
-
-            state["intro_texts"].append(intro_text.actual_result)
-            state["song_ids"].append(prompt_item.songId)
-            state["dialogue_states"].append(prompt_item.dialogue)
-
-            self.ai_logger.info(f"{self.brand} INTRO: {idx + 1}:\n {intro_text}")
-            self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
-
-            RadioDJV2.memory_manager.add(self.brand, intro_text.actual_result)
+            intro = await invoke_intro(self.llm, full_prompt, p.draft or "", self.llm_type)
+            cleaned = intro.actual_result.replace("<result>", "").replace("</result>", "").strip()
+            RadioDJV2.brand_raw_memory.add(self.brand, cleaned)
+            state["intro_texts"].append(cleaned)
+            state["song_ids"].append(p.songId)
+            state["dialogue_states"].append(p.dialogue)
 
         return state
 
@@ -173,3 +175,11 @@ class RadioDJV2:
             state["broadcast_success"] = False
 
         return state
+
+    async def _load_brand_summary(self):
+        async with self.db.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT summary FROM mixpla__brand_memory WHERE brand = $1 ORDER BY day DESC LIMIT 1",
+                self.brand
+            )
+            return row

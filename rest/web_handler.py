@@ -1,7 +1,10 @@
 import logging
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from rest.app_state import AppState
 from pydantic import BaseModel
 
 from cnst.llm_types import LlmType
@@ -11,6 +14,10 @@ from core.config import get_merged_config
 from llm.llm_request import invoke_intro
 from llm.llm_request import translate_content
 from mcp.external.internet_mcp import InternetMCP
+from memory.brand_summarizer import BrandSummarizer
+from memory.brand_user_summorizer import BrandUserSummarizer
+from memory.brans_memory_manager import BrandMemoryManager
+from memory.user_memory_manager import UserMemoryManager
 from tools.radio_dj_v2 import RadioDJV2
 from util.llm_factory import LlmFactory
 from util.template_loader import render_template
@@ -19,7 +26,25 @@ import asyncpg
 import httpx
 from fastapi import Request
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    pool = await asyncpg.create_pool(DB_DSN)
+    app.state.db = pool
+    app.state.brand_memory = BrandMemoryManager()
+    app.state.user_memory = UserMemoryManager(pool)
+    app.state.summarizer = BrandSummarizer(
+        llm_client=llm_factory.get_llm_client(LlmType.GROQ),
+        db_pool=pool,
+        memory_manager=RadioDJV2.memory_manager,
+        llm_type=LlmType.GROQ
+    )
+    yield
+    if pool:
+        await pool.close()
+
+app = FastAPI(lifespan=lifespan)
+app.state = AppState()  # type: ignore
 logger = logging.getLogger(__name__)
  
 cfg = get_merged_config("config.yaml")
@@ -64,32 +89,38 @@ class TranslateRequest(BaseModel):
 def health():
     return {"status": "ok"}
 
-@app.on_event("startup")
-async def startup():
-    app.state.db = await asyncpg.create_pool(DB_DSN)
+
 
 @app.post("/telegram/webhook")
 async def telegram_webhook(req: Request):
     data = await req.json()
-    message = data.get("message", {})
-    chat = message.get("chat", {})
+    msg = data.get("message", {})
+    chat = msg.get("chat", {})
     chat_id = chat.get("id")
-    text = message.get("text")
+    text = msg.get("text")
+    name = chat.get("username") or chat.get("first_name") or ""
+    brand = "default"
 
     if not chat_id or not text:
-        return {"ok": False, "reason": "no message"}
+        return {"ok": False}
 
-    async with app.state.db.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO mixpla__chat_log (author, reg_date, last_mod_user, last_mod_date, brand, data)
-            VALUES ($1, NOW(), $1, NOW(), 'default', jsonb_build_array(jsonb_build_object('role','user','text',$2)))
-            ON CONFLICT (author)
-            DO UPDATE SET
-                data = mixpla__chat_log.data || jsonb_build_array(jsonb_build_object('role','user','text',$2)),
-                last_mod_date = NOW();
-        """, chat_id, text)
+    await app.state.user_memory.add(chat_id, name, brand, text)
 
-    reply = f"Got your message: {text}"
+    summarizer = BrandUserSummarizer(
+        app.state.db,
+        llm_factory.get_llm_client(LlmType.GROQ),
+        LlmType.GROQ
+    )
+    listener_summary = await summarizer.summarize(brand)
+
+    result = await invoke_intro(
+        llm_client=llm_factory.get_llm_client(LlmType.GROQ),
+        prompt=f"Reply warmly as a DJ speaking privately to the listener.\nListener summary:\n{listener_summary}",
+        draft=text,
+        llm_type=LlmType.GROQ
+    )
+    reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
+
     async with httpx.AsyncClient() as client:
         await client.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
@@ -138,8 +169,24 @@ async def test_prompt(req: PromptRequest):
     print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
 
+@app.post("/debug/summarize/{brand}")
+async def debug_summarize(brand: str):
+    result = await app.state.summarizer.summarize(brand)
+    return {"summary": result}
+
 @app.get("/debug/brand_memory")
 async def debug_brand_memory():
     return RadioDJV2.memory_manager.memory
+
+# debug: view current listener summary
+@app.get("/debug/listener_summary/{brand}")
+async def debug_listener_summary(brand: str):
+    summarizer = BrandUserSummarizer(
+        app.state.db,
+        llm_factory.get_llm_client(LlmType.GROQ),
+        LlmType.GROQ
+    )
+    return {"summary": await summarizer.summarize(brand)}
+
 
 
