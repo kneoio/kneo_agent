@@ -1,6 +1,18 @@
 import logging
 import asyncpg
 import httpx
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -41,25 +53,56 @@ internet = InternetMCP(config=cfg)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
-    pool = await asyncpg.create_pool(DB_DSN)
-    app.state.db = pool
-    app.state.brand_memory = BrandMemoryManager()
-    app.state.user_memory = UserMemoryManager(pool)
-    app.state.summarizer = BrandSummarizer(
-        llm_client=llm_factory.get_llm_client(LlmType.GROQ),
-        db_pool=pool,
-        memory_manager=RadioDJV2.memory_manager,
-        llm_type=LlmType.GROQ
-    )
-    yield
-    if pool:
-        await pool.close()
+    logger.info("Starting application lifespan...")
+    pool = None
+    try:
+        # Log configuration
+        logger.info(f"Database DSN (first 20 chars): {DB_DSN[:20]}..." if DB_DSN else "WARNING: DB_DSN is not set!")
+        
+        # Initialize database pool
+        logger.info("Initializing database connection pool...")
+        pool = await asyncpg.create_pool(DB_DSN)
+        if pool:
+            logger.info("Database pool created successfully")
+            app.state.db = pool
+        else:
+            logger.error("Failed to create database pool")
+            raise RuntimeError("Failed to create database pool")
+        
+        # Initialize services
+        logger.info("Initializing BrandMemoryManager...")
+        app.state.brand_memory = BrandMemoryManager()
+        
+        logger.info("Initializing UserMemoryManager...")
+        app.state.user_memory = UserMemoryManager(pool)
+        
+        logger.info("Initializing BrandSummarizer...")
+        app.state.summarizer = BrandSummarizer(
+            llm_client=llm_factory.get_llm_client(LlmType.GROQ),
+            db_pool=pool,
+            memory_manager=RadioDJV2.memory_manager,
+            llm_type=LlmType.GROQ
+        )
+        
+        logger.info("Application startup completed successfully")
+        yield
+        
+    except Exception as e:
+        logger.error(f"Error during application startup: {str(e)}", exc_info=True)
+        raise
+        
+    finally:
+        logger.info("Shutting down application...")
+        if pool:
+            logger.info("Closing database pool...")
+            await pool.close()
+            logger.info("Database pool closed")
 
 # Initialize FastAPI app
+logger.info("Initializing FastAPI application...")
 app = FastAPI(lifespan=lifespan)
 app.state = AppState()  # type: ignore
-logger = logging.getLogger(__name__)
+logger.info("FastAPI application initialized")
 
 # Add CORS middleware
 app.add_middleware(
