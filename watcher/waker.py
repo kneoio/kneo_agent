@@ -77,17 +77,15 @@ class Waker:
                 await api_client.close()
 
     async def process_brand_queue(self):
-        tasks = []
+        had_success = False
         while not self.brand_queue.empty():
             station = self.brand_queue.get()
-            tasks.append(self._process_single_station(station))
-            self.brand_queue.task_done()
-
-        if not tasks:
-            return False
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        return any(r is True for r in results)
+            try:
+                ok = await self._process_single_station(station)
+                had_success = had_success or ok
+            finally:
+                self.brand_queue.task_done()
+        return had_success
 
     async def _async_run(self):
         self.mcp_client = MCPClient(self.config, skip_initialization=True)

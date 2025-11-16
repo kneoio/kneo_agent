@@ -5,7 +5,7 @@ from core.config import get_merged_config
 
 
 class DBManager:
-    _pool: Optional[asyncpg.Pool] = None
+    _pools: Dict[int, asyncpg.Pool] = {}
     _lock = asyncio.Lock()
     _config: Dict[str, Any] = {}
 
@@ -16,9 +16,16 @@ class DBManager:
 
     @classmethod
     async def init(cls, dsn: str = None, ssl: bool = None) -> None:
-        if cls._pool is not None:
+        loop = None
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        loop_id = id(loop) if loop else 0
+
+        if loop_id in cls._pools:
             return
-            
+
         if not cls._config:
             cls.load_config()
             
@@ -29,18 +36,30 @@ class DBManager:
             raise ValueError("Database DSN not provided in configuration")
             
         async with cls._lock:
-            if cls._pool is not None:
+            if loop_id in cls._pools:
                 return
-            cls._pool = await asyncpg.create_pool(dsn, ssl="require" if ssl else None)
+            pool = await asyncpg.create_pool(dsn, ssl="require" if ssl else None)
+            cls._pools[loop_id] = pool
 
     @classmethod
     def get_pool(cls) -> asyncpg.Pool:
-        if cls._pool is None:
-            raise RuntimeError("DBManager not initialized. Call DBManager.init() first.")
-        return cls._pool
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        loop_id = id(loop) if loop else 0
+        pool = cls._pools.get(loop_id)
+        if pool is None:
+            raise RuntimeError("DBManager not initialized for this event loop. Call DBManager.init() first.")
+        return pool
 
     @classmethod
     async def close(cls) -> None:
-        if cls._pool is not None:
-            await cls._pool.close()
-            cls._pool = None
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        loop_id = id(loop) if loop else 0
+        pool = cls._pools.pop(loop_id, None)
+        if pool is not None:
+            await pool.close()
