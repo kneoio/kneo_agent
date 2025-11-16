@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from queue import Queue
+import asyncpg
 from typing import Dict
 
 from api.broadcaster_client import BroadcasterAPIClient
@@ -25,6 +26,7 @@ class Waker:
         self.brand_queue = Queue()
         self.llmFactory = LlmFactory(config)
         self.last_activity_time = time.time()
+        self.db_pool = None
 
         self.target_dir = str(MERGED_AUDIO_DIR)
         os.makedirs(self.target_dir, exist_ok=True)
@@ -45,21 +47,19 @@ class Waker:
             api_client = BroadcasterAPIClient(self.config)
             llmType = LlmType(station.llmType) if station.llmType else None
             llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
-            
-            # Get the database pool from the FastAPI app state
-            from rest.web_handler import app
-            if not hasattr(app.state, 'db'):
-                logging.error("Database pool not found in app.state")
+
+            if not self.db_pool:
+                logging.error("Database pool not initialized in Waker")
                 return False
-                
+
             runner = DJRunner(
-                config=self.config, 
-                station=station, 
+                config=self.config,
+                station=station,
                 api_client=api_client,
-                mcp_client=self.mcp_client, 
-                llm_client=llmClient, 
+                mcp_client=self.mcp_client,
+                llm_client=llmClient,
                 llm_type=llmType,
-                db_pool=app.state.db
+                db_pool=self.db_pool
             )
 
             await asyncio.wait_for(runner.run(), timeout=self.TIMEOUT_PER_STATION)
@@ -94,6 +94,16 @@ class Waker:
         await self.mcp_client.connect()
         self.live_stations_mcp = LiveRadioStationsMCP(self.mcp_client)
 
+        # Initialize DB pool once
+        db_cfg = self.config.get("database", {}) if isinstance(self.config, dict) else {}
+        dsn = db_cfg.get("dsn")
+        if not dsn:
+            logging.error("Database DSN not found in config; cannot initialize DB pool")
+            return
+        logging.info(f"Initializing DB pool for Waker (first 20 chars): {dsn[:20]}...")
+        self.db_pool = await asyncpg.create_pool(dsn)
+        logging.info("DB pool for Waker initialized")
+
         try:
             while True:
                 had_activity = False
@@ -114,6 +124,10 @@ class Waker:
                 await asyncio.sleep(self.current_interval)
         finally:
             await self.mcp_client.disconnect()
+            if self.db_pool:
+                logging.info("Closing Waker DB pool...")
+                await self.db_pool.close()
+                logging.info("Waker DB pool closed")
 
     def _update_interval(self, had_activity: bool):
         if had_activity:
