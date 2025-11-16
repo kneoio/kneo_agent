@@ -128,9 +128,14 @@ async def telegram_webhook(req: Request):
     brand = "default"
 
     if not chat_id or not text:
+        logger.info("Telegram webhook: missing chat_id or text")
         return {"ok": False}
 
+    preview = text if len(text) <= 120 else text[:117] + "..."
+    logger.info(f"Telegram webhook: received chat_id={chat_id}, name={name}, text='{preview}'")
+
     await app.state.user_memory.add(chat_id, name, brand, text)
+    logger.info(f"Telegram webhook: saved message for chat_id={chat_id}")
 
     summarizer = BrandUserSummarizer(
         app.state.db,
