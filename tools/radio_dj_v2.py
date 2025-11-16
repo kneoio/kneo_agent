@@ -65,12 +65,12 @@ class RadioDJV2:
         return workflow.compile()
 
     async def _generate_intro(self, state):
-        raw_mem = "\n".join(RadioDJV2.brand_raw_memory.get(self.brand))
+        raw_mem = "\n".join(RadioDJV2.memory_manager.get(self.brand))
         listener_summary = await self.user_summary.summarize(self.brand)
         summary_row = await self._load_brand_summary()
         long_summary = summary_row["summary"] if summary_row else ""
 
-        for p in self.station.prompts:
+        for p in self.live_station.prompts:
             full_prompt = (
                 f"On-air memory:\n{raw_mem}\n\n"
                 f"Brand summary:\n{long_summary}\n\n"
@@ -80,7 +80,7 @@ class RadioDJV2:
 
             intro = await invoke_intro(self.llm, full_prompt, p.draft or "", self.llm_type)
             cleaned = intro.actual_result.replace("<result>", "").replace("</result>", "").strip()
-            RadioDJV2.brand_raw_memory.add(self.brand, cleaned)
+            RadioDJV2.memory_manager.add(self.brand, cleaned)
             state["intro_texts"].append(cleaned)
             state["song_ids"].append(p.songId)
             state["dialogue_states"].append(p.dialogue)
