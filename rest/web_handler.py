@@ -1,18 +1,19 @@
 import logging
+import asyncpg
+import httpx
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
-from rest.app_state import AppState
 from pydantic import BaseModel
 
+# Import application components
+from rest.app_state import AppState
 from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from core.config import get_merged_config
-from llm.llm_request import invoke_intro
-from llm.llm_request import translate_content
+from llm.llm_request import invoke_intro, translate_content
 from mcp.external.internet_mcp import InternetMCP
 from memory.brand_summarizer import BrandSummarizer
 from memory.brand_user_summorizer import BrandUserSummarizer
@@ -22,9 +23,21 @@ from tools.radio_dj_v2 import RadioDJV2
 from util.llm_factory import LlmFactory
 from util.template_loader import render_template
 
-import asyncpg
-import httpx
-from fastapi import Request
+# Load configuration
+cfg = get_merged_config("config.yaml")
+telegram_cfg = cfg.get("telegram", {})
+db_cfg = cfg.get("database", {})
+TELEGRAM_TOKEN = telegram_cfg.get("token")
+DB_DSN = db_cfg.get("dsn")
+server_cfg = cfg.get("mcp_server", {})
+cors_cfg = server_cfg.get("cors", {})
+allow_origins = cors_cfg.get("allow_origins", ["*"])
+allow_methods = cors_cfg.get("allow_methods", ["*"])
+allow_headers = cors_cfg.get("allow_headers", ["*"])
+
+# Initialize services
+llm_factory = LlmFactory(cfg)
+internet = InternetMCP(config=cfg)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,30 +56,18 @@ async def lifespan(app: FastAPI):
     if pool:
         await pool.close()
 
+# Initialize FastAPI app
 app = FastAPI(lifespan=lifespan)
 app.state = AppState()  # type: ignore
 logger = logging.getLogger(__name__)
- 
-cfg = get_merged_config("config.yaml")
-telegram_cfg = cfg.get("telegram", {})
-db_cfg = cfg.get("database", {})
-TELEGRAM_TOKEN = telegram_cfg.get("token")
-DB_DSN = db_cfg.get("dsn")
-server_cfg = cfg.get("mcp_server", {})
-cors_cfg = server_cfg.get("cors", {})
-allow_origins = cors_cfg.get("allow_origins", ["*"])
-allow_methods = cors_cfg.get("allow_methods", ["*"])
-allow_headers = cors_cfg.get("allow_headers", ["*"])
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
     allow_methods=allow_methods,
     allow_headers=allow_headers,
 )
-
-llm_factory = LlmFactory(cfg)
-internet = InternetMCP(config=cfg)
 
 
 class SearchRequest(BaseModel):
