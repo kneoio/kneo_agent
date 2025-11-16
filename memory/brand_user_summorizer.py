@@ -1,4 +1,4 @@
-# brand_user_summarizer.py
+import json
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
 
@@ -17,8 +17,16 @@ class BrandUserSummarizer:
 
         texts = []
         for r in rows:
-            for h in r["history"]:
-                texts.append(h["text"])
+            h = r["history"]
+            if isinstance(h, str):
+                try:
+                    h = json.loads(h)
+                except Exception:
+                    h = []
+            if isinstance(h, list):
+                for item in h:
+                    if isinstance(item, dict) and "text" in item:
+                        texts.append(item["text"])
 
         if not texts:
             return ""
