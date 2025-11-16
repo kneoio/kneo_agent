@@ -20,7 +20,7 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, llm_type: LlmTy
     else:
         logger.debug(f"invoke_intro: No internet tools available for {llm_type.name}")
     
-    response = await llm_client.ainvoke(
+    response = await llm_client.invoke(
         messages=[
             {"role": "system", "content": "You are a professional radio DJ"},
             {"role": "user", "content": full_prompt}
@@ -39,7 +39,7 @@ async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'Ll
     else:
         logger.debug(f"invoke_chat: No internet tools available for {llm_type.name}")
 
-    response = await llm_client.ainvoke(
+    response = await llm_client.invoke(
         messages=messages,
         tools=tools
     )
@@ -48,7 +48,7 @@ async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'Ll
 
 async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> 'LlmResponse':
     full_prompt = f"{prompt}\n\nInput:\n{to_translate}"
-    response = await llm_client.ainvoke(messages=[
+    response = await llm_client.invoke(messages=[
         {"role": "system", "content": "You are a professional translator."},
         {"role": "user", "content": full_prompt}
     ])
@@ -56,7 +56,7 @@ async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> '
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
 
 async def translate_content(llm_client: Any, full_prompt: str) -> 'LlmResponse':
-    response = await llm_client.ainvoke(messages=[
+    response = await llm_client.invoke(messages=[
         {"role": "system", "content": "You are a professional translator."},
         {"role": "user", "content": full_prompt}
     ])
