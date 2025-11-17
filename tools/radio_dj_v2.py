@@ -84,7 +84,9 @@ class RadioDJV2:
             state["intro_texts"].append(response.actual_result)
             state["song_ids"].append(prompt_item.songId)
             state["dialogue_states"].append(prompt_item.dialogue)
-            RadioDJV2.memory_manager.add(self.brand, response.actual_result)
+            if not prompt_item.dialogue:
+                RadioDJV2.memory_manager.add(self.brand, response.actual_result)
+
             self.ai_logger.info(f"{self.brand} INTRO: {idx + 1}:\n {response.actual_result}")
             self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
 
