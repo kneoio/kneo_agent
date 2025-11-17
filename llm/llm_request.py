@@ -9,8 +9,8 @@ from mcp.external.internet_mcp import InternetMCP
 logger = logging.getLogger(__name__)
 
 
-async def invoke_intro(llm_client: Any, prompt: str, draft: str) -> 'LlmResponse':
-    full_prompt = f"{prompt}\n\nInput:\n{draft}"
+async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str) -> 'LlmResponse':
+    full_prompt = f"{prompt}\n\nInput:\n{draft}\n\nOn-air memory:\n{on_air_memory}"
     
     tools = None
     if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:

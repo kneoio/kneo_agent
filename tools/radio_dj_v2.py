@@ -64,17 +64,22 @@ class RadioDJV2:
         return workflow.compile()
 
     async def _generate_intro(self, state: DJState) -> DJState:
+        memory_entries = RadioDJV2.memory_manager.get(self.brand)
+        memory_texts = [entry["text"] for entry in memory_entries if isinstance(entry, dict) and "text" in entry]
+        raw_mem = "\n".join(memory_texts)
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
             self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}")
             self.ai_logger.info(f"{self.brand} DRAFT:\n {draft}")
-            self.ai_logger.info(f"PROMPT: {prompt_item.prompt[:50]}...")
+            self.ai_logger.info(f"PROMPT: {prompt_item.prompt[:100]}...")
 
             response = await invoke_intro(
                 llm_client=self.llm,
                 prompt=prompt_item.prompt,
-                draft=draft
+                draft=draft,
+                on_air_memory=raw_mem
             )
+            print(self.brand)
             print(response)
             state["intro_texts"].append(response.actual_result)
             state["song_ids"].append(prompt_item.songId)
