@@ -60,7 +60,7 @@ class DJRunner:
             else:
                 self.logger.warning(f"Broadcast failed for: {self.brand}")
         except Exception as e:
-            self.logger.error(f"Error in _feed_broadcast: {e}")
+            self.logger.error(f"Error in radio_dj_v2 run: {e}")
             raise
         if not hasattr(self, '_external_mcp_client'):
             await self.mcp_client.disconnect()

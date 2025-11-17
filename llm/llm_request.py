@@ -9,16 +9,16 @@ from mcp.external.internet_mcp import InternetMCP
 logger = logging.getLogger(__name__)
 
 
-async def invoke_intro(llm_client: Any, prompt: str, draft: str, llm_type: LlmType) -> 'LlmResponse':
+async def invoke_intro(llm_client: Any, prompt: str, draft: str) -> 'LlmResponse':
     full_prompt = f"{prompt}\n\nInput:\n{draft}"
     
     tools = None
     if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
         internet_tool = SearchEngine.Perplexity.value
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
-        logger.info(f'invoke_intro: Internet tools "{internet_tool}" enabled for {llm_type.name}')
+        logger.info(f'invoke_intro: Internet tools "{internet_tool}" enabled for {llm_client.llm_type.name}')
     else:
-        logger.debug(f"invoke_intro: No internet tools available for {llm_type.name}")
+        logger.debug(f"invoke_intro: No internet tools available for {llm_client.llm_type.name}")
     
     response = await llm_client.invoke(
         messages=[
@@ -27,7 +27,7 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, llm_type: LlmTy
         ],
         tools=tools
     )
-    return LlmResponse.parse_plain_response(response, llm_type)
+    return LlmResponse.parse_plain_response(response, llm_client.llm_type)
 
 
 async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'LlmResponse':

@@ -18,6 +18,7 @@ class QueueMCP:
                 "song1": sound_fragment_uuid
             },
             "mergingMethod": "INTRO_SONG",
+            #"mergingMethod": "NOT_MIXED",
             "priority": priority,
         }
         if file_path:
