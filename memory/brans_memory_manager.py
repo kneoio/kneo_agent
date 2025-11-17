@@ -5,19 +5,10 @@ class BrandMemoryManager:
     def __init__(self):
         self.memory = {}
 
-    @staticmethod
-    def clean(text: str) -> str:
-        return (
-            text.replace("<result>", "")
-                .replace("</result>", "")
-                .strip()
-        )
-
     def add(self, brand: str, text: str):
-        cleaned = self.clean(text)
         entry = {
             "t": datetime.now(UTC).isoformat(timespec="seconds"),
-            "text": cleaned
+            "text": text
         }
 
         m = self.memory.setdefault(brand, [])

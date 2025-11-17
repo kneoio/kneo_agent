@@ -7,20 +7,18 @@ from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
+from mcp.queue_mcp import QueueMCP
 from memory.brand_user_summorizer import BrandUserSummarizer
 from memory.brans_memory_manager import BrandMemoryManager
-from mcp.queue_mcp import QueueMCP
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
-from mcp.external.internet_mcp import InternetMCP
-
 
 
 class RadioDJV2:
     memory_manager = BrandMemoryManager()
 
     def __init__(self, station: LiveRadioStation, audio_processor, target_dir: str,
-                 mcp_client=None, llm_client=None, llm_type=LlmType.GROQ, db_pool=None, config=None):
+                 mcp_client=None, llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
         if db_pool is None:
             raise ValueError("db_pool parameter is required for RadioDJV2 initialization")
 
@@ -34,7 +32,7 @@ class RadioDJV2:
         self.queue_mcp = QueueMCP(mcp_client)
         self.target_dir = target_dir
         self.db = db_pool
-        self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
+        #self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
         self.graph = self._build_graph()
 
     async def run(self) -> Tuple[bool, str, str]:
@@ -81,7 +79,7 @@ class RadioDJV2:
             state["intro_texts"].append(response.actual_result)
             state["song_ids"].append(prompt_item.songId)
             state["dialogue_states"].append(prompt_item.dialogue)
-
+            RadioDJV2.memory_manager.add(self.brand, response.actual_result)
             self.ai_logger.info(f"{self.brand} INTRO: {idx + 1}:\n {response.actual_result}")
             self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
 
