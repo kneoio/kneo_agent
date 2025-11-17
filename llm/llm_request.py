@@ -10,8 +10,17 @@ logger = logging.getLogger(__name__)
 
 
 async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str) -> 'LlmResponse':
-    full_prompt = f"{prompt}\n\nInput:\n{draft}\n\nOn-air memory:\n{on_air_memory}"
-    
+    memory_block = (
+        "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
+        f"{on_air_memory}\n\n"
+    )
+
+    full_prompt = (
+        f"{memory_block}"
+        f"{prompt}\n\n"
+        f"Draft input:\n{draft}"
+    )
+
     tools = None
     if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
         internet_tool = SearchEngine.Perplexity.value
@@ -19,7 +28,7 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
         logger.info(f'invoke_intro: Internet tools "{internet_tool}" enabled for {llm_client.llm_type.name}')
     else:
         logger.debug(f"invoke_intro: No internet tools available for {llm_client.llm_type.name}")
-    
+
     response = await llm_client.invoke(
         messages=[
             {"role": "system", "content": "You are a professional radio DJ"},
@@ -27,7 +36,9 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
         ],
         tools=tools
     )
+
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
+
 
 
 async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'LlmResponse':
