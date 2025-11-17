@@ -1,10 +1,13 @@
 import json
 from datetime import datetime, UTC
 
+from llm.noise_filter import NoiseFilter
+
 
 class BrandMemoryManager:
     def __init__(self):
         self.memory = {}
+        self.filter = NoiseFilter()
 
     @staticmethod
     def _normalize(text: str) -> str:
@@ -25,6 +28,10 @@ class BrandMemoryManager:
         return t
 
     def add(self, brand: str, text: str):
+
+        if self.filter.is_noise(text):
+            return
+
         cleaned = self._normalize(text)
         if not cleaned.strip():
             return
