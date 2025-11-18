@@ -59,9 +59,10 @@ async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
     last_tool_output_str = None
     if hasattr(response, 'tool_calls') and response.tool_calls and getattr(llm_client, 'tool_functions', None):
         try:
-            logger.info(f"invoke_chat: tool_calls returned: {response.tool_calls}")
+            tc_count = len(response.tool_calls) if response.tool_calls else 0
+            logger.info(f"invoke_chat: {tc_count} tool_calls returned")
         except Exception:
-            pass
+            logger.info("invoke_chat: tool_calls returned")
         
         messages.append({
             "role": "assistant",
