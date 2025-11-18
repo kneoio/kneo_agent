@@ -72,8 +72,8 @@ async def telegram_webhook(req: Request):
     
     messages.append({"role": "user", "content": text})
     
-    client = llm_factory.get_llm_client(LlmType.OPENROUTER, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
-    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.OPENROUTER)
+    client = llm_factory.get_llm_client(LlmType.GROQ, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
+    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.GROQ)
     reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
 
     if not data_state:
