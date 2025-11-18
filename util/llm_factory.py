@@ -40,7 +40,7 @@ class LlmFactory:
                 default_headers=headers if isinstance(headers, dict) else None
             )
 
-    def get_llm_client(self, llm_type: LlmType, internet_mcp=None):
+    def get_llm_client(self, llm_type: LlmType, internet_mcp=None, sound_fragment_mcp=None):
         if not self.logger:
             import logging
             self.logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class LlmFactory:
             loop_id = id(loop)
         except RuntimeError:
             loop_id = 0
-        cache_key = f"{llm_type}_{internet_mcp is not None}_{loop_id}"
+        cache_key = f"{llm_type}_{internet_mcp is not None}_{sound_fragment_mcp is not None}_{loop_id}"
         if cache_key in self.clients:
             client = self.clients[cache_key]
             client.llm_type = llm_type
@@ -79,6 +79,10 @@ class LlmFactory:
             temperature = cfg.get('temperature')
             client = OpenAIAdapter(self.moonshot_client, model=model, temperature=temperature)
             client.llm_type = llm_type
+            if internet_mcp:
+                client.tool_functions["search_internet"] = internet_mcp.search_internet
+            if sound_fragment_mcp:
+                client.tool_functions["get_brand_sound_fragment"] = sound_fragment_mcp.get_brand_sound_fragment
             self.clients[cache_key] = client
             return client
         elif llm_type == LlmType.DEEPSEEK and self.deepseek_client:
@@ -87,6 +91,10 @@ class LlmFactory:
             temperature = cfg.get('temperature')
             client = OpenAIAdapter(self.deepseek_client, model=model, temperature=temperature)
             client.llm_type = llm_type
+            if internet_mcp:
+                client.tool_functions["search_internet"] = internet_mcp.search_internet
+            if sound_fragment_mcp:
+                client.tool_functions["get_brand_sound_fragment"] = sound_fragment_mcp.get_brand_sound_fragment
             self.clients[cache_key] = client
             return client
         elif llm_type == LlmType.OPENROUTER and self.openrouter_client:
@@ -95,6 +103,10 @@ class LlmFactory:
             temperature = cfg.get('temperature')
             client = OpenAIAdapter(self.openrouter_client, model=model, temperature=temperature)
             client.llm_type = llm_type
+            if internet_mcp:
+                client.tool_functions["search_internet"] = internet_mcp.search_internet
+            if sound_fragment_mcp:
+                client.tool_functions["get_brand_sound_fragment"] = sound_fragment_mcp.get_brand_sound_fragment
             self.clients[cache_key] = client
             return client
 
@@ -104,9 +116,12 @@ class LlmFactory:
 
             if internet_mcp:
                 client.bind_tool_function("search_internet", internet_mcp.search_internet)
-                self.logger.info(f"LLM client ({llm_type.name}) initialized with internet_mcp tools enabled")
+            if sound_fragment_mcp:
+                client.bind_tool_function("get_brand_sound_fragment", sound_fragment_mcp.get_brand_sound_fragment)
+            if internet_mcp or sound_fragment_mcp:
+                self.logger.info(f"LLM client ({llm_type.name}) initialized with tools enabled")
             else:
-                self.logger.info(f"LLM client ({llm_type.name}) initialized without internet tools")
+                self.logger.info(f"LLM client ({llm_type.name}) initialized without tools")
 
             self.clients[cache_key] = client
             return client

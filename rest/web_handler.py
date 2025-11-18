@@ -10,7 +10,7 @@ from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from llm.llm_request import invoke_intro, invoke_chat, translate_content
 from memory.brand_user_summorizer import BrandUserSummarizer
-from rest.app_setup import app_lifespan, llm_factory, internet, TELEGRAM_TOKEN, cors_settings, cfg
+from rest.app_setup import app_lifespan, llm_factory, internet, sound_fragments, TELEGRAM_TOKEN, cors_settings, cfg
 from rest.app_state import AppState
 from rest.prompt_request import PromptRequest
 from rest.search_request import SearchRequest
@@ -71,11 +71,8 @@ async def telegram_webhook(req: Request):
     
     messages.append({"role": "user", "content": text})
     
-    result = await invoke_chat(
-        llm_client=llm_factory.get_llm_client(LlmType.OPENROUTER),
-        messages=messages,
-        llm_type=LlmType.GROQ
-    )
+    client = llm_factory.get_llm_client(LlmType.OPENROUTER, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
+    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.GROQ)
     reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
 
     if not data_state:

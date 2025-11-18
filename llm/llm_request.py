@@ -1,10 +1,12 @@
 from typing import Any
 import logging
+import json
 
 from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
 from llm.llm_response import LlmResponse
 from mcp.external.internet_mcp import InternetMCP
+from mcp.external.sound_fragment_mcp import SoundFragmentMCP
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +48,35 @@ async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'Ll
     if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
         internet_tool = SearchEngine.Perplexity.value
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
-        logger.info(f'invoke_chat: Internet tools "{internet_tool}" enabled for {llm_type.name}')
+        if 'get_brand_sound_fragment' in llm_client.tool_functions:
+            tools.append(SoundFragmentMCP.get_tool_definition())
+        logger.info(f'invoke_chat: tools enabled for {llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}')
     else:
-        logger.debug(f"invoke_chat: No internet tools available for {llm_type.name}")
+        logger.debug(f"invoke_chat: No tools available for {llm_type.name}")
 
-    response = await llm_client.invoke(
-        messages=messages,
-        tools=tools
-    )
+    response = await llm_client.invoke(messages=messages, tools=tools)
+
+    if hasattr(response, 'tool_calls') and response.tool_calls and getattr(llm_client, 'tool_functions', None):
+        for tool_call in response.tool_calls:
+            try:
+                name = tool_call.function.name
+                args_raw = tool_call.function.arguments
+                args = json.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
+                func = llm_client.tool_functions.get(name)
+                if not func:
+                    continue
+                result = await func(**args)
+                messages.append({
+                    "tool_call_id": tool_call.id,
+                    "role": "tool",
+                    "name": name,
+                    "content": json.dumps(result)
+                })
+            except Exception as e:
+                logger.error(f"invoke_chat tool execution error for {getattr(tool_call.function, 'name', '')}: {e}")
+
+        response = await llm_client.invoke(messages=messages, tools=tools)
+
     return LlmResponse.parse_plain_response(response, llm_type)
 
 

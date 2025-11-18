@@ -13,6 +13,8 @@ from tools.radio_dj_v2 import RadioDJV2
 from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
 from mcp.external.internet_mcp import InternetMCP
+from mcp.external.sound_fragment_mcp import SoundFragmentMCP
+from mcp.mcp_client import MCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +32,17 @@ cors_settings = {
 
 llm_factory = LlmFactory(cfg)
 internet = InternetMCP(config=cfg)
+mcp_client = MCPClient(cfg, skip_initialization=False)
+sound_fragments = SoundFragmentMCP(mcp_client=mcp_client, config=cfg)
 
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     logger.info("Starting application lifespan...")
     try:
+        logger.info("Connecting MCP client...")
+        await mcp_client.connect()
+
         logger.info("Initializing database connection...")
         await DBManager.init()
         app.state.db = DBManager.get_pool()
@@ -68,3 +75,7 @@ async def app_lifespan(app: FastAPI):
             logger.info("Database pool closed")
         except Exception as e:
             logger.warning(f"Error during DB pool close: {e}")
+        try:
+            await mcp_client.disconnect()
+        except Exception as e:
+            logger.warning(f"Error during MCP disconnect: {e}")
