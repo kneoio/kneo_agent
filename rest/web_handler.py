@@ -1,17 +1,20 @@
 import logging
+from typing import Annotated
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
 from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from llm.llm_request import invoke_intro, invoke_chat, translate_content
 from memory.brand_user_summorizer import BrandUserSummarizer
-from rest.app_setup import app_lifespan, llm_factory, internet, TELEGRAM_TOKEN, cors_settings
+from rest.app_setup import app_lifespan, llm_factory, internet, TELEGRAM_TOKEN, cors_settings, cfg
 from rest.app_state import AppState
+from rest.prompt_request import PromptRequest
+from rest.search_request import SearchRequest
+from rest.translation_request import TranslateRequest
 from tools.radio_dj_v2 import RadioDJV2
 from util.template_loader import render_template
 
@@ -27,29 +30,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_settings["allow_origins"],
     allow_methods=cors_settings["allow_methods"],
-    allow_headers=cors_settings["allow_headers"],
+    allow_headers=["X-API-Key"] + cors_settings["allow_headers"],
 )
 
+API_KEY = cfg["web_handler"]["api_key"]
 
-class SearchRequest(BaseModel):
-    prompt: str
-    llm: LlmType
-    searchEngine: SearchEngine = SearchEngine.Brave
-
-
-class PromptRequest(BaseModel):
-    prompt: str
-    draft: str
-    llm: LlmType
+async def verify_api_key(x_api_key: Annotated[str | None, Header()] = None):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=404, detail="Resource not found")
 
 
-class TranslateRequest(BaseModel):
-    toTranslate: str
-    translationType: TranslationType
-    language: str
-
-
-@app.get("/health")
+@app.get("/health", dependencies=[Depends(verify_api_key)])
 def health():
     return {"status": "ok"}
 
@@ -81,7 +72,7 @@ async def telegram_webhook(req: Request):
     messages.append({"role": "user", "content": text})
     
     result = await invoke_chat(
-        llm_client=llm_factory.get_llm_client(LlmType.GROQ),
+        llm_client=llm_factory.get_llm_client(LlmType.OPENROUTER),
         messages=messages,
         llm_type=LlmType.GROQ
     )
@@ -103,7 +94,7 @@ async def telegram_webhook(req: Request):
     return {"ok": True}
 
 
-@app.post("/internet_search/test")
+@app.post("/internet_search/test", dependencies=[Depends(verify_api_key)])
 async def test_search(req: SearchRequest):
     logger.info(f"REQ llm={req.llm.name} prompt_len={len(req.prompt)}")
     q = req.prompt or ""
@@ -121,7 +112,7 @@ async def test_search(req: SearchRequest):
     return {"results": results_out, "llm": req.llm.name}
 
 
-@app.post("/translate")
+@app.post("/translate", dependencies=[Depends(verify_api_key)])
 async def translate(req: TranslateRequest):
     client = llm_factory.get_llm_client(LlmType.GROQ)
 
@@ -135,27 +126,30 @@ async def translate(req: TranslateRequest):
     return {"result": translation_result.actual_result, "reasoning": translation_result.reasoning}
 
 
-@app.post("/prompt/test")
+@app.post("/prompt/test", dependencies=[Depends(verify_api_key)])
 async def test_prompt(req: PromptRequest):
     client = llm_factory.get_llm_client(req.llm, internet_mcp=internet)
 
-    result = await invoke_intro(client, req.prompt, req.draft, req.llm)
+    result = await invoke_intro(client, req.prompt, req.draft, "")
     print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
 
 
-@app.post("/debug/summarize/{brand}")
+@app.post("/debug/summarize/{brand}", dependencies=[Depends(verify_api_key)])
 async def debug_summarize(brand: str):
     result = await app.state.summarizer.summarize(brand)
     return {"summary": result}
 
 
-@app.get("/debug/brand_memory")
+@app.get("/debug/brand_memory", dependencies=[Depends(verify_api_key)])
 async def debug_brand_memory():
     return RadioDJV2.memory_manager.memory
 
+@app.get("/debug/user_memory", dependencies=[Depends(verify_api_key)])
+async def debug_user_memory():
+    return await app.state.user_memory.get_all()
 
-@app.get("/debug/listener_summary/{brand}")
+@app.get("/debug/listener_summary/{brand}", dependencies=[Depends(verify_api_key)])
 async def debug_listener_summary(brand: str):
     summarizer = BrandUserSummarizer(
         app.state.db,

@@ -17,11 +17,27 @@ class LlmFactory:
         self.llm_type = LlmType.GROQ
         self.logger = None
         self.moonshot_client = None
+        self.deepseek_client = None
+        self.openrouter_client = None
         moonshot_cfg = self.config.get('moonshot', {})
         if moonshot_cfg.get('api_key'):
             self.moonshot_client = AsyncOpenAI(
                 api_key=moonshot_cfg.get('api_key'),
                 base_url="https://api.moonshot.ai/v1"
+            )
+        deepseek_cfg = self.config.get('deepseek', {})
+        if deepseek_cfg.get('api_key'):
+            self.deepseek_client = AsyncOpenAI(
+                api_key=deepseek_cfg.get('api_key'),
+                base_url="https://api.deepseek.com"
+            )
+        openrouter_cfg = self.config.get('openrouter', {})
+        if openrouter_cfg.get('api_key'):
+            headers = openrouter_cfg.get('headers') or {}
+            self.openrouter_client = AsyncOpenAI(
+                api_key=openrouter_cfg.get('api_key'),
+                base_url=openrouter_cfg.get('base_url', "https://openrouter.ai/api/v1"),
+                default_headers=headers if isinstance(headers, dict) else None
             )
 
     def get_llm_client(self, llm_type: LlmType, internet_mcp=None):
@@ -62,6 +78,22 @@ class LlmFactory:
             model = cfg.get('model')
             temperature = cfg.get('temperature')
             client = OpenAIAdapter(self.moonshot_client, model=model, temperature=temperature)
+            client.llm_type = llm_type
+            self.clients[cache_key] = client
+            return client
+        elif llm_type == LlmType.DEEPSEEK and self.deepseek_client:
+            cfg = self.config.get('deepseek', {})
+            model = cfg.get('model')
+            temperature = cfg.get('temperature')
+            client = OpenAIAdapter(self.deepseek_client, model=model, temperature=temperature)
+            client.llm_type = llm_type
+            self.clients[cache_key] = client
+            return client
+        elif llm_type == LlmType.OPENROUTER and self.openrouter_client:
+            cfg = self.config.get('openrouter', {})
+            model = cfg.get('model')
+            temperature = cfg.get('temperature')
+            client = OpenAIAdapter(self.openrouter_client, model=model, temperature=temperature)
             client.llm_type = llm_type
             self.clients[cache_key] = client
             return client

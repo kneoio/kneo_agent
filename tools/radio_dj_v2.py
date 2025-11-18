@@ -9,7 +9,7 @@ from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
 from mcp.queue_mcp import QueueMCP
 from memory.brand_user_summorizer import BrandUserSummarizer
-from memory.brans_memory_manager import BrandMemoryManager
+from memory.brand_memory_manager import BrandMemoryManager
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
 

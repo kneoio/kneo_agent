@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from core.config import get_merged_config
 from cnst.llm_types import LlmType
-from memory.brans_memory_manager import BrandMemoryManager
+from memory.brand_memory_manager import BrandMemoryManager
 from memory.user_memory_manager import UserMemoryManager
 from memory.brand_summarizer import BrandSummarizer
 from tools.radio_dj_v2 import RadioDJV2

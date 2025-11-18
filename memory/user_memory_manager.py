@@ -68,6 +68,23 @@ class UserMemoryManager:
         summary = await invoke_intro(llm_client, prompt, text, llm_type)
         return summary.actual_result
 
+    async def get_all(self):
+        async with self.db.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT user_id, telegram_name, brand, history FROM mixpla__user_memory"
+            )
+        result = []
+        for row in rows:
+            d = dict(row)
+            h = d.get("history")
+            if isinstance(h, str):
+                try:
+                    d["history"] = json.loads(h)
+                except Exception:
+                    d["history"] = []
+            result.append(d)
+        return result
+
     async def clear(self, user_id: int):
         async with self.db.acquire() as conn:
             await conn.execute("DELETE FROM mixpla__user_memory WHERE user_id = $1", user_id)

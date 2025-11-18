@@ -3,13 +3,6 @@ from difflib import SequenceMatcher
 
 
 class NoiseFilter:
-    """
-    Filters out on-air memory noise:
-    - empty texts
-    - repeated greetings
-    - repeated 'Now... [pause]'
-    - near-duplicate previous line (>90% similarity)
-    """
 
     GENERIC_PATTERNS = [
         r"^hey[, ]",                              # "Hey Lumisonic fam..."
@@ -26,7 +19,6 @@ class NoiseFilter:
         self.prev_text = None
 
     def is_noise(self, text: str) -> bool:
-        """Return True if the text should be filtered out."""
         if not text or not text.strip():
             return True
 

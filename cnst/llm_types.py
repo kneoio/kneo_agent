@@ -6,3 +6,5 @@ class LlmType(Enum):
     OPENAI = "OPENAI"
     GROQ = "GROQ"
     KIMI = "KIMI"
+    DEEPSEEK = "DEEPSEEK"
+    OPENROUTER = "OPENROUTER"

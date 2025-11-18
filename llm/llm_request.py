@@ -66,10 +66,10 @@ async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> '
     print(f"RAW: {response}")
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
 
-async def translate_content(llm_client: Any, full_prompt: str) -> 'LlmResponse':
+
+async def translate_content(llm_client: Any, content: str) -> 'LlmResponse':
     response = await llm_client.invoke(messages=[
         {"role": "system", "content": "You are a professional translator."},
-        {"role": "user", "content": full_prompt}
+        {"role": "user", "content": content}
     ])
-    print(f"RAW: {response}")
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
