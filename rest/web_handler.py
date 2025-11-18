@@ -13,6 +13,7 @@ from memory.brand_user_summorizer import BrandUserSummarizer
 from rest.app_setup import app_lifespan, llm_factory, internet, sound_fragments, TELEGRAM_TOKEN, cors_settings, cfg
 from rest.app_state import AppState
 from rest.prompt_request import PromptRequest
+from rest.chat_request import ChatRequest
 from rest.search_request import SearchRequest
 from rest.translation_request import TranslateRequest
 from tools.radio_dj_v2 import RadioDJV2
@@ -72,7 +73,7 @@ async def telegram_webhook(req: Request):
     messages.append({"role": "user", "content": text})
     
     client = llm_factory.get_llm_client(LlmType.OPENROUTER, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
-    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.GROQ)
+    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.OPENROUTER)
     reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
 
     if not data_state:
@@ -130,6 +131,24 @@ async def test_prompt(req: PromptRequest):
     result = await invoke_intro(client, req.prompt, req.draft, "")
     print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
+
+
+@app.post("/chat/test", dependencies=[Depends(verify_api_key)])
+async def chat_test(req: ChatRequest):
+    text = req.text
+    brand = req.brand or "default"
+    llm_choice = req.llm
+
+    messages = [
+        {"role": "system", "content": "You are Mixplaclone, a helpful assistant of the radio station. When asked for music, use the tool get_brand_sound_fragment with the provided brand and fragment_type 'SONG'."},
+        {"role": "user", "content": text}
+    ]
+
+    client = llm_factory.get_llm_client(llm_choice, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
+    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.GROQ)
+    reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
+
+    return {"ok": True, "brand": brand, "llm": llm_choice.name, "reply": reply}
 
 
 @app.post("/debug/summarize/{brand}", dependencies=[Depends(verify_api_key)])
