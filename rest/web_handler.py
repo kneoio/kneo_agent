@@ -73,8 +73,8 @@ async def telegram_webhook(req: Request):
     messages.append({"role": "user", "content": text})
     
     client = llm_factory.get_llm_client(LlmType.GROQ, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
-    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.GROQ)
-    reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
+    result = await invoke_chat(llm_client=client, messages=messages)
+    reply = result.actual_result
 
     if not data_state:
         history = [{"role": "user", "text": text}, {"role": "assistant", "text": reply}]
@@ -145,8 +145,8 @@ async def chat_test(req: ChatRequest):
     ]
 
     client = llm_factory.get_llm_client(llm_choice, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
-    result = await invoke_chat(llm_client=client, messages=messages, llm_type=LlmType.GROQ)
-    reply = result.actual_result.replace("<result>", "").replace("</result>", "").strip()
+    result = await invoke_chat(llm_client=client, messages=messages)
+    reply = result.actual_result
 
     return {"ok": True, "brand": brand, "llm": llm_choice.name, "reply": reply}
 

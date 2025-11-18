@@ -43,16 +43,16 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
 
 
 
-async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'LlmResponse':
+async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
     tools = None
     if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
         internet_tool = SearchEngine.Perplexity.value
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
         if 'get_brand_sound_fragment' in llm_client.tool_functions:
             tools.append(SoundFragmentMCP.get_tool_definition())
-        logger.info(f'invoke_chat: tools enabled for {llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}')
+        logger.info(f'invoke_chat: tools enabled for {llm_client.llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}')
     else:
-        logger.debug(f"invoke_chat: No tools available for {llm_type.name}")
+        logger.debug(f"invoke_chat: No tools available for {llm_client.llm_type.name}")
 
     response = await llm_client.invoke(messages=messages, tools=tools)
 
@@ -77,7 +77,7 @@ async def invoke_chat(llm_client: Any, messages: list, llm_type: LlmType) -> 'Ll
 
         response = await llm_client.invoke(messages=messages, tools=tools)
 
-    return LlmResponse.parse_plain_response(response, llm_type)
+    return LlmResponse.parse_plain_response(response, llm_client.llm_type)
 
 
 async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> 'LlmResponse':

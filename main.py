@@ -111,6 +111,12 @@ async def async_main():
     app_manager = ApplicationManager(config)
 
     try:
+        db_cfg = config.get("database", {}) if isinstance(config, dict) else {}
+        dsn = db_cfg.get("dsn")
+        if not dsn:
+            logger.error("Database DSN not found in config; exiting")
+            return 1
+
         logger.info("Waiting for MCP client connection...")
         mcp_success = await app_manager.initialize_mcp_client()
         if not mcp_success:

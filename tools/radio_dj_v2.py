@@ -70,7 +70,8 @@ class RadioDJV2:
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
             self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}")
-            self.ai_logger.info(f"{self.brand} DRAFT:\n {draft}")
+            self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
+            self.ai_logger.info(f"{self.brand} DRAFT: {draft}")
             self.ai_logger.info(f"PROMPT: {prompt_item.prompt[:100]}...")
 
             response = await invoke_intro(
@@ -87,62 +88,7 @@ class RadioDJV2:
             if not prompt_item.dialogue:
                 RadioDJV2.memory_manager.add(self.brand, response.actual_result)
 
-            self.ai_logger.info(f"{self.brand} INTRO: {idx + 1}:\n {response.actual_result}")
-            self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
-
-        return state
-
-
-    async def _generate_intro1(self, state):
-        memory_entries = RadioDJV2.memory_manager.get(self.brand)
-        memory_texts = [entry["text"] for entry in memory_entries if isinstance(entry, dict) and "text" in entry]
-        raw_mem = "\n".join(memory_texts)
-        listener_summary = await self.user_summary.summarize(self.brand)
-        summary_row = await self._load_brand_summary()
-        long_summary = summary_row["summary"] if summary_row else ""
-
-        for p in self.live_station.prompts:
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-            full_prompt = (
-                f"Current time: {current_time}\n\n"
-                f"On-air memory:\n{raw_mem}\n\n"
-                f"Brand summary:\n{long_summary}\n\n"
-                f"Listener mood:\n{listener_summary}\n\n"
-                "You can use tools to look up current information. "
-                "For example, use search_web to find recent news or facts.\n\n"
-                f"{p.prompt}"
-            )
-
-            messages = [
-                {"role": "system", "content": "You are a professional radio DJ. Use tools to enhance your intro with current information."},
-                {"role": "user", "content": full_prompt}
-            ]
-
-            response = await self.llm.ainvoke(
-                messages=messages,
-                tools=self.dj_tools.get_tool_definitions()
-            )
-
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                for tool_call in response.tool_calls:
-                    if tool_call.function.name == "search_web":
-                        import json
-                        args = json.loads(tool_call.function.arguments)
-                        tool_result = await self.dj_tools.search_web(**args)
-                        messages.append({
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": "search_web",
-                            "content": json.dumps(tool_result)
-                        })
-
-                response = await self.llm.ainvoke(messages=messages)
-
-            cleaned = response.content.replace("<result>", "").replace("</result>", "").strip()
-            RadioDJV2.memory_manager.add(self.brand, cleaned)
-            state["intro_texts"].append(cleaned)
-            state["song_ids"].append(p.songId)
-            state["dialogue_states"].append(p.dialogue)
+            self.ai_logger.info(f"{self.brand} RESULT: {idx + 1}: {response.actual_result}")
 
         return state
 

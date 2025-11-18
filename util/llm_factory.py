@@ -45,7 +45,6 @@ class LlmFactory:
             import logging
             self.logger = logging.getLogger(__name__)
 
-        self.llm_type = llm_type
 
         try:
             loop = asyncio.get_running_loop()

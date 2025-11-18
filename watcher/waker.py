@@ -23,6 +23,8 @@ class Waker:
         self.loop = None
         self.mcp_client = None
         self.live_stations_mcp = None
+        self.internet_mcp = None
+        self.api_client = None
         self.brand_queue = Queue()
         self.llmFactory = LlmFactory(config)
         self.last_activity_time = time.time()
@@ -43,19 +45,17 @@ class Waker:
     async def _process_single_station(self, station):
         try:
             logging.info(f"Processing brand: {station.name}")
-            internet_mcp = InternetMCP(mcp_client=self.mcp_client, config=self.config, default_engine="Perplexity")
-            api_client = BroadcasterAPIClient(self.config)
             llmType = LlmType(station.llmType) if station.llmType else None
-            llmClient = self.llmFactory.get_llm_client(llmType, internet_mcp)
+            llmClient = self.llmFactory.get_llm_client(llmType, self.internet_mcp)
 
-            if not self.db_pool:
-                logging.error("Database pool not initialized in Waker")
+            if llmClient is None:
+                logging.warning(f"LLM client not available for station {station.name} with llmType='{station.llmType}'")
                 return False
 
             runner = DJRunner(
                 config=self.config,
                 station=station,
-                api_client=api_client,
+                api_client=self.api_client,
                 mcp_client=self.mcp_client,
                 llm_client=llmClient,
                 llm_type=llmType,
@@ -73,8 +73,6 @@ class Waker:
         finally:
             if 'runner' in locals() and hasattr(runner, 'cleanup'):
                 await runner.cleanup()
-            if 'api_client' in locals() and hasattr(api_client, 'close'):
-                await api_client.close()
 
     async def process_brand_queue(self):
         had_success = False
@@ -90,7 +88,9 @@ class Waker:
     async def _async_run(self):
         self.mcp_client = MCPClient(self.config, skip_initialization=True)
         await self.mcp_client.connect()
+        self.internet_mcp = InternetMCP(mcp_client=self.mcp_client, config=self.config, default_engine="Perplexity")
         self.live_stations_mcp = LiveRadioStationsMCP(self.mcp_client)
+        self.api_client = BroadcasterAPIClient(self.config)
 
         # Initialize DB pool once (config only)
         db_cfg = self.config.get("database", {}) if isinstance(self.config, dict) else {}
@@ -103,6 +103,9 @@ class Waker:
         await DBManager.init(dsn, ssl=ssl_required)
         self.db_pool = DBManager.get_pool()
         logging.info("DB pool for Waker initialized")
+        if not self.db_pool:
+            logging.error("DB pool init failed for Waker")
+            return
 
         try:
             while True:
