@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from cnst.llm_types import LlmType
 from llm.langchain.langchain_adapter import LangChainAdapter
 from llm.openai.openai_adapter import OpenAIAdapter
+import logging
 
 
 class LlmFactory:
@@ -42,9 +43,7 @@ class LlmFactory:
 
     def get_llm_client(self, llm_type: LlmType, internet_mcp=None, sound_fragment_mcp=None):
         if not self.logger:
-            import logging
             self.logger = logging.getLogger(__name__)
-
 
         try:
             loop = asyncio.get_running_loop()

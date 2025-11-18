@@ -56,26 +56,79 @@ async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
 
     response = await llm_client.invoke(messages=messages, tools=tools)
 
+    last_tool_output_str = None
     if hasattr(response, 'tool_calls') and response.tool_calls and getattr(llm_client, 'tool_functions', None):
+        try:
+            logger.info(f"invoke_chat: tool_calls returned: {response.tool_calls}")
+        except Exception:
+            pass
+        
+        messages.append({
+            "role": "assistant",
+            "content": getattr(response, 'content', '') or '',
+            "tool_calls": response.tool_calls
+        })
+        
         for tool_call in response.tool_calls:
             try:
-                name = tool_call.function.name
-                args_raw = tool_call.function.arguments
+                if isinstance(tool_call, dict):
+                    if 'function' in tool_call:
+                        func_obj = tool_call.get('function') or {}
+                        name = func_obj.get('name')
+                        args_raw = func_obj.get('arguments')
+                        tc_id = tool_call.get('id')
+                    else:
+                        name = tool_call.get('name')
+                        args_raw = tool_call.get('arguments')
+                        if args_raw is None:
+                            args_raw = tool_call.get('args')
+                        tc_id = tool_call.get('id') or tool_call.get('tool_call_id')
+                else:
+                    name = tool_call.function.name
+                    args_raw = tool_call.function.arguments
+                    tc_id = tool_call.id
                 args = json.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
+                logger.info(f"invoke_chat: executing tool '{name}' with args={args}")
                 func = llm_client.tool_functions.get(name)
                 if not func:
                     continue
                 result = await func(**args)
+                try:
+                    last_tool_output_str = json.dumps(result)
+                except Exception:
+                    last_tool_output_str = str(result)
                 messages.append({
-                    "tool_call_id": tool_call.id,
+                    "tool_call_id": tc_id,
                     "role": "tool",
                     "name": name,
-                    "content": json.dumps(result)
+                    "content": last_tool_output_str
                 })
             except Exception as e:
-                logger.error(f"invoke_chat tool execution error for {getattr(tool_call.function, 'name', '')}: {e}")
+                safe_name = None
+                if isinstance(tool_call, dict):
+                    fn = tool_call.get('function') or {}
+                    safe_name = fn.get('name')
+                else:
+                    safe_name = getattr(getattr(tool_call, 'function', None), 'name', None)
+                logger.error(f"invoke_chat tool execution error for {safe_name}: {e}")
 
         response = await llm_client.invoke(messages=messages, tools=tools)
+        try:
+            clen = len(getattr(response, 'content', '') or '')
+            logger.info(f"invoke_chat: follow-up response content length={clen}")
+        except Exception:
+            pass
+
+        try:
+            content_str = (getattr(response, 'content', None) or '').strip()
+            if not content_str and last_tool_output_str:
+                response = type('obj', (object,), {
+                    'content': last_tool_output_str,
+                    'tool_calls': None
+                })()
+                logger.info("invoke_chat: empty assistant content after tool; returning tool output instead")
+        except Exception:
+            pass
 
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
 

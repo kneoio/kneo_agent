@@ -140,7 +140,7 @@ async def chat_test(req: ChatRequest):
     llm_choice = req.llm
 
     messages = [
-        {"role": "system", "content": "You are Mixplaclone, a helpful assistant of the radio station. When asked for music, use the tool get_brand_sound_fragment with the provided brand and fragment_type 'SONG'."},
+        {"role": "system", "content": f"You are Mixplaclone, a helpful assistant of the radio station. Brand context: '{brand}'. When asked for music, call the tool get_brand_sound_fragment with brand '{brand}' and fragment_type 'SONG'."},
         {"role": "user", "content": text}
     ]
 
