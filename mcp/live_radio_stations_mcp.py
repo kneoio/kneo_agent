@@ -23,10 +23,11 @@ class LiveRadioStationsMCP:
                 return None
             
             live_container = LiveContainer.from_dict(result)
-            self.logger.info(f"Retrieved {len(live_container)} radio stations from MCP")
+            if len(live_container) > 0:
+                self.logger.info(f"Retrieved {len(live_container)} radio stations from broadcaster")
             
             return live_container
             
         except Exception as e:
-            self.logger.error(f"Error calling get_live_radio_stations MCP tool: {e}")
+            self.logger.error(f"Error calling get_live_radio_stations tool: {e}")
             return None
