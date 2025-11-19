@@ -11,6 +11,7 @@ class LlmResponse(BaseModel):
     raw_response: Any
     llm_type: str
     _structured_result: Optional[str] = None
+    full_messages: Optional[list] = None
 
     @property
     def actual_result(self) -> str:

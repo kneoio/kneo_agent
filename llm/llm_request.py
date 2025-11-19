@@ -43,7 +43,7 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
 
 
 
-async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
+async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool = False) -> 'LlmResponse':
     tools = None
     if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
         internet_tool = SearchEngine.Perplexity.value
@@ -135,7 +135,10 @@ async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
 
         
 
-    return LlmResponse.parse_plain_response(response, llm_client.llm_type)
+    llm_response = LlmResponse.parse_plain_response(response, llm_client.llm_type)
+    if return_full_history:
+        llm_response.full_messages = messages
+    return llm_response
 
 
 async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> 'LlmResponse':
