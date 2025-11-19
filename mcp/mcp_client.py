@@ -28,7 +28,7 @@ class MCPClient:
 
     async def connect(self):
         try:
-            self.logger.info(f"Connecting to MCP server at {self.ws_url}")
+            self.logger.info(f"Connecting to Broadcaster MCP at {self.ws_url}")
 
             self.connection = await asyncio.wait_for(
                 websockets.connect(

@@ -106,6 +106,22 @@ class LlmResponse(BaseModel):
                 logger.warning("Structured parse: invalid JSON")
         return instance
 
+    @classmethod
+    def from_invoke_error(cls, err: Exception, llm_type: LlmType) -> 'LlmResponse':
+        msg = str(err) if err else ""
+        if "Failed to parse tool call arguments" in msg or "tool_use_failed" in msg:
+            logger.error(f"LLM invoke error: {msg}")
+            fallback = type('obj', (object,), {
+                'content': "I encountered an error processing your request. Could you rephrase or try again?",
+                'tool_calls': None
+            })()
+            return cls.parse_plain_response(fallback, llm_type)
+        fallback = type('obj', (object,), {
+            'content': "",
+            'tool_calls': None
+        })()
+        return cls.parse_plain_response(fallback, llm_type)
+
     @staticmethod
     def _extract_between_tags(content: str, tag: str, convert_type=str):
         try:

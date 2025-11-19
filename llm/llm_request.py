@@ -49,25 +49,42 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
         internet_tool = SearchEngine.Perplexity.value
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
         if 'get_brand_sound_fragment' in llm_client.tool_functions:
-            tools.append(get_sound_fragment_tool_definition())
+            sf_def = get_sound_fragment_tool_definition()
+            tools.append(sf_def)
+            try:
+                if getattr(llm_client, 'llm_type', None) and llm_client.llm_type.name != 'CLAUDE':
+                    sf_alias = {"type": "function", "function": dict(sf_def.get("function", {}))}
+                    sf_alias["function"]["name"] = sf_alias["function"].get("name", "") + "<|channel|>commentary"
+                    tools.append(sf_alias)
+            except Exception:
+                pass
         if 'queue_intro_song' in llm_client.tool_functions:
-            tools.append(get_queue_tool_definition())
+            q_def = get_queue_tool_definition()
+            tools.append(q_def)
+            try:
+                if getattr(llm_client, 'llm_type', None) and llm_client.llm_type.name != 'CLAUDE':
+                    q_alias = {"type": "function", "function": dict(q_def.get("function", {}))}
+                    q_alias["function"]["name"] = q_alias["function"].get("name", "") + "<|channel|>commentary"
+                    tools.append(q_alias)
+            except Exception:
+                pass
         logger.info(f'invoke_chat: tools enabled for {llm_client.llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}, queue_intro_song={"queue_intro_song" in llm_client.tool_functions}')
+        try:
+            tool_names = []
+            for t in tools or []:
+                fn = (t or {}).get('function') if isinstance(t, dict) else None
+                if isinstance(fn, dict):
+                    tool_names.append(fn.get('name'))
+            logger.info(f'invoke_chat: sending tool names: {tool_names}')
+        except Exception:
+            pass
     else:
         logger.debug(f"invoke_chat: No tools available for {llm_client.llm_type.name}")
 
     try:
         response = await llm_client.invoke(messages=messages, tools=tools)
     except Exception as e:
-        error_msg = str(e)
-        if "Failed to parse tool call arguments" in error_msg or "tool_use_failed" in error_msg:
-            logger.error(f"LLM generated malformed tool call JSON: {error_msg}")
-            fallback_response = type('obj', (object,), {
-                'content': "I encountered an error processing your request. Could you rephrase or try again?",
-                'tool_calls': None
-            })()
-            return LlmResponse.parse_plain_response(fallback_response, llm_client.llm_type)
-        raise
+        return LlmResponse.from_invoke_error(e, llm_client.llm_type)
 
     last_tool_output_str = None
     if hasattr(response, 'tool_calls') and response.tool_calls and getattr(llm_client, 'tool_functions', None):
@@ -104,6 +121,9 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
                 args = json.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
                 logger.info(f"invoke_chat: executing tool '{name}' with args={args}")
                 func = llm_client.tool_functions.get(name)
+                if not func and "<" in (name or ""):
+                    base_name = name.split("<", 1)[0]
+                    func = llm_client.tool_functions.get(base_name)
                 if not func:
                     continue
                 result = await func(**args)

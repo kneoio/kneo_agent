@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from cnst.llm_types import LlmType
@@ -9,16 +9,15 @@ from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from llm.llm_request import invoke_intro, translate_content
 from memory.brand_user_summorizer import BrandUserSummarizer
-from rest.app_setup import app_lifespan, llm_factory, internet, TELEGRAM_TOKEN, cors_settings, cfg
-from rest.chat_service import run_mixplaclone_chat
+from rest.app_setup import app_lifespan, llm_factory, internet, cors_settings, cfg
 from rest.app_state import AppState
-from rest.telegram_router import router as telegram_router
 from rest.prompt_request import PromptRequest
-from rest.chat_request import ChatRequest
 from rest.search_request import SearchRequest
+from rest.telegram_router import router as telegram_router
 from rest.translation_request import TranslateRequest
 from tools.radio_dj_v2 import RadioDJV2
 from util.template_loader import render_template
+from rest.chat_router import router as chat_router
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ app.add_middleware(
 )
 
 app.include_router(telegram_router)
+app.include_router(chat_router)
 
 API_KEY = cfg["web_handler"]["api_key"]
 
@@ -85,15 +85,6 @@ async def test_prompt(req: PromptRequest):
     return {"result": result.actual_result, "reasoning": result.reasoning}
 
 
-@app.post("/chat/test", dependencies=[Depends(verify_api_key)])
-async def chat_test(req: ChatRequest):
-    text = req.text
-    brand = req.brand or "default"
-    llm_choice = req.llm
-
-    reply = await run_mixplaclone_chat(brand, text, llm_choice, history=None)
-
-    return {"ok": True, "brand": brand, "llm": llm_choice.name, "reply": reply}
 
 
 @app.post("/debug/summarize/{brand}", dependencies=[Depends(verify_api_key)])
@@ -120,7 +111,6 @@ async def debug_listener_summary(brand: str):
         LlmType.GROQ
     )
     return {"summary": await summarizer.summarize(brand)}
-
 
 @app.get("/health", dependencies=[Depends(verify_api_key)])
 def health():

@@ -88,9 +88,11 @@ async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority
         logger.info(f"Queue add result: {result}")
         ok = bool(result is True or (isinstance(result, dict) and result.get("success")))
         logger.info(f"Queue success={ok}")
+        logger.info(f"queue_intro_song completed: success={ok}, brand={brand}, song_uuid={song_uuid}, priority={priority}, file_path={file_path}")
         return {"success": ok, "result": result, "file_path": file_path}
     except Exception as e:
         logger.error(f"Queue add failed: {e}", exc_info=True)
+        logger.info(f"queue_intro_song completed: success=False, brand={brand}, song_uuid={song_uuid}, priority={priority}, error={str(e)}")
         return {"success": False, "error": str(e)}
 
 
