@@ -56,7 +56,18 @@ async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
     else:
         logger.debug(f"invoke_chat: No tools available for {llm_client.llm_type.name}")
 
-    response = await llm_client.invoke(messages=messages, tools=tools)
+    try:
+        response = await llm_client.invoke(messages=messages, tools=tools)
+    except Exception as e:
+        error_msg = str(e)
+        if "Failed to parse tool call arguments" in error_msg or "tool_use_failed" in error_msg:
+            logger.error(f"LLM generated malformed tool call JSON: {error_msg}")
+            fallback_response = type('obj', (object,), {
+                'content': "I encountered an error processing your request. Could you rephrase or try again?",
+                'tool_calls': None
+            })()
+            return LlmResponse.parse_plain_response(fallback_response, llm_client.llm_type)
+        raise
 
     last_tool_output_str = None
     if hasattr(response, 'tool_calls') and response.tool_calls and getattr(llm_client, 'tool_functions', None):
