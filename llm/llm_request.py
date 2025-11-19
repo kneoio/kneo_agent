@@ -119,16 +119,7 @@ async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
         except Exception:
             pass
 
-        try:
-            content_str = (getattr(response, 'content', None) or '').strip()
-            if not content_str and last_tool_output_str:
-                response = type('obj', (object,), {
-                    'content': last_tool_output_str,
-                    'tool_calls': None
-                })()
-                logger.info("invoke_chat: empty assistant content after tool; returning tool output instead")
-        except Exception:
-            pass
+        
 
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
 
