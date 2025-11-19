@@ -31,18 +31,25 @@ def _save_audio_file(audio_data: bytes, brand: str) -> str:
 async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority: int = 8) -> Dict[str, Any]:
     from rest.app_setup import cfg, mcp_client as app_mcp_client
     
+    logger.info(f"queue_intro_song called: brand={brand}, song_uuid={song_uuid}, intro_text_len={len(intro_text)}, priority={priority}")
+    
     if not brand or not song_uuid or not intro_text:
+        logger.error(f"Missing required params: brand={bool(brand)}, song_uuid={bool(song_uuid)}, intro_text={bool(intro_text)}")
         return {"success": False, "error": "brand, song_uuid and intro_text are required"}
 
     voice_id = await get_brand_preferred_voice_id(brand)
+    logger.info(f"Resolved voice_id for brand '{brand}': {voice_id}")
     if not voice_id:
+        logger.error(f"No preferred voice configured for brand '{brand}'")
         return {"success": False, "error": "preferred voice not configured for brand"}
 
     el_cfg = (cfg or {}).get("elevenlabs", {})
     el_key = el_cfg.get("api_key")
     if not el_key:
+        logger.error("ElevenLabs API key missing in config")
         return {"success": False, "error": "ElevenLabs api key missing in config"}
 
+    logger.info(f"Creating AudioProcessor with voice_id={voice_id}")
     api_client = BroadcasterAPIClient(cfg)
     interaction_memory = InteractionMemory(api_client=api_client, brand=brand)
 
@@ -58,23 +65,32 @@ async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority
 
     eleven = ElevenLabs(api_key=el_key)
     audio_processor = AudioProcessor(elevenlabs_inst=eleven, station=station, memory=interaction_memory)
+    
+    logger.info(f"Generating TTS for intro: '{intro_text[:50]}...'")
     audio_data, reason = await audio_processor.generate_tts_audio(intro_text)
     if not audio_data:
+        logger.error(f"TTS generation failed: {reason}")
         return {"success": False, "error": reason or "tts failed"}
 
+    logger.info(f"TTS generated successfully, size={len(audio_data)} bytes")
     file_path = _save_audio_file(audio_data, brand)
+    logger.info(f"Audio saved to: {file_path}")
 
     mcp: Optional[MCPClient] = app_mcp_client
     if not mcp:
+        logger.error("MCP client not initialized")
         return {"success": False, "error": "MCP client not initialized"}
 
     queue = QueueMCP(mcp)
     try:
+        logger.info(f"Calling add_to_queue_i_s: brand={brand}, song_uuid={song_uuid}, file_path={file_path}, priority={priority}")
         result = await queue.add_to_queue_i_s(brand_name=brand, sound_fragment_uuid=song_uuid, file_path=file_path, priority=priority)
+        logger.info(f"Queue add result: {result}")
         ok = bool(result is True or (isinstance(result, dict) and result.get("success")))
+        logger.info(f"Queue success={ok}")
         return {"success": ok, "result": result, "file_path": file_path}
     except Exception as e:
-        logger.error(f"Queue add failed: {e}")
+        logger.error(f"Queue add failed: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
