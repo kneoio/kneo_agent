@@ -4,7 +4,8 @@ from fastapi import APIRouter, Request
 
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_chat
-from rest.app_setup import llm_factory, internet, sound_fragments, TELEGRAM_TOKEN
+from rest.app_setup import llm_factory, TELEGRAM_TOKEN
+from util.template_loader import render_template
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,7 +28,8 @@ async def telegram_webhook(req: Request):
     data_state = await app.state.user_memory.load(chat_id)
     history = data_state["history"] if data_state else []
 
-    messages = [{"role": "system", "content": "You are Mixplaclone, a helpful assistant of the radio station, chatting privately with a listener."}]
+    system_prompt = render_template("chat/mixplaclone_system.hbs", {"brand": brand})
+    messages = [{"role": "system", "content": system_prompt}]
 
     for h in history[-19:]:
         role = "assistant" if h.get("role") == "assistant" else "user"
@@ -37,7 +39,7 @@ async def telegram_webhook(req: Request):
 
     messages.append({"role": "user", "content": text})
 
-    client = llm_factory.get_llm_client(LlmType.GROQ, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
+    client = llm_factory.get_llm_client(LlmType.GROQ, enable_sound_fragment_tool=True)
     result = await invoke_chat(llm_client=client, messages=messages)
     reply = result.actual_result
 

@@ -5,7 +5,7 @@ from typing import Any
 from cnst.search_engine import SearchEngine
 from llm.llm_response import LlmResponse
 from mcp.external.internet_mcp import InternetMCP
-from mcp.external.sound_fragment_mcp import SoundFragmentMCP
+from tools.sound_fragment_tool import get_brand_sound_fragment, get_tool_definition as get_sound_fragment_tool_definition
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
         internet_tool = SearchEngine.Perplexity.value
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
         if 'get_brand_sound_fragment' in llm_client.tool_functions:
-            tools.append(SoundFragmentMCP.get_tool_definition())
+            tools.append(get_sound_fragment_tool_definition())
         logger.info(f'invoke_chat: tools enabled for {llm_client.llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}')
     else:
         logger.debug(f"invoke_chat: No tools available for {llm_client.llm_type.name}")

@@ -10,7 +10,7 @@ from cnst.brand_status import BrandStatus
 from cnst.llm_types import LlmType
 from core.dj_runner import DJRunner
 from mcp.external.internet_mcp import InternetMCP
-from mcp.live_radio_stations_mcp import LiveRadioStationsMCP
+from api.live_stations_api import LiveStationsAPI
 from mcp.mcp_client import MCPClient
 from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
@@ -89,7 +89,7 @@ class Waker:
         self.mcp_client = MCPClient(self.config, skip_initialization=True)
         await self.mcp_client.connect()
         self.internet_mcp = InternetMCP(mcp_client=self.mcp_client, config=self.config, default_engine="Perplexity")
-        self.live_stations_mcp = LiveRadioStationsMCP(self.mcp_client)
+        self.live_stations_mcp = LiveStationsAPI(self.config)
         self.api_client = BroadcasterAPIClient(self.config)
 
         # Initialize DB pool once (config only)

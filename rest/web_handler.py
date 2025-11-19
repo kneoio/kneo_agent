@@ -7,9 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
-from llm.llm_request import invoke_intro, invoke_chat, translate_content
+from llm.llm_request import invoke_intro, translate_content
 from memory.brand_user_summorizer import BrandUserSummarizer
-from rest.app_setup import app_lifespan, llm_factory, internet, sound_fragments, TELEGRAM_TOKEN, cors_settings, cfg
+from rest.app_setup import app_lifespan, llm_factory, internet, TELEGRAM_TOKEN, cors_settings, cfg
+from rest.chat_service import run_mixplaclone_chat
 from rest.app_state import AppState
 from rest.telegram_router import router as telegram_router
 from rest.prompt_request import PromptRequest
@@ -90,15 +91,7 @@ async def chat_test(req: ChatRequest):
     brand = req.brand or "default"
     llm_choice = req.llm
 
-    messages = [
-        {"role": "system",
-         "content": f"You are Mixplaclone, a helpful assistant of the radio station. Brand context: '{brand}'. When asked for music, call the tool get_brand_sound_fragment with brand '{brand}' and fragment_type 'SONG'."},
-        {"role": "user", "content": text}
-    ]
-
-    client = llm_factory.get_llm_client(llm_choice, internet_mcp=internet, sound_fragment_mcp=sound_fragments)
-    result = await invoke_chat(llm_client=client, messages=messages)
-    reply = result.actual_result
+    reply = await run_mixplaclone_chat(brand, text, llm_choice, history=None)
 
     return {"ok": True, "brand": brand, "llm": llm_choice.name, "reply": reply}
 

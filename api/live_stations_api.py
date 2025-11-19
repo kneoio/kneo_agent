@@ -1,33 +1,25 @@
-#!/usr/bin/env python3
 import logging
 from typing import Optional
 
+from api.broadcaster_client import BroadcasterAPIClient
 from models.live_container import LiveContainer
 
 
-class LiveRadioStationsMCP:
-
-    def __init__(self, mcp_client):
-        self.mcp_client = mcp_client
+class LiveStationsAPI:
+    def __init__(self, config):
+        self.client = BroadcasterAPIClient(config)
         self.logger = logging.getLogger(__name__)
-    
+
     async def get_live_radio_stations(self) -> Optional[LiveContainer]:
         try:
-            result = await self.mcp_client.call_tool(
-                tool_name="get_live_radio_stations",
-                arguments={}
-            )
-            
+            result = self.client.get("ai/live/stations")
             if not result:
-                self.logger.warning("No data returned from get_live_radio_stations MCP tool")
+                self.logger.warning("No data returned from /api/ai/live/stations")
                 return None
-            
             live_container = LiveContainer.from_dict(result)
             if len(live_container) > 0:
                 self.logger.info(f"Retrieved {len(live_container)} radio stations from broadcaster")
-            
             return live_container
-            
         except Exception as e:
-            self.logger.error(f"Error calling get_live_radio_stations tool: {e}")
+            self.logger.error(f"Error calling /api/ai/live/stations: {e}")
             return None

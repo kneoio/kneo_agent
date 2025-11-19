@@ -13,7 +13,6 @@ from tools.radio_dj_v2 import RadioDJV2
 from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
 from mcp.external.internet_mcp import InternetMCP
-from mcp.external.sound_fragment_mcp import SoundFragmentMCP
 from mcp.mcp_client import MCPClient
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,6 @@ cors_settings = {
 llm_factory = LlmFactory(cfg)
 internet = InternetMCP(config=cfg)
 mcp_client = MCPClient(cfg, skip_initialization=False)
-sound_fragments = SoundFragmentMCP(mcp_client=mcp_client, config=cfg)
 
 
 @asynccontextmanager
