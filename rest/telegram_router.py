@@ -21,6 +21,10 @@ async def telegram_webhook(req: Request):
     name = chat.get("username") or chat.get("first_name") or ""
     brand = "default"
 
+    if not text:
+        logger.info(f"Telegram webhook: non-text update received for chat_id={chat_id}; skipping")
+        return {"ok": True}
+
     preview = text if len(text) <= 120 else text[:117] + "..."
     logger.info(f"Telegram webhook: received chat_id={chat_id}, name={name}, text='{preview}'")
 
