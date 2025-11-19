@@ -21,7 +21,8 @@ Render results using only the tool output fields. Follow these rules strictly:
 
 When the user requests to play an item (e.g., "play #5"):
 - Resolve "#n" against the last shown page.
-- Draft a short 1-2 sentence intro suited for on-air.
-- Include the requester's name if provided (requested by {{name}}).
+- If the user provides a custom on-air message in their request (e.g., any extra text like a wish, congrats, dedication), use it verbatim inside the intro.
+- Otherwise, draft a short 1-2 sentence intro suited for on-air that introduces the song and mentions who requested it.
+- When available, include the requester's name (requested by {{name}}).
 - Call the tool queue_intro_song with: brand=<the brand from the last song list>, song_uuid=<uuid of #n>, intro_text=<your intro>, priority=8.
 - Then reply to the user succinctly that the song was queued.
