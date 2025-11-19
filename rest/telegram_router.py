@@ -1,6 +1,7 @@
 import logging
 import httpx
-from fastapi import APIRouter, Request
+import asyncio
+from fastapi import APIRouter, Request, BackgroundTasks
 
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_chat
@@ -11,24 +12,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/telegram/webhook")
-async def telegram_webhook(req: Request):
-    data = await req.json()
-    msg = data.get("message", {})
-    chat = msg.get("chat", {})
-    chat_id = chat.get("id")
-    text = msg.get("text")
-    name = chat.get("username") or chat.get("first_name") or ""
-    brand = "default"
-
-    if not text:
-        logger.info(f"Telegram webhook: non-text update received for chat_id={chat_id}; skipping")
-        return {"ok": True}
-
-    preview = text if len(text) <= 120 else text[:117] + "..."
-    logger.info(f"Telegram webhook: received chat_id={chat_id}, name={name}, text='{preview}'")
-
-    app = req.app
+async def process_telegram_message(chat_id: int, text: str, name: str, brand: str, app):
     data_state = await app.state.user_memory.load(chat_id)
     history = data_state["history"] if data_state else []
 
@@ -54,10 +38,30 @@ async def telegram_webhook(req: Request):
         history = history[-50:]
     await app.state.user_memory.save(chat_id, name, brand, history)
 
-    async with httpx.AsyncClient() as client:
-        await client.post(
+    async with httpx.AsyncClient() as http_client:
+        await http_client.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
             json={"chat_id": chat_id, "text": reply}
         )
+
+
+@router.post("/telegram/webhook")
+async def telegram_webhook(req: Request, background_tasks: BackgroundTasks):
+    data = await req.json()
+    msg = data.get("message", {})
+    chat = msg.get("chat", {})
+    chat_id = chat.get("id")
+    text = msg.get("text")
+    name = chat.get("username") or chat.get("first_name") or ""
+    brand = "default"
+
+    if not text:
+        logger.info(f"Telegram webhook: non-text update received for chat_id={chat_id}; skipping")
+        return {"ok": True}
+
+    preview = text if len(text) <= 120 else text[:117] + "..."
+    logger.info(f"Telegram webhook: received chat_id={chat_id}, name={name}, text='{preview}'")
+
+    background_tasks.add_task(process_telegram_message, chat_id, text, name, brand, req.app)
 
     return {"ok": True}

@@ -81,7 +81,9 @@ class LlmFactory:
                 client.tool_functions["search_internet"] = internet_mcp.search_internet
             if enable_sound_fragment_tool:
                 from tools.sound_fragment_tool import get_brand_sound_fragment
+                from tools.queue_tool import queue_intro_song
                 client.tool_functions["get_brand_sound_fragment"] = get_brand_sound_fragment
+                client.tool_functions["queue_intro_song"] = queue_intro_song
             self.clients[cache_key] = client
             return client
         elif llm_type == LlmType.DEEPSEEK and self.deepseek_client:
@@ -119,7 +121,9 @@ class LlmFactory:
                 client.bind_tool_function("search_internet", internet_mcp.search_internet)
             if enable_sound_fragment_tool:
                 from tools.sound_fragment_tool import get_brand_sound_fragment
+                from tools.queue_tool import queue_intro_song
                 client.bind_tool_function("get_brand_sound_fragment", get_brand_sound_fragment)
+                client.bind_tool_function("queue_intro_song", queue_intro_song)
             if internet_mcp or enable_sound_fragment_tool:
                 self.logger.info(f"LLM client ({llm_type.name}) initialized with tools enabled")
             else:

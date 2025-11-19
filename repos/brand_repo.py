@@ -54,3 +54,33 @@ async def resolve_brand_id(brand: str) -> Optional[UUID]:
 
         print("resolve_brand_id: no match")
         return None
+
+
+async def get_brand_preferred_voice_id(brand: str) -> Optional[str]:
+    bid = await resolve_brand_id(brand)
+    if not bid:
+        return None
+    await DBManager.init()
+    pool = DBManager.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT a.preferred_voice
+            FROM kneobroadcaster__brands b
+            JOIN kneobroadcaster__ai_agents a ON b.ai_agent_id = a.id
+            WHERE b.id = $1
+            LIMIT 1
+            """,
+            bid,
+        )
+        if not row:
+            return None
+        pref = row.get("preferred_voice")
+        try:
+            if isinstance(pref, list) and pref:
+                item = pref[0]
+                vid = item.get("id") if isinstance(item, dict) else None
+                return vid
+        except Exception:
+            return None
+        return None

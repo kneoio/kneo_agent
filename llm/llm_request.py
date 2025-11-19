@@ -6,6 +6,7 @@ from cnst.search_engine import SearchEngine
 from llm.llm_response import LlmResponse
 from mcp.external.internet_mcp import InternetMCP
 from tools.sound_fragment_tool import get_brand_sound_fragment, get_tool_definition as get_sound_fragment_tool_definition
+from tools.queue_tool import queue_intro_song, get_tool_definition as get_queue_tool_definition
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,9 @@ async def invoke_chat(llm_client: Any, messages: list) -> 'LlmResponse':
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
         if 'get_brand_sound_fragment' in llm_client.tool_functions:
             tools.append(get_sound_fragment_tool_definition())
-        logger.info(f'invoke_chat: tools enabled for {llm_client.llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}')
+        if 'queue_intro_song' in llm_client.tool_functions:
+            tools.append(get_queue_tool_definition())
+        logger.info(f'invoke_chat: tools enabled for {llm_client.llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}, queue_intro_song={"queue_intro_song" in llm_client.tool_functions}')
     else:
         logger.debug(f"invoke_chat: No tools available for {llm_client.llm_type.name}")
 
