@@ -29,6 +29,7 @@ class Waker:
         self.llmFactory = LlmFactory(config)
         self.last_activity_time = time.time()
         self.db_pool = None
+        self.processed_status = (config or {}).get("waker", {}).get("processed_status")
 
         self.target_dir = str(MERGED_AUDIO_DIR)
         os.makedirs(self.target_dir, exist_ok=True)
@@ -111,7 +112,7 @@ class Waker:
             while True:
                 had_activity = False
                 try:
-                    live_container = await self.live_stations_mcp.get_live_radio_stations()
+                    live_container = await self.live_stations_mcp.get_live_radio_stations(self.processed_status)
                     if live_container and len(live_container) > 0:
                         for station in live_container.radioStations:
                             if station.radioStationStatus != BrandStatus.QUEUE_SATURATED.value:

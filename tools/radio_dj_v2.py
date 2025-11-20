@@ -69,10 +69,9 @@ class RadioDJV2:
         raw_mem = "\n".join(memory_texts)
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
-            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}")
-            self.ai_logger.info(f"{self.brand} DIALOGUE SETTING: {prompt_item.dialogue} for prompt {idx + 1}")
+            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}, DIALOGUE SETTING{idx + 1}: {prompt_item.dialogue}")
             self.ai_logger.info(f"{self.brand} DRAFT: {draft}")
-            self.ai_logger.info(f"PROMPT: {prompt_item.prompt[:100]}...")
+            self.ai_logger.info(f"{self.brand} PROMPT: {prompt_item.prompt[:80]}...")
 
             response = await invoke_intro(
                 llm_client=self.llm,
@@ -88,7 +87,7 @@ class RadioDJV2:
             if not prompt_item.dialogue:
                 RadioDJV2.memory_manager.add(self.brand, response.actual_result)
 
-            self.ai_logger.info(f"{self.brand} RESULT: {idx + 1}: {response.actual_result}")
+            self.ai_logger.info(f"{self.brand} RESULT{idx + 1}: {response.actual_result}")
 
         return state
 

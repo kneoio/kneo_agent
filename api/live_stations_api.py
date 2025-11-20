@@ -9,10 +9,9 @@ class LiveStationsAPI:
     def __init__(self, config):
         self.client = BroadcasterAPIClient(config)
         self.logger = logging.getLogger(__name__)
-
-    async def get_live_radio_stations(self) -> Optional[LiveContainer]:
+    async def get_live_radio_stations(self, use_statuses: str | None = None) -> Optional[LiveContainer]:
         try:
-            result = self.client.get("ai/live/stations")
+            result = self.client.get(f"ai/live/stations?statuses={use_statuses}")
             if not result:
                 self.logger.warning("No data returned from /api/ai/live/stations")
                 return None
