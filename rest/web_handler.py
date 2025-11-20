@@ -8,6 +8,7 @@ from cnst.llm_types import LlmType
 from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from llm.llm_request import invoke_intro, translate_content
+from llm.llm_response import LlmResponse
 from memory.brand_user_summorizer import BrandUserSummarizer
 from rest.app_setup import app_lifespan, llm_factory, internet, cors_settings, cfg
 from rest.app_state import AppState
@@ -80,7 +81,8 @@ async def translate(req: TranslateRequest):
 async def test_prompt(req: PromptRequest):
     client = llm_factory.get_llm_client(req.llm, internet_mcp=internet)
 
-    result = await invoke_intro(client, req.prompt, req.draft, "")
+    raw_response = await invoke_intro(client, req.prompt, req.draft, "")
+    result = LlmResponse.parse_plain_response(raw_response, client.llm_type)
     print(f" >>>> RAW: {result}")
     return {"result": result.actual_result, "reasoning": result.reasoning}
 

@@ -7,6 +7,7 @@ from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
+from llm.llm_response import LlmResponse
 from mcp.queue_mcp import QueueMCP
 from memory.brand_user_summorizer import BrandUserSummarizer
 from memory.brand_memory_manager import BrandMemoryManager
@@ -73,12 +74,18 @@ class RadioDJV2:
             self.ai_logger.info(f"{self.brand} DRAFT: {draft}")
             self.ai_logger.info(f"{self.brand} PROMPT: {prompt_item.prompt[:80]}...")
 
-            response = await invoke_intro(
+            raw_response = await invoke_intro(
                 llm_client=self.llm,
                 prompt=prompt_item.prompt,
                 draft=draft,
                 on_air_memory=raw_mem
             )
+            
+            if prompt_item.dialogue:
+                response = LlmResponse.parse_structured_response(raw_response, self.llm_type)
+            else:
+                response = LlmResponse.parse_plain_response(raw_response, self.llm_type)
+            
             print(self.brand)
             print(response)
             state["intro_texts"].append(response.actual_result)

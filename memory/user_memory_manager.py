@@ -65,7 +65,9 @@ class UserMemoryManager:
         )
 
         from llm.llm_request import invoke_intro
-        summary = await invoke_intro(llm_client, prompt, text, llm_type)
+        from llm.llm_response import LlmResponse
+        raw_response = await invoke_intro(llm_client, prompt, text, "")
+        summary = LlmResponse.parse_plain_response(raw_response, llm_type)
         return summary.actual_result
 
     async def get_all(self):

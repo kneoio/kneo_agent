@@ -1,6 +1,7 @@
 import datetime
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
+from llm.llm_response import LlmResponse
 
 
 class BrandSummarizer:
@@ -20,7 +21,8 @@ class BrandSummarizer:
             f"{raw_text}"
         )
 
-        summary = await invoke_intro(self.llm, prompt, "", self.llm_type)
+        raw_response = await invoke_intro(self.llm, prompt, "", "")
+        summary = LlmResponse.parse_plain_response(raw_response, self.llm_type)
         summary_json = summary.actual_result
 
         async with self.db.acquire() as conn:

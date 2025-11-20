@@ -11,7 +11,7 @@ from tools.queue_tool import queue_intro_song, get_tool_definition as get_queue_
 logger = logging.getLogger(__name__)
 
 
-async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str) -> 'LlmResponse':
+async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str) -> Any:
     memory_block = (
         "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
         f"{on_air_memory}\n\n"
@@ -39,7 +39,7 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
         tools=tools
     )
 
-    return LlmResponse.parse_plain_response(response, llm_client.llm_type)
+    return response
 
 
 

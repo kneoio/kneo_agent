@@ -1,6 +1,7 @@
 import json
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
+from llm.llm_response import LlmResponse
 
 class BrandUserSummarizer:
     def __init__(self, db_pool, llm_client, llm_type=LlmType.GROQ):
@@ -38,5 +39,6 @@ class BrandUserSummarizer:
             "mood, requests, themes, sentiments. Output plain text."
         )
 
-        result = await invoke_intro(self.llm, prompt, merged, self.llm_type)
+        raw_response = await invoke_intro(self.llm, prompt, merged, "")
+        result = LlmResponse.parse_plain_response(raw_response, self.llm_type)
         return result.actual_result
