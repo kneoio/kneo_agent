@@ -95,15 +95,33 @@ class LlmResponse(BaseModel):
     @classmethod
     def parse_structured_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
         instance = cls.parse_plain_response(resp, llm_type)
-        text = instance._parse_content().strip()  # Get raw parsed content without structured override
+        
+        if llm_type == LlmType.CLAUDE and hasattr(resp, 'response_metadata'):
+            stop_reason = resp.response_metadata.get('stop_reason')
+            if stop_reason == 'tool_use':
+                logger.error(f"Claude response interrupted by tool_use - incomplete dialogue generation")
+                instance._structured_result = None
+                return instance
+        
+        text = instance._parse_content().strip()
+        if not text:
+            logger.error(f"Structured parse failed: empty content from {llm_type.name}")
+            instance._structured_result = None
+            return instance
+        
         match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
         if match:
             json_block = match.group(1).strip()
             try:
                 json.loads(json_block)
                 instance._structured_result = json_block
-            except Exception:
-                logger.warning("Structured parse: invalid JSON")
+            except Exception as e:
+                logger.error(f"Structured parse: invalid JSON from {llm_type.name}: {e}")
+                instance._structured_result = None
+        else:
+            logger.error(f"Structured parse: no JSON found in {llm_type.name} response")
+            instance._structured_result = None
+        
         return instance
 
     @classmethod

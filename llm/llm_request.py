@@ -11,7 +11,7 @@ from tools.queue_tool import queue_intro_song, get_tool_definition as get_queue_
 logger = logging.getLogger(__name__)
 
 
-async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str) -> Any:
+async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str, enable_tools: bool = True) -> Any:
     memory_block = (
         "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
         f"{on_air_memory}\n\n"
@@ -24,12 +24,12 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
     )
 
     tools = None
-    if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
+    if enable_tools and hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
         internet_tool = SearchEngine.Perplexity.value
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
         logger.info(f'invoke_intro: Internet tools "{internet_tool}" enabled for {llm_client.llm_type.name}')
     else:
-        logger.debug(f"invoke_intro: No internet tools available for {llm_client.llm_type.name}")
+        logger.debug(f"invoke_intro: Tools disabled or not available for {llm_client.llm_type.name}")
 
     response = await llm_client.invoke(
         messages=[

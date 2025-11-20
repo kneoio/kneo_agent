@@ -51,10 +51,28 @@ class AudioProcessor:
             return None, f"TTS generation failed: {str(e)}"
 
     async def generate_tts_dialogue(self, dialogue_json: str) -> Tuple[Optional[bytes], str]:
+        if not dialogue_json or dialogue_json.strip() == "":
+            self.logger.error("Dialogue TTS failed: empty or None input from LLM")
+            return None, "Dialogue TTS failed: LLM returned no dialogue content"
+
         dialogue = ""
         try:
             dialogue = json.loads(dialogue_json)
-            settings = {"volume_normalization": "on"}
+        except Exception:
+            try:
+                extracted = self._extract_json_array(dialogue_json)
+                if not extracted:
+                    self.logger.error(f"Dialogue TTS failed: no JSON array in LLM output")
+                    return None, "Dialogue TTS failed: no JSON array found in LLM response"
+                sanitized = self._sanitize_dialogue_json(extracted)
+                dialogue = json.loads(sanitized)
+            except Exception as se:
+                self.logger.error(f"Dialogue TTS parse failed after sanitization: {se}")
+                self.logger.error(f"Dialogue raw: {dialogue_json[:500]}")
+                return None, f"Dialogue TTS failed: {str(se)}"
+
+        settings = {"volume_normalization": "on"}
+        try:
             audio_stream = self.elevenlabs_inst.text_to_dialogue.convert(inputs=dialogue, settings=settings)
             audio_data = b"".join(audio_stream)
             if audio_data:

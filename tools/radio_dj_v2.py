@@ -78,7 +78,8 @@ class RadioDJV2:
                 llm_client=self.llm,
                 prompt=prompt_item.prompt,
                 draft=draft,
-                on_air_memory=raw_mem
+                on_air_memory=raw_mem,
+                enable_tools=not prompt_item.dialogue
             )
             
             if prompt_item.dialogue:
