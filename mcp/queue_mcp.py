@@ -11,7 +11,8 @@ class QueueMCP:
     async def add_to_queue_i_s(self, brand_name: str,
                                sound_fragment_uuid,
                                file_path: Optional[str] = None,
-                               priority: Optional[int] = 20) -> bool:
+                               priority: Optional[int] = 20,
+                               operation_id: Optional[str] = None) -> bool:
         payload = {
             "brand": brand_name,
             "songIds": {
@@ -23,6 +24,8 @@ class QueueMCP:
         }
         if file_path:
             payload["filePaths"] = {"audio1": file_path}
+        if operation_id:
+            payload["operationId"] = operation_id
 
         self.logger.debug(f"Calling add_to_queue with payload: {payload}")
         result = await self.mcp_client.call_tool("add_to_queue", payload)
@@ -33,7 +36,8 @@ class QueueMCP:
                                  fragment_uuid_1,
                                  fragment_uuid_2,
                                  file_path: Optional[str] = None,
-                                 priority: Optional[int] = 20) -> bool:
+                                 priority: Optional[int] = 20,
+                                 operation_id: Optional[str] = None) -> bool:
         payload = {
             "brand": brand_name,
             "songIds": {
@@ -45,6 +49,8 @@ class QueueMCP:
         }
         if file_path:
             payload["filePaths"] = {"audio1": file_path}
+        if operation_id:
+            payload["operationId"] = operation_id
 
         self.logger.debug(f"Calling add_to_queue with payload: {payload}")
         result = await self.mcp_client.call_tool("add_to_queue", payload)
@@ -56,7 +62,8 @@ class QueueMCP:
                                    fragment_uuid_2,
                                    file_path_1: Optional[str] = None,
                                    file_path_2: Optional[str] = None,
-                                   priority: Optional[int] = 20) -> bool:
+                                   priority: Optional[int] = 20,
+                                   operation_id: Optional[str] = None) -> bool:
         payload = {
             "brand": brand_name,
             "songIds": {
@@ -74,6 +81,8 @@ class QueueMCP:
             file_paths["audio2"] = file_path_2
         if file_paths:
             payload["filePaths"] = file_paths
+        if operation_id:
+            payload["operationId"] = operation_id
 
         self.logger.debug(f"Calling add_to_queue with payload: {payload}")
         result = await self.mcp_client.call_tool("add_to_queue", payload)

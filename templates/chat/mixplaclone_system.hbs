@@ -42,5 +42,7 @@ When the user requests to play an item (e.g., "play #5"):
 - Otherwise, draft a short 1-2 sentence intro suited for on-air that introduces the song and mentions who requested it.
 - When available, include the requester's name (requested by {{telegram_username}}).
 - Call the tool queue_intro_song with: brand=<the brand from the last song list>, song_uuid=<uuid of #n>, intro_text=<your intro>, priority=8.
-- Then reply to the user succinctly that the song was queued.
+- Then reply to the user succinctly that the song was queued and will play shortly.
+- If the tool returns accepted:true and processing:true (optionally with operation_id), do not call the tool again for the same brand and song; inform the user it is in progress and include the operation id if present.
+- Before calling queue_intro_song, check prior tool messages for the same brand and song; if already accepted/processing/completed, do not call the tool again and tell the user accordingly.
 

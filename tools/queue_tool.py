@@ -1,7 +1,9 @@
 import os
 import logging
+import asyncio
 from datetime import datetime
 from typing import Optional, Dict, Any
+import uuid
 
 from elevenlabs.client import ElevenLabs
 
@@ -28,14 +30,9 @@ def _save_audio_file(audio_data: bytes, brand: str) -> str:
     return path
 
 
-async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority: int = 8) -> Dict[str, Any]:
+async def _queue_intro_song_impl(brand: str, song_uuid: str, intro_text: str, priority: int, operation_id: Optional[str]) -> Dict[str, Any]:
     from rest.app_setup import cfg, mcp_client as app_mcp_client
-    
-    logger.info(f"queue_intro_song called: brand={brand}, song_uuid={song_uuid}, intro_text_len={len(intro_text)}, priority={priority}")
-    
-    if not brand or not song_uuid or not intro_text:
-        logger.error(f"Missing required params: brand={bool(brand)}, song_uuid={bool(song_uuid)}, intro_text={bool(intro_text)}")
-        return {"success": False, "error": "brand, song_uuid and intro_text are required"}
+    logger.info(f"queue_intro_song[impl] brand={brand}, song_uuid={song_uuid}, intro_text_len={len(intro_text)}, priority={priority}")
 
     voice_id = await get_brand_preferred_voice_id(brand)
     logger.info(f"Resolved voice_id for brand '{brand}': {voice_id}")
@@ -65,7 +62,7 @@ async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority
 
     eleven = ElevenLabs(api_key=el_key)
     audio_processor = AudioProcessor(elevenlabs_inst=eleven, station=station, memory=interaction_memory)
-    
+
     logger.info(f"Generating TTS for intro: '{intro_text[:50]}...'")
     audio_data, reason = await audio_processor.generate_tts_audio(intro_text)
     if not audio_data:
@@ -83,8 +80,8 @@ async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority
 
     queue = QueueMCP(mcp)
     try:
-        logger.info(f"Calling add_to_queue_i_s: brand={brand}, song_uuid={song_uuid}, file_path={file_path}, priority={priority}")
-        result = await queue.add_to_queue_i_s(brand_name=brand, sound_fragment_uuid=song_uuid, file_path=file_path, priority=priority)
+        logger.info(f"Calling add_to_queue_i_s: brand={brand}, song_uuid={song_uuid}, file_path={file_path}, priority={priority}, operation_id={operation_id}")
+        result = await queue.add_to_queue_i_s(brand_name=brand, sound_fragment_uuid=song_uuid, file_path=file_path, priority=priority, operation_id=operation_id)
         logger.info(f"Queue add result: {result}")
         ok = bool(result is True or (isinstance(result, dict) and result.get("success")))
         logger.info(f"Queue success={ok}")
@@ -93,6 +90,20 @@ async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority
     except Exception as e:
         logger.error(f"Queue add failed: {e}", exc_info=True)
         logger.info(f"queue_intro_song completed: success=False, brand={brand}, song_uuid={song_uuid}, priority={priority}, error={str(e)}")
+        return {"success": False, "error": str(e)}
+
+
+async def queue_intro_song(brand: str, song_uuid: str, intro_text: str, priority: int = 8) -> Dict[str, Any]:
+    logger.info(f"queue_intro_song accepted: brand={brand}, song_uuid={song_uuid}, intro_text_len={len(intro_text)}, priority={priority}")
+    if not brand or not song_uuid or not intro_text:
+        logger.error(f"Missing required params: brand={bool(brand)}, song_uuid={bool(song_uuid)}, intro_text={bool(intro_text)}")
+        return {"success": False, "error": "brand, song_uuid and intro_text are required"}
+    try:
+        op_id = uuid.uuid4().hex
+        asyncio.create_task(_queue_intro_song_impl(brand, song_uuid, intro_text, priority, op_id))
+        return {"success": True, "accepted": True, "processing": True, "operation_id": op_id}
+    except Exception as e:
+        logger.error(f"Failed to schedule queue task: {e}")
         return {"success": False, "error": str(e)}
 
 
