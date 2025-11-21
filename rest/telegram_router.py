@@ -35,7 +35,12 @@ async def telegram_webhook(req: Request):
     messages, history, _ = await repo.build_messages(chat_id, system_prompt)
     messages.append({"role": "user", "content": text})
 
-    client = llm_factory.get_llm_client(LlmType.GROQ, enable_sound_fragment_tool=True, enable_listener_tool=True)
+    client = llm_factory.get_llm_client(
+        LlmType.GROQ,
+        enable_sound_fragment_tool=True,
+        enable_listener_tool=True,
+        enable_stations_tools=True
+    )
     result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
     reply = result.actual_result
 

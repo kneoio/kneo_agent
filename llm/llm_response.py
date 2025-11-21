@@ -51,7 +51,7 @@ class LlmResponse(BaseModel):
                         parts.append(block["text"])
                     elif hasattr(block, "text"):
                         parts.append(block.text)
-                return " ".join(parts)
+                return "\n".join(parts)
             elif isinstance(content, str):
                 return content
             else:
@@ -60,6 +60,13 @@ class LlmResponse(BaseModel):
         if isinstance(self.raw_response, dict):
             if "content" in self.raw_response:
                 return self.raw_response["content"]
+            if "error" in self.raw_response:
+                err = self.raw_response.get("error")
+                if isinstance(err, dict):
+                    msg = err.get("message") or err.get("error") or str(err)
+                else:
+                    msg = str(err)
+                return f"error: {msg}"
             elif "choices" in self.raw_response and self.raw_response["choices"]:
                 choice = self.raw_response["choices"][0]
                 if "message" in choice and "content" in choice["message"]:
@@ -74,7 +81,7 @@ class LlmResponse(BaseModel):
             elif hasattr(first_choice, "text"):
                 return first_choice.text
         
-        return ""
+        return f"[{self.llm_type}] no content"
 
     def _parse_content(self) -> str:
         content = self._get_content_string()

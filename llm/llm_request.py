@@ -5,9 +5,13 @@ from typing import Any
 from cnst.search_engine import SearchEngine
 from llm.llm_response import LlmResponse
 from mcp.external.internet_mcp import InternetMCP
-from tools.listener_tool import get_tool_definition as get_listener_tool_definition
-from tools.queue_tool import get_tool_definition as get_queue_tool_definition
 from tools.sound_fragment_tool import get_tool_definition as get_sound_fragment_tool_definition
+from tools.queue_tool import get_tool_definition as get_queue_tool_definition
+from tools.listener_tool import get_tool_definition as get_listener_tool_definition
+from tools.stations_tool import (
+    get_list_stations_tool_definition,
+    get_station_live_tool_definition,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +76,19 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
         if 'get_listener_by_telegram' in llm_client.tool_functions:
             listener_def = get_listener_tool_definition()
             tools.append(listener_def)
-        logger.info(f'invoke_chat: tools enabled for {llm_client.llm_type.name}: internet={True}, sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}, queue_intro_song={"queue_intro_song" in llm_client.tool_functions}, listener={"get_listener_by_telegram" in llm_client.tool_functions}')
+        if 'list_stations' in llm_client.tool_functions:
+            tools.append(get_list_stations_tool_definition())
+        if 'get_station_live' in llm_client.tool_functions:
+            tools.append(get_station_live_tool_definition())
+        logger.info(
+            f'invoke_chat: tools enabled for {llm_client.llm_type.name}: '
+            f'internet={True}, '
+            f'sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}, '
+            f'queue_intro_song={"queue_intro_song" in llm_client.tool_functions}, '
+            f'listener={"get_listener_by_telegram" in llm_client.tool_functions}, '
+            f'list_stations={"list_stations" in llm_client.tool_functions}, '
+            f'get_station_live={"get_station_live" in llm_client.tool_functions}'
+        )
         try:
             tool_names = []
             for t in tools or []:

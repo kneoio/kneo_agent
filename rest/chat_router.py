@@ -40,7 +40,8 @@ async def chat_invoke(req: ChatRequest, request: Request):
     client = llm_factory.get_llm_client(
         llm_choice,
         enable_sound_fragment_tool=True,
-        enable_listener_tool=bool(telegram_username)
+        enable_listener_tool=bool(telegram_username),
+        enable_stations_tools=True
     )
     result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
     reply = result.actual_result
