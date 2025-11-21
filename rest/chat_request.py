@@ -8,4 +8,4 @@ class ChatRequest(BaseModel):
     brand: Optional[str] = None
     llm: LlmType = LlmType.OPENROUTER
     chat_id: int
-    name: Optional[str] = None
+    telegram_username: Optional[str] = None

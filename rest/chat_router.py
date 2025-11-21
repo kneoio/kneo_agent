@@ -27,18 +27,25 @@ async def chat_invoke(req: ChatRequest, request: Request):
     brand = req.brand
     llm_choice = req.llm
     chat_id = req.chat_id
-    name = req.name
+    telegram_username = req.telegram_username
 
     repo = HistoryRepository(request.app.state.user_memory)
-    system_prompt = render_template("chat/mixplaclone_system.hbs", {"brand": brand, "name": name})
+    system_prompt = render_template(
+        "chat/mixplaclone_system.hbs",
+        {"brand": brand, "telegram_username": telegram_username}
+    )
     messages, history, _ = await repo.build_messages(chat_id, system_prompt)
     messages.append({"role": "user", "content": text})
 
-    client = llm_factory.get_llm_client(llm_choice, enable_sound_fragment_tool=True)
+    client = llm_factory.get_llm_client(
+        llm_choice,
+        enable_sound_fragment_tool=True,
+        enable_listener_tool=bool(telegram_username)
+    )
     result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
     reply = result.actual_result
 
-    await repo.update_from_result(chat_id, name, brand, history, result, fallback_user_text=text)
+    await repo.update_from_result(chat_id, telegram_username, brand, history, result, fallback_user_text=text)
 
     return {"ok": True, "brand": brand, "llm": llm_choice.name, "reply": reply}
 

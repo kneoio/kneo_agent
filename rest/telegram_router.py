@@ -17,7 +17,7 @@ async def telegram_webhook(req: Request):
     chat = msg.get("chat", {})
     chat_id = chat.get("id")
     text = msg.get("text")
-    name = chat.get("username") or chat.get("first_name") or ""
+    telegram_username = chat.get("username") or ""
     brand = "default"
 
     if not text:
@@ -25,18 +25,21 @@ async def telegram_webhook(req: Request):
         return {"ok": True}
 
     preview = text if len(text) <= 120 else text[:117] + "..."
-    logger.info(f"Telegram webhook: received chat_id={chat_id}, name={name}, text='{preview}'")
+    logger.info(f"Telegram webhook: received chat_id={chat_id}, name={telegram_username}, text='{preview}'")
 
     repo = HistoryRepository(req.app.state.user_memory)
-    system_prompt = render_template("chat/mixplaclone_system.hbs", {"brand": brand, "name": name})
+    system_prompt = render_template("chat/mixplaclone_system.hbs", {
+        "brand": brand,
+        "telegram_username": telegram_username
+    })
     messages, history, _ = await repo.build_messages(chat_id, system_prompt)
     messages.append({"role": "user", "content": text})
 
-    client = llm_factory.get_llm_client(LlmType.GROQ, enable_sound_fragment_tool=True)
+    client = llm_factory.get_llm_client(LlmType.GROQ, enable_sound_fragment_tool=True, enable_listener_tool=True)
     result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
     reply = result.actual_result
 
-    await repo.update_from_result(chat_id, name, brand, history, result, fallback_user_text=text)
+    await repo.update_from_result(chat_id, telegram_username, brand, history, result, fallback_user_text=text)
 
     async with httpx.AsyncClient() as http_client:
         await http_client.post(

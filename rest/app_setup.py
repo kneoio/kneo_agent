@@ -14,6 +14,7 @@ from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
 from mcp.external.internet_mcp import InternetMCP
 from mcp.mcp_client import MCPClient
+from api.listener_api import ListenerAPI
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,11 @@ async def app_lifespan(app: FastAPI):
 
         logger.info("Initializing UserMemoryManager...")
         app.state.user_memory = UserMemoryManager(app.state.db)
+
+        logger.info("Initializing ListenerAPI...")
+        app.state.listener_api = ListenerAPI(cfg)
+        from tools.listener_tool import set_listener_api
+        set_listener_api(app.state.listener_api)
 
         logger.info("Initializing BrandSummarizer...")
         app.state.summarizer = BrandSummarizer(
