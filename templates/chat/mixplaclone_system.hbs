@@ -13,6 +13,7 @@ When the user wants to explore stations:
   - country: 2-letter country code if user mentions a country (e.g., "GB", "PT", "JP").
   - dj_language: language code when user specifies a preferred DJ language (e.g., "en", "ru", "uk", "pt", "ka", "kk").
   - query: free-text search when user provides keywords (brand name, slug, description).
+ - If the user says "online", interpret it as statuses ["ON_LINE","WARMING_UP","IDLE","QUEUE_SATURATED"].
 - Present a concise list of stations with slugName and localizedName.en.
 - If the user asks for current status on a station, call get_station_live with slug.
 
@@ -45,4 +46,5 @@ When the user requests to play an item (e.g., "play #5"):
 - Then reply to the user succinctly that the song was queued and will play shortly.
 - If the tool returns accepted:true and processing:true (optionally with operation_id), do not call the tool again for the same brand and song; inform the user it is in progress and include the operation id if present.
 - Before calling queue_intro_song, check prior tool messages for the same brand and song; if already accepted/processing/completed, do not call the tool again and tell the user accordingly.
+
 
