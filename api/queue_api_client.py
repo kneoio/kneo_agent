@@ -21,9 +21,9 @@ class QueueAPIClient:
             h.update(extra)
         return h
 
-    async def enqueue_add(self, brand: str, upload_id: str, start_ms: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/{brand}/queue/add"
-        params = {"uploadId": upload_id, "startTime": str(start_ms)}
+    async def enqueue_add(self, brand: str, process_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        url = f"{self.base_url}/api/{brand}/queue/add"
+        params = {"processId": process_id}
         async with httpx.AsyncClient(timeout=self.timeout) as c:
             r = await c.post(url, params=params, headers=self._headers(), json=payload)
             r.raise_for_status()
@@ -32,8 +32,8 @@ class QueueAPIClient:
             except json.JSONDecodeError:
                 return {}
 
-    async def stream_progress(self, brand: str, upload_id: str) -> AsyncIterator[Dict[str, Any]]:
-        url = f"{self.base_url}/{brand}/queue/progress/{upload_id}/stream"
+    async def stream_progress(self, brand: str, process_id: str) -> AsyncIterator[Dict[str, Any]]:
+        url = f"{self.base_url}/{brand}/queue/progress/{process_id}/stream"
         headers = self._headers({"Accept": "text/event-stream"})
         async with httpx.AsyncClient(timeout=None) as c:
             async with c.stream("GET", url, headers=headers) as r:
@@ -48,11 +48,15 @@ class QueueAPIClient:
                         except Exception:
                             yield {"data": data}
 
-    async def wait_until_done(self, brand: str, upload_id: str, timeout_s: Optional[int] = 600) -> Optional[Dict[str, Any]]:
+    async def wait_until_done(self, brand: str, process_id: str, timeout_s: Optional[int] = 600) -> Optional[
+        Dict[str, Any]]:
         start = time.time()
         last: Optional[Dict[str, Any]] = None
-        async for ev in self.stream_progress(brand, upload_id):
+        async for ev in self.stream_progress(brand, process_id):
             last = ev
+            status = ev.get("status")
+            if status in ("DONE", "ERROR"):
+                break
             if timeout_s is not None and (time.time() - start) > timeout_s:
                 break
             await asyncio.sleep(0)
