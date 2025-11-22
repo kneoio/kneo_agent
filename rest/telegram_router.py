@@ -28,6 +28,15 @@ async def telegram_webhook(req: Request):
     logger.info(f"Telegram webhook: received chat_id={chat_id}, name={telegram_username}, text='{preview}'")
 
     repo = HistoryRepository(req.app.state.user_memory)
+    t = text.strip().lower()
+    if t in "/reset":
+        await repo.clear(chat_id)
+        async with httpx.AsyncClient() as http_client:
+            await http_client.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                json={"chat_id": chat_id, "text": "History cleared."}
+            )
+        return {"ok": True}
     system_prompt = render_template("chat/mixplaclone_system.hbs", {
         "brand": brand,
         "telegram_username": telegram_username,
@@ -36,8 +45,8 @@ async def telegram_webhook(req: Request):
     messages, history, _ = await repo.build_messages(chat_id, system_prompt)
     messages.append({"role": "user", "content": text})
 
-    forced_llm = LlmType.CLAUDE
-    # forced_llm = LlmType.GROQ
+    #forced_llm = LlmType.CLAUDE
+    forced_llm = LlmType.GROQ
     client = llm_factory.get_llm_client(
         forced_llm,
         enable_sound_fragment_tool=True,

@@ -28,7 +28,10 @@ class AudioProcessor:
             self.logger.info(f"TTS text length -------> : {len(text)} chars")
 
         try:
-            voice_id = self.station.tts.preferredVoice
+            voice_id = (self.station.tts.primaryVoice or "").strip()
+            if not voice_id:
+                self.logger.error("Missing primaryVoice for TTS generation")
+                return None, "Missing primaryVoice for TTS generation"
             audio_stream = self.elevenlabs_inst.text_to_speech.convert(
                 voice_id=voice_id,
                 text=text[:1000],

@@ -5,14 +5,14 @@ from dataclasses import dataclass, field
 
 @dataclass
 class TtsConfig:
-    preferredVoice: str
+    primaryVoice: str
     secondaryVoice: str
     secondaryVoiceName: str
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TtsConfig':
         return cls(
-            preferredVoice=data.get("preferredVoice", ""),
+            primaryVoice=data.get("primaryVoice", ""),
             secondaryVoice=data.get("secondaryVoice", ""),
             secondaryVoiceName=data.get("secondaryVoiceName", "")
         )

@@ -90,3 +90,7 @@ class UserMemoryManager:
     async def clear(self, user_id: int):
         async with self.db.acquire() as conn:
             await conn.execute("DELETE FROM mixpla__user_memory WHERE user_id = $1", user_id)
+
+    async def clear_all(self):
+        async with self.db.acquire() as conn:
+            await conn.execute("DELETE FROM mixpla__user_memory")

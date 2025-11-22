@@ -58,3 +58,6 @@ class HistoryRepository:
 
     async def clear(self, chat_id: int):
         await self.user_memory.clear(chat_id)
+
+    async def clear_all(self):
+        await self.user_memory.clear_all()

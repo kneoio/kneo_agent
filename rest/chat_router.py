@@ -52,7 +52,14 @@ async def chat_invoke(req: ChatRequest, request: Request):
 
 
 @router.delete("/chat/clear", dependencies=[Depends(verify_api_key)])
-async def chat_clear(chat_id: int, request: Request):
+async def chat_clear(chat_id: str, request: Request):
     repo = HistoryRepository(request.app.state.user_memory)
-    await repo.clear(chat_id)
-    return {"ok": True, "chat_id": chat_id}
+    if chat_id == "all":
+        await repo.clear_all()
+        logger.info("Cleared all user history")
+        return {"ok": True, "chat_id": "all", "cleared": "all"}
+    else:
+        chat_id_int = int(chat_id)
+        await repo.clear(chat_id_int)
+        logger.info(f"Cleared history for chat_id={chat_id_int}")
+        return {"ok": True, "chat_id": chat_id_int}

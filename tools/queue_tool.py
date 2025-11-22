@@ -1,47 +1,13 @@
-import os
 import logging
-from datetime import datetime
-from typing import Optional, Dict, Any
-import uuid
 import time
+import uuid
+from typing import Optional, Dict, Any
+
 import httpx
 
 from api.queue_api_client import QueueAPIClient
-from cnst.paths import MERGED_AUDIO_DIR
 
 logger = logging.getLogger(__name__)
-
-
-def _save_audio_file(audio_data: bytes, brand: str) -> str:
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ext = "wav" if (audio_data[:4] == b"RIFF" and audio_data[8:12] == b"WAVE") else "mp3"
-    file_name = f"{brand}_intro_{ts}.{ext}"
-    os.makedirs(str(MERGED_AUDIO_DIR), exist_ok=True)
-    path = os.path.join(str(MERGED_AUDIO_DIR), file_name)
-    with open(path, "wb") as f:
-        f.write(audio_data)
-    return path
-
-
-def get_tool_definition() -> Dict[str, Any]:
-    return {
-        "type": "function",
-        "function": {
-            "name": "queue_intro_song",
-            "description": "Generate a short intro via TTS and enqueue INTRO+SONG to the brand's radio queue.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "brand": {"type": "string", "description": "Brand slug or UUID"},
-                    "song_uuid": {"type": "string", "description": "UUID of the selected song"},
-                    "intro_text": {"type": "string", "description": "Short on-air intro text"},
-                    "priority": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8}
-                },
-                "required": ["brand", "song_uuid", "intro_text"]
-            }
-        }
-    }
-
 
 async def enqueue_intro_song_rest(brand: str, intro_uuid: str, song_uuid: str, overlay_path: str, priority: int = 100, notify_telegram_chat_id: Optional[int] = None) -> Dict[str, Any]:
     from rest.app_setup import cfg, TELEGRAM_TOKEN
@@ -100,7 +66,7 @@ async def enqueue_merge_rest(
         if operation_id:
             payload["operationId"] = operation_id
         enqueue_result = await client.enqueue_add(brand=brand, upload_id=up_id, start_ms=st_ms, payload=payload)
-        last_event = await client.wait_until_done(up_id)
+        last_event = await client.wait_until_done(brand, up_id)
         if notify_telegram_chat_id is not None:
             text = f"Queue job completed for {brand}. uploadId={up_id}"
             async with httpx.AsyncClient() as http_client:
@@ -112,3 +78,23 @@ async def enqueue_merge_rest(
     except Exception as e:
         logger.error(f"enqueue_merge_rest failed: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
+
+
+def get_tool_definition() -> Dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {
+            "name": "queue_intro_song",
+            "description": "Generate a short intro via TTS and enqueue INTRO+SONG to the brand's radio queue.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "brand": {"type": "string", "description": "Brand slug or UUID"},
+                    "song_uuid": {"type": "string", "description": "UUID of the selected song"},
+                    "intro_text": {"type": "string", "description": "Short on-air intro text"},
+                    "priority": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8}
+                },
+                "required": ["brand", "song_uuid", "intro_text"]
+            }
+        }
+    }
