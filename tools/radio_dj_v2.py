@@ -8,18 +8,18 @@ from langgraph.graph import StateGraph, END
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
 from llm.llm_response import LlmResponse
-from mcp.queue_mcp import QueueMCP
 from memory.brand_user_summorizer import BrandUserSummarizer
 from memory.brand_memory_manager import BrandMemoryManager
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
+from tools.queue_tool import enqueue_merge_rest
 
 
 class RadioDJV2:
     memory_manager = BrandMemoryManager()
 
     def __init__(self, station: LiveRadioStation, audio_processor, target_dir: str,
-                 mcp_client=None, llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
+                 llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
         if db_pool is None:
             raise ValueError("db_pool parameter is required for RadioDJV2 initialization")
 
@@ -30,7 +30,6 @@ class RadioDJV2:
         self.audio_processor = audio_processor
         self.live_station = station
         self.brand = station.slugName
-        self.queue_mcp = QueueMCP(mcp_client)
         self.target_dir = target_dir
         self.db = db_pool
         #self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
@@ -158,20 +157,22 @@ class RadioDJV2:
             priority = 9 if expected_start_time is not None else 10
 
             if num_songs == 1:
-                result = await self.queue_mcp.add_to_queue_i_s(
-                    brand_name=self.brand,
-                    sound_fragment_uuid=state["song_ids"][0],
-                    file_path=state["audio_file_paths"][0],
-                    priority=priority
+                result = await enqueue_merge_rest(
+                    brand=self.brand,
+                    merging_method="INTRO_SONG",
+                    sound_fragments={"1": state["song_ids"][0]},
+                    file_paths={"1": state["audio_file_paths"][0]},
+                    priority=priority,
+                    start_ms=expected_start_time
                 )
             elif num_songs == 2:
-                result = await self.queue_mcp.add_to_queue_i_s_i_s(
-                    brand_name=self.brand,
-                    fragment_uuid_1=state["song_ids"][0],
-                    fragment_uuid_2=state["song_ids"][1],
-                    file_path_1=state["audio_file_paths"][0],
-                    file_path_2=state["audio_file_paths"][1],
-                    priority=priority
+                result = await enqueue_merge_rest(
+                    brand=self.brand,
+                    merging_method="INTRO_SONG_INTRO_SONG",
+                    sound_fragments={"1": state["song_ids"][0], "2": state["song_ids"][1]},
+                    file_paths={"1": state["audio_file_paths"][0], "2": state["audio_file_paths"][1]},
+                    priority=priority,
+                    start_ms=expected_start_time
                 )
             else:
                 self.logger.error(f"Unexpected number of songs: {num_songs}")

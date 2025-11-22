@@ -11,7 +11,6 @@ from cnst.llm_types import LlmType
 from core.dj_runner import DJRunner
 from mcp.external.internet_mcp import InternetMCP
 from api.live_stations_api import LiveStationsAPI
-from mcp.mcp_client import MCPClient
 from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
 from cnst.paths import MERGED_AUDIO_DIR
@@ -21,7 +20,6 @@ class Waker:
     def __init__(self, config: Dict):
         self.config = config
         self.loop = None
-        self.mcp_client = None
         self.live_stations_mcp = None
         self.internet_mcp = None
         self.api_client = None
@@ -57,7 +55,6 @@ class Waker:
                 config=self.config,
                 station=station,
                 api_client=self.api_client,
-                mcp_client=self.mcp_client,
                 llm_client=llmClient,
                 llm_type=llmType,
                 db_pool=self.db_pool
@@ -87,9 +84,7 @@ class Waker:
         return had_success
 
     async def _async_run(self):
-        self.mcp_client = MCPClient(self.config, skip_initialization=True)
-        await self.mcp_client.connect()
-        self.internet_mcp = InternetMCP(mcp_client=self.mcp_client, config=self.config, default_engine="Perplexity")
+        self.internet_mcp = InternetMCP(config=self.config, default_engine="Perplexity")
         self.live_stations_mcp = LiveStationsAPI(self.config)
         self.api_client = BroadcasterAPIClient(self.config)
 
@@ -101,9 +96,16 @@ class Waker:
             return
         ssl_required = bool(db_cfg.get("ssl", False))
         logging.info(f"Initializing DB pool for Waker (config DSN first 20): {dsn[:20]}... | SSL: {ssl_required}")
-        await DBManager.init(dsn, ssl=ssl_required)
-        self.db_pool = DBManager.get_pool()
-        logging.info("DB pool for Waker initialized")
+        try:
+            await asyncio.wait_for(DBManager.init(dsn, ssl=ssl_required), timeout=30)
+            self.db_pool = DBManager.get_pool()
+            logging.info("DB pool for Waker initialized")
+        except asyncio.TimeoutError:
+            logging.error("DB pool initialization timed out after 30s")
+            return
+        except Exception as e:
+            logging.error(f"DB pool initialization failed: {e}", exc_info=True)
+            return
         if not self.db_pool:
             logging.error("DB pool init failed for Waker")
             return
@@ -127,7 +129,6 @@ class Waker:
                 logging.info(f"Waker sleeping for {self.current_interval:.0f}s. Next run at {next_run_str}")
                 await asyncio.sleep(self.current_interval)
         finally:
-            await self.mcp_client.disconnect()
             try:
                 await DBManager.close()
                 logging.info("Waker DB pool closed")

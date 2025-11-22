@@ -6,7 +6,7 @@ from core.config import get_merged_config
 
 class DBManager:
     _pools: Dict[int, asyncpg.Pool] = {}
-    _lock = asyncio.Lock()
+    _locks: Dict[int, asyncio.Lock] = {}
     _config: Dict[str, Any] = {}
 
     @classmethod
@@ -34,8 +34,11 @@ class DBManager:
         
         if not dsn:
             raise ValueError("Database DSN not provided in configuration")
+        
+        if loop_id not in cls._locks:
+            cls._locks[loop_id] = asyncio.Lock()
             
-        async with cls._lock:
+        async with cls._locks[loop_id]:
             if loop_id in cls._pools:
                 return
             pool = await asyncpg.create_pool(dsn, ssl="require" if ssl else None)

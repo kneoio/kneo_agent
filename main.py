@@ -5,7 +5,6 @@ import threading
 
 from core.config import load_config
 from core.logging_config import setup_logging
-from mcp.mcp_client import MCPClient
 from watcher.waker import Waker
 import uvicorn
 from rest.web_handler import app as mcp_http_app
@@ -15,29 +14,10 @@ class ApplicationManager:
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(__name__)
-        self.mcp_client = None
         self.waker = None
         self.running = True
         self.http_server = None
         self.http_thread = None
-
-    async def initialize_mcp_client(self):
-        while self.running:
-            try:
-                self.mcp_client = MCPClient(self.config)
-                await self.mcp_client.connect()
-                self.logger.info("MCP client initialized and connected")
-                return True
-            except Exception as e:
-                self.logger.error(f"Failed to initialize MCP client: {e}")
-                self.logger.info("Retrying MCP connection in 5 seconds...")
-                await asyncio.sleep(5)
-        return False
-
-    async def cleanup_mcp_client(self):
-        if self.mcp_client:
-            await self.mcp_client.disconnect()
-            self.logger.info("MCP client disconnected")
 
     def initialize_waker(self):
         try:
@@ -117,14 +97,6 @@ async def async_main():
             logger.error("Database DSN not found in config; exiting")
             return 1
 
-        logger.info("Waiting for MCP client connection...")
-        mcp_success = await app_manager.initialize_mcp_client()
-        if not mcp_success:
-            logger.error("Application shutting down - MCP client required but unavailable")
-            return 1
-
-        logger.info("MCP client ready for use")
-
         waker_success = app_manager.initialize_waker()
         if not waker_success:
             logger.error("Waker initialization failed, exiting")
@@ -157,7 +129,7 @@ async def async_main():
         logger.exception(f"An unexpected error occurred: {e}")
         app_manager.shutdown()
     finally:
-        await app_manager.cleanup_mcp_client()
+        pass
 
     logger.info("Application finished.")
     return 0

@@ -30,7 +30,8 @@ async def telegram_webhook(req: Request):
     repo = HistoryRepository(req.app.state.user_memory)
     system_prompt = render_template("chat/mixplaclone_system.hbs", {
         "brand": brand,
-        "telegram_username": telegram_username
+        "telegram_username": telegram_username,
+        "telegram_chat_id": chat_id
     })
     messages, history, _ = await repo.build_messages(chat_id, system_prompt)
     messages.append({"role": "user", "content": text})
