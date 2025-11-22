@@ -9,23 +9,16 @@ from api.queue_api_client import QueueAPIClient
 logger = logging.getLogger(__name__)
 
 
-async def enqueue_intro_song_rest(
+async def queue_intro_and_song(
         brand: str,
-        intro_uuid: str,
         song_uuid: str,
-        overlay_path: str,
-        priority: int = 100,
+        generated_tts_path: str,
+        priority: int = 8,
         notify_telegram_chat_id: Optional[int] = None
 ) -> Dict[str, Any]:
-    from rest.app_setup import cfg, TELEGRAM_TOKEN
 
-    logger.info(
-        f"enqueue_intro_song_rest accepted: brand={brand}, intro_uuid={intro_uuid}, "
-        f"song_uuid={song_uuid}, overlay_path={overlay_path}, priority={priority}"
-    )
-
-    if not brand or not intro_uuid or not song_uuid or not overlay_path:
-        return {"success": False, "error": "brand, intro_uuid, song_uuid, overlay_path are required"}
+    if not brand or not song_uuid or not generated_tts_path:
+        return {"success": False, "error": "brand, song_uuid, generated_tts_path are required"}
 
     try:
         client = QueueAPIClient(cfg)
@@ -33,8 +26,8 @@ async def enqueue_intro_song_rest(
 
         payload = {
             "mergingMethod": "INTRO_SONG",
-            "soundFragments": {"1": intro_uuid, "2": song_uuid},
-            "filePaths": {"1": overlay_path},
+            "soundFragments": {"song1": song_uuid},
+            "filePaths": {"audio1": generated_tts_path},
             "priority": priority
         }
 
@@ -65,13 +58,12 @@ async def enqueue_intro_song_rest(
         return {"success": False, "error": str(e)}
 
 
-async def enqueue_merge_rest(
+async def enqueue(
         brand: str,
         merging_method: str,
         sound_fragments: Dict[str, str],
         file_paths: Dict[str, str],
-        priority: int = 100,
-        notify_telegram_chat_id: Optional[int] = None,
+        priority: int = 10,
 ) -> Dict[str, Any]:
     if not brand or not merging_method or not sound_fragments or not file_paths:
         return {"success": False, "error": "brand, merging_method, sound_fragments, file_paths are required"}
@@ -95,14 +87,6 @@ async def enqueue_merge_rest(
 
         last_event = await client.wait_until_done(brand, process_id)
 
-        if notify_telegram_chat_id is not None:
-            text = f"Queue job completed for {brand}. processId={process_id}"
-            async with httpx.AsyncClient() as http_client:
-                await http_client.post(
-                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                    json={"chat_id": notify_telegram_chat_id, "text": text}
-                )
-
         return {
             "success": True,
             "process_id": process_id,
@@ -123,12 +107,12 @@ def get_tool_definition() -> Dict[str, Any]:
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "brand": {"type": "string", "description": "Brand slug or UUID"},
+                    "brand": {"type": "string", "description": "Brand slug"},
                     "song_uuid": {"type": "string", "description": "UUID of the selected song"},
-                    "intro_text": {"type": "string", "description": "Short on-air intro text"},
-                    "priority": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8}
+                    "generated_tts_path": {"type": "string", "description": "Path to generated TTS file"},
+                    "priority": {"type": "integer", "description": "Priority of the queue item", "minimum": 8, "maximum": 10, "default": 8}
                 },
-                "required": ["brand", "song_uuid", "intro_text"]
+                "required": ["brand", "song_uuid", "generated_tts_path"]
             }
         }
     }
