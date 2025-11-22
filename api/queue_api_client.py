@@ -22,7 +22,7 @@ class QueueAPIClient:
         return h
 
     async def enqueue_add(self, brand: str, process_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/api/{brand}/queue/add"
+        url = f"{self.base_url}/{brand}/queue/add"
         params = {"processId": process_id}
         async with httpx.AsyncClient(timeout=self.timeout) as c:
             r = await c.post(url, params=params, headers=self._headers(), json=payload)
