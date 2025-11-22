@@ -22,7 +22,7 @@ class QueueAPIClient:
         return h
 
     async def enqueue_add(self, brand: str, upload_id: str, start_ms: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/api/{brand}/queue/add"
+        url = f"{self.base_url}/{brand}/queue/add"
         params = {"uploadId": upload_id, "startTime": str(start_ms)}
         async with httpx.AsyncClient(timeout=self.timeout) as c:
             r = await c.post(url, params=params, headers=self._headers(), json=payload)
@@ -33,7 +33,7 @@ class QueueAPIClient:
                 return {}
 
     async def stream_progress(self, brand: str, upload_id: str) -> AsyncIterator[Dict[str, Any]]:
-        url = f"{self.base_url}/api/{brand}/queue/progress/{upload_id}/stream"
+        url = f"{self.base_url}/{brand}/queue/progress/{upload_id}/stream"
         headers = self._headers({"Accept": "text/event-stream"})
         async with httpx.AsyncClient(timeout=None) as c:
             async with c.stream("GET", url, headers=headers) as r:
