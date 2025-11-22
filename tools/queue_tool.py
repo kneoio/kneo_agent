@@ -1,7 +1,6 @@
 import logging
 import uuid
 from typing import Optional, Dict, Any
-from rest.app_setup import cfg, TELEGRAM_TOKEN
 import httpx
 
 from api.queue_api_client import QueueAPIClient
@@ -21,6 +20,7 @@ async def queue_intro_and_song(
         return {"success": False, "error": "brand, song_uuid, generated_tts_path are required"}
 
     try:
+        from rest.app_setup import cfg, TELEGRAM_TOKEN
         client = QueueAPIClient(cfg)
         process_id = uuid.uuid4().hex
 
@@ -69,6 +69,7 @@ async def enqueue(
         return {"success": False, "error": "brand, merging_method, sound_fragments, file_paths are required"}
 
     try:
+        from rest.app_setup import cfg
         client = QueueAPIClient(cfg)
         process_id = uuid.uuid4().hex
 
