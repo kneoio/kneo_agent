@@ -94,3 +94,10 @@ class UserMemoryManager:
     async def clear_all(self):
         async with self.db.acquire() as conn:
             await conn.execute("DELETE FROM mixpla__user_memory")
+    
+    async def get_all_active_chats(self):
+        async with self.db.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT user_id, last_mod_date FROM mixpla__user_memory WHERE history IS NOT NULL"
+            )
+        return [(row["user_id"], row["last_mod_date"]) for row in rows]
