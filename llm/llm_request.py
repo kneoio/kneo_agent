@@ -50,14 +50,14 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
 
 async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool = False) -> 'LlmResponse':
     tools = None
-    if hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
+    if llm_client.tool_functions:
         internet_tool = SearchEngine.Perplexity.value
         tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
         if 'get_brand_sound_fragment' in llm_client.tool_functions:
             sf_def = get_sound_fragment_tool_definition()
             tools.append(sf_def)
             try:
-                if getattr(llm_client, 'llm_type', None) and llm_client.llm_type.name != 'CLAUDE':
+                if llm_client.llm_type.name != 'CLAUDE':
                     sf_alias = {"type": "function", "function": dict(sf_def.get("function", {}))}
                     sf_alias["function"]["name"] = sf_alias["function"].get("name", "") + "<|channel|>commentary"
                     tools.append(sf_alias)
@@ -67,7 +67,7 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
             q_def = get_queue_tool_definition()
             tools.append(q_def)
             try:
-                if getattr(llm_client, 'llm_type', None) and llm_client.llm_type.name != 'CLAUDE':
+                if llm_client.llm_type.name != 'CLAUDE':
                     q_alias = {"type": "function", "function": dict(q_def.get("function", {}))}
                     q_alias["function"]["name"] = q_alias["function"].get("name", "") + "<|channel|>commentary"
                     tools.append(q_alias)

@@ -1,7 +1,9 @@
 import asyncio
+from typing import Dict, Any
+
 import asyncpg
-from typing import Optional, Dict, Any
-from core.config import get_merged_config
+
+from core.config import load_config
 
 
 class DBManager:
@@ -11,7 +13,7 @@ class DBManager:
 
     @classmethod
     def load_config(cls, config_path: str = "config.yaml") -> None:
-        cfg = get_merged_config(config_path)
+        cfg = load_config(config_path)
         cls._config = cfg.get("database", {})
 
     @classmethod

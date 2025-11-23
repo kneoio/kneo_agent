@@ -86,8 +86,8 @@ class RadioDJV2:
             else:
                 response = LlmResponse.parse_plain_response(raw_response, self.llm_type)
             
-            print(self.brand)
-            print(response)
+            #print(self.brand)
+            #print(response)
             state["intro_texts"].append(response.actual_result)
             state["song_ids"].append(prompt_item.songId)
             state["dialogue_states"].append(prompt_item.dialogue)

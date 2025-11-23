@@ -4,7 +4,7 @@ from typing import Dict
 
 from fastapi import FastAPI
 
-from core.config import get_merged_config
+from core.config import load_config
 from cnst.llm_types import LlmType
 from memory.brand_memory_manager import BrandMemoryManager
 from memory.user_memory_manager import UserMemoryManager
@@ -18,7 +18,7 @@ from api.listener_api import ListenerAPI
 
 logger = logging.getLogger(__name__)
 
-cfg: Dict = get_merged_config("config.yaml")
+cfg: Dict = load_config("config.yaml")
 telegram_cfg = cfg.get("telegram", {})
 TELEGRAM_TOKEN: str = telegram_cfg.get("token", "")
 server_cfg = cfg.get("web_server", {})

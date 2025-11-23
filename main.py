@@ -58,7 +58,7 @@ class ApplicationManager:
         self.http_thread.start()
         
         import time
-        time.sleep(1)  # Give the server a moment to start
+        time.sleep(1)
 
 
 def run_scheduler(waker, app_manager):

@@ -26,33 +26,6 @@ def load_config(config_path: str) -> Dict[str, Any]:
         raise
 
 
-def get_env_config(env_name: str = None) -> Dict[str, Any]:
-    logger = logging.getLogger(__name__)
-
-    if not env_name:
-        env_name = os.environ.get('DJ_AGENT_ENV', 'development')
-
-    env_config_path = f"config/environments/{env_name}.yaml"
-
-    if os.path.exists(env_config_path):
-        try:
-            with open(env_config_path, 'r') as f:
-                env_config = yaml.safe_load(f)
-
-            logger.info(f"Loaded environment configuration for {env_name}")
-            return env_config
-        except Exception as e:
-            logger.warning(f"Error loading environment configuration for {env_name}: {e}")
-            return {}
-    else:
-        logger.warning(f"No environment configuration found for {env_name}")
-        return {}
-
-
-def get_merged_config(config_path: str) -> Dict[str, Any]:
-    return load_config(config_path)
-
-
 def get_tool_config(config: Dict[str, Any], tool_name: str) -> Optional[Dict[str, Any]]:
     logger = logging.getLogger(__name__)
 

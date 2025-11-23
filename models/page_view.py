@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import List, Optional, Generic, TypeVar
+from typing import Generic, TypeVar
+from typing import List, Optional
 
 
 @dataclass
@@ -13,12 +14,11 @@ class SongItem:
 @dataclass
 class BrandSongsResult:
     brand: str
-    fragment_type: str
+    keyword: str
     total_count: int
     songs: List[SongItem]
-    page: int
-    page_size: int
-    total_pages: int
+    limit: Optional[int]
+    offset: Optional[int]
 
 
 T = TypeVar("T")

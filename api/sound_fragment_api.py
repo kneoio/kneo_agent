@@ -1,58 +1,43 @@
-import time
-import requests
-from typing import Dict, Any, List
+import logging
+from typing import Optional, Dict, Any
 
-def cached(expiration_time: int = 300):
-    def decorator(func):
-        cache = {'data': None, 'timestamp': 0}
+import httpx
 
-        def wrapper(*args, **kwargs):
-            current_time = int(time.time())
-            if current_time - cache['timestamp'] <= expiration_time and cache['data']:
-                return cache['data']
-            result = func(*args, **kwargs)
-            if result:
-                cache['data'] = result
-                cache['timestamp'] = current_time
-            return result
-        return wrapper
-    return decorator
 
-class SoundFragmentApi:
-    def __init__(self, config: Dict[str, Any]):
+class BrandSoundFragmentsAPI:
+    def __init__(self, config):
         broadcaster = config.get("broadcaster", {})
         self.api_base_url = broadcaster.get("api_base_url")
         self.api_key = broadcaster.get("api_key")
         self.api_timeout = broadcaster.get("api_timeout", 60)
+        self.logger = logging.getLogger(__name__)
 
-    def _get_headers(self, content_type: str = None) -> Dict[str, str]:
-        headers = {}
-        if content_type:
-            headers["Content-Type"] = content_type
+    async def search(self, brand: str, keyword: str, limit: Optional[int] = None, offset: Optional[int] = None) -> Dict[str, Any]:
+        if not keyword or not isinstance(keyword, str):
+            raise ValueError("keyword is required")
+        if not self.api_base_url:
+            raise ValueError("API base URL not configured")
+        
+        params = {"keyword": keyword.strip()}
+        if limit is not None:
+            params["limit"] = limit
+        if offset is not None:
+            params["offset"] = offset
+        
+        url = f"{self.api_base_url}/ai/brand/{brand}/soundfragments"
+        headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
-
-    def _make_request(self, method: str, endpoint: str, **kwargs):
+        
         try:
-            response = requests.request(
-                method,
-                endpoint,
-                headers=self._get_headers(kwargs.pop('content_type', None)),
-                timeout=self.api_timeout,
-                **kwargs
-            )
-            response.raise_for_status()
-            return response
-        except requests.RequestException as e:
-            print(f"Request failed: {e}")  # Print the exception
-            if hasattr(e, 'response') and e.response is not None:
-                print(f"Response status: {e.response.status_code}")
-                print(f"Response content: {e.response.text}")
-            return None
+            async with httpx.AsyncClient(timeout=self.api_timeout) as client:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as e:
+            self.logger.error(f"HTTP error searching sound fragments: {e.response.status_code} - {e.response.text}")
+            raise RuntimeError(f"API returned error {e.response.status_code} for brand {brand}")
+        except Exception as e:
+            self.logger.error(f"Error calling /api/ai/brand/{brand}/soundfragments: {e}")
+            raise
 
-    @cached(expiration_time=60) #1 min
-    def fetch_songs(self, brand: str) -> List[Dict[str, Any]]:
-        endpoint = f"{self.api_base_url}/soundfragments/available-soundfragments?brand={brand}&page=1&size=10"
-        response = self._make_request('GET', endpoint, content_type="application/json")
-        return response.json()["payload"]["viewData"]["entries"] if response else []
