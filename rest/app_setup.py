@@ -33,6 +33,11 @@ cors_settings = {
 llm_factory = LlmFactory(cfg)
 internet = InternetMCP(config=cfg)
 
+_audio_processor = None
+
+def get_audio_processor():
+    return _audio_processor
+
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
@@ -65,6 +70,24 @@ async def app_lifespan(app: FastAPI):
             memory_manager=RadioDJV2.memory_manager,
             llm_type=LlmType.GROQ
         )
+
+        logger.info("Initializing AudioProcessor for queue tool...")
+        from elevenlabs.client import ElevenLabs
+        from api.interaction_memory import InteractionMemory
+        from tools.audio_processor import AudioProcessor
+        from models.live_container import LiveRadioStation
+        
+        global _audio_processor
+        elevenlabs_cfg = cfg.get("elevenlabs", {})
+        elevenlabs_client = ElevenLabs(api_key=elevenlabs_cfg["api_key"])
+        memory = InteractionMemory(brand="default", api_client=app.state.listener_api)
+        station_data = {
+            "slugName": "default",
+            "tts": {"primaryVoice": elevenlabs_cfg.get("default_voice_id")}
+        }
+        station = LiveRadioStation(**station_data)
+        _audio_processor = AudioProcessor(elevenlabs_client, station, memory)
+        app.state.audio_processor = _audio_processor
 
         logger.info("Application startup completed successfully")
         yield
