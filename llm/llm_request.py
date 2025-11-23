@@ -56,23 +56,9 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
         if 'get_brand_sound_fragment' in llm_client.tool_functions:
             sf_def = get_sound_fragment_tool_definition()
             tools.append(sf_def)
-            try:
-                if llm_client.llm_type.name != 'CLAUDE':
-                    sf_alias = {"type": "function", "function": dict(sf_def.get("function", {}))}
-                    sf_alias["function"]["name"] = sf_alias["function"].get("name", "") + "<|channel|>commentary"
-                    tools.append(sf_alias)
-            except Exception:
-                pass
         if 'queue_intro_and_song' in llm_client.tool_functions:
             q_def = get_queue_tool_definition()
             tools.append(q_def)
-            try:
-                if llm_client.llm_type.name != 'CLAUDE':
-                    q_alias = {"type": "function", "function": dict(q_def.get("function", {}))}
-                    q_alias["function"]["name"] = q_alias["function"].get("name", "") + "<|channel|>commentary"
-                    tools.append(q_alias)
-            except Exception:
-                pass
         if 'get_listener_by_telegram' in llm_client.tool_functions:
             listener_def = get_listener_tool_definition()
             tools.append(listener_def)
