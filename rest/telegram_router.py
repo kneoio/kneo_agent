@@ -12,57 +12,61 @@ logger = logging.getLogger(__name__)
 
 @router.post("/telegram/webhook")
 async def telegram_webhook(req: Request):
-    data = await req.json()
-    msg = data.get("message", {})
-    chat = msg.get("chat", {})
-    chat_id = chat.get("id")
-    text = msg.get("text")
-    telegram_username = chat.get("username") or ""
-    brand = "default"
+    try:
+        data = await req.json()
+        logger.info(f"Telegram webhook received: {data}")
+        msg = data.get("message", {})
+        chat = msg.get("chat", {})
+        chat_id = chat.get("id")
+        text = msg.get("text")
+        telegram_username = chat.get("username") or ""
+        brand = "default"
 
-    if not text:
-        logger.info(f"Telegram webhook: non-text update received for chat_id={chat_id}; skipping")
-        return {"ok": True}
+        if not text:
+            logger.info(f"Telegram webhook: non-text update received for chat_id={chat_id}; skipping")
+            return {"ok": True}
 
-    preview = text if len(text) <= 120 else text[:117] + "..."
-    logger.info(f"Telegram webhook: received chat_id={chat_id}, name={telegram_username}, text='{preview}'")
+        preview = text if len(text) <= 120 else text[:117] + "..."
+        logger.info(f"Telegram webhook: received chat_id={chat_id}, name={telegram_username}, text='{preview}'")
 
-    repo = HistoryRepository(req.app.state.user_memory)
-    t = text.strip().lower()
-    if t in "/reset":
-        await repo.clear(chat_id)
+        repo = HistoryRepository(req.app.state.user_memory)
+        t = text.strip().lower()
+        if t in "/reset":
+            await repo.clear(chat_id)
+            async with httpx.AsyncClient() as http_client:
+                await http_client.post(
+                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                    json={"chat_id": chat_id, "text": "History cleared."}
+                )
+            return {"ok": True}
+        system_prompt = render_template("chat/mixplaclone_system.hbs", {
+            "brand": brand,
+            "telegram_username": telegram_username,
+            "telegram_chat_id": chat_id
+        })
+        messages, history, _ = await repo.build_messages(chat_id, system_prompt)
+        messages.append({"role": "user", "content": text})
+
+        forced_llm = LlmType.GROQ
+        client = llm_factory.get_llm_client(
+            forced_llm,
+            enable_sound_fragment_tool=True,
+            enable_listener_tool=True,
+            enable_stations_tools=True,
+            enable_queue_tool=True
+        )
+        result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
+        reply = result.actual_result
+
+        await repo.update_from_result(chat_id, telegram_username, brand, history, result, fallback_user_text=text)
+
         async with httpx.AsyncClient() as http_client:
             await http_client.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                json={"chat_id": chat_id, "text": "History cleared."}
+                json={"chat_id": chat_id, "text": reply}
             )
+
         return {"ok": True}
-    system_prompt = render_template("chat/mixplaclone_system.hbs", {
-        "brand": brand,
-        "telegram_username": telegram_username,
-        "telegram_chat_id": chat_id
-    })
-    messages, history, _ = await repo.build_messages(chat_id, system_prompt)
-    messages.append({"role": "user", "content": text})
-
-    #forced_llm = LlmType.CLAUDE
-    forced_llm = LlmType.GROQ
-    client = llm_factory.get_llm_client(
-        forced_llm,
-        enable_sound_fragment_tool=True,
-        enable_listener_tool=True,
-        enable_stations_tools=True,
-        enable_queue_tool=True
-    )
-    result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
-    reply = result.actual_result
-
-    await repo.update_from_result(chat_id, telegram_username, brand, history, result, fallback_user_text=text)
-
-    async with httpx.AsyncClient() as http_client:
-        await http_client.post(
-            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-            json={"chat_id": chat_id, "text": reply}
-        )
-
-    return {"ok": True}
+    except Exception as e:
+        logger.error(f"Telegram webhook error: {e}", exc_info=True)
+        return {"ok": False, "error": str(e)}
