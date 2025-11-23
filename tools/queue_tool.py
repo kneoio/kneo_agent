@@ -32,9 +32,13 @@ async def _bg_queue_and_notify(
 
     result_text = ""
     try:
+        from rest.app_setup import cfg
         audio_processor = get_audio_processor()
+        elevenlabs_cfg = cfg.get("elevenlabs", {})
+        voice_id = elevenlabs_cfg.get("default_voice_id")
+        
         logger.info(f"Generating TTS for intro: {intro_text[:50]}...")
-        audio_data, reason = await audio_processor.generate_tts_audio(intro_text)
+        audio_data, reason = await audio_processor.generate_tts_simple(intro_text, voice_id)
         
         if not audio_data:
             raise ValueError(f"TTS generation failed: {reason}")

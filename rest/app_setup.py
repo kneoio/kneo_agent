@@ -72,22 +72,19 @@ async def app_lifespan(app: FastAPI):
         )
 
         logger.info("Initializing AudioProcessor for queue tool...")
-        from elevenlabs.client import ElevenLabs
-        from api.interaction_memory import InteractionMemory
-        from tools.audio_processor import AudioProcessor
-        from models.live_container import LiveRadioStation
-        
-        global _audio_processor
-        elevenlabs_cfg = cfg.get("elevenlabs", {})
-        elevenlabs_client = ElevenLabs(api_key=elevenlabs_cfg["api_key"])
-        memory = InteractionMemory(brand="default", api_client=app.state.listener_api)
-        station_data = {
-            "slugName": "default",
-            "tts": {"primaryVoice": elevenlabs_cfg.get("default_voice_id")}
-        }
-        station = LiveRadioStation(**station_data)
-        _audio_processor = AudioProcessor(elevenlabs_client, station, memory)
-        app.state.audio_processor = _audio_processor
+        try:
+            from elevenlabs.client import ElevenLabs
+            from tools.audio_processor import AudioProcessor
+            
+            global _audio_processor
+            elevenlabs_cfg = cfg.get("elevenlabs", {})
+            elevenlabs_client = ElevenLabs(api_key=elevenlabs_cfg.get("api_key"))
+            _audio_processor = AudioProcessor(elevenlabs_client, None, None)
+            app.state.audio_processor = _audio_processor
+            logger.info("AudioProcessor initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize AudioProcessor: {e}", exc_info=True)
+            logger.warning("Queue tool will not be available")
 
         logger.info("Application startup completed successfully")
         yield

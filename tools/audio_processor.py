@@ -53,6 +53,37 @@ class AudioProcessor:
             self.logger.error(f"TTS generation failed: {e}")
             return None, f"TTS generation failed: {str(e)}"
 
+    async def generate_tts_simple(self, text: str, voice_id: str) -> Tuple[Optional[bytes], str]:
+        if not text:
+            return None, "No text provided for TTS"
+        
+        if not voice_id:
+            return None, "No voice_id provided for TTS"
+
+        if "copyright" in text.lower():
+            self.logger.warning("Copyright content detected")
+            return None, "TTS conversion resulted in empty audio due to copyright content"
+
+        try:
+            audio_stream = self.elevenlabs_inst.text_to_speech.convert(
+                voice_id=voice_id,
+                text=text[:1000],
+                model_id="eleven_turbo_v2",
+                output_format="mp3_44100_192"
+            )
+
+            audio_data = b''.join(audio_stream)
+
+            if audio_data:
+                self.logger.info(f"Simple TTS generation successful ({len(text)} chars)")
+                return audio_data, f"Generated TTS using voice: {voice_id}"
+            else:
+                return None, "TTS conversion resulted in empty audio"
+
+        except Exception as e:
+            self.logger.error(f"Simple TTS generation failed: {e}")
+            return None, f"TTS generation failed: {str(e)}"
+
     async def generate_tts_dialogue(self, dialogue_json: str) -> Tuple[Optional[bytes], str]:
         if not dialogue_json or dialogue_json.strip() == "":
             self.logger.error("Dialogue TTS failed: empty or None input from LLM")
