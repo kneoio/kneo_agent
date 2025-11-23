@@ -8,11 +8,10 @@ from langgraph.graph import StateGraph, END
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
 from llm.llm_response import LlmResponse
-from memory.brand_user_summorizer import BrandUserSummarizer
 from memory.brand_memory_manager import BrandMemoryManager
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
-from tools.queue_tool import enqueue
+from tools.queue_sync import enqueue
 
 
 class RadioDJV2:

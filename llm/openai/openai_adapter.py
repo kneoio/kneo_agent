@@ -20,6 +20,8 @@ class OpenAIAdapter:
         kwargs = {"model": self.model, "messages": openai_messages}
         if tools:
             kwargs["tools"] = tools
+        elif not self.tool_functions:
+            kwargs["tool_choice"] = "none"
         if self.temperature is not None:
             kwargs["temperature"] = self.temperature
         

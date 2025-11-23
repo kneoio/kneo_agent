@@ -51,7 +51,8 @@ async def telegram_webhook(req: Request):
         forced_llm,
         enable_sound_fragment_tool=True,
         enable_listener_tool=True,
-        enable_stations_tools=True
+        enable_stations_tools=True,
+        enable_queue_tool=True
     )
     result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
     reply = result.actual_result

@@ -11,7 +11,7 @@ class QueueAPIClient:
         b = config.get("broadcaster", {})
         self.base_url = b.get("api_base_url")
         self.api_key = b.get("api_key")
-        self.timeout = b.get("api_timeout", 30)
+        self.timeout = b.get("api_timeout")
 
     def _headers(self, extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
         h = {"Content-Type": "application/json"}

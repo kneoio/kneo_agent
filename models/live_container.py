@@ -41,7 +41,7 @@ class PromptItem:
             searchEngineType=data.get("searchEngineType"),
             startTime=data.get("startTime"),
             oneTimeRun=bool(data.get("oneTimeRun", False)),
-            dialogue=bool(data.get("dialogue", False))
+            dialogue=bool(data.get("podcast", False))
         )
 
 

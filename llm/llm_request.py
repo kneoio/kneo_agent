@@ -63,7 +63,7 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
                     tools.append(sf_alias)
             except Exception:
                 pass
-        if 'queue_intro_song' in llm_client.tool_functions:
+        if 'queue_intro_and_song' in llm_client.tool_functions:
             q_def = get_queue_tool_definition()
             tools.append(q_def)
             try:
@@ -84,7 +84,7 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
             f'invoke_chat: tools enabled for {llm_client.llm_type.name}: '
             f'internet={True}, '
             f'sound_fragment={"get_brand_sound_fragment" in llm_client.tool_functions}, '
-            f'queue_intro_song={"queue_intro_song" in llm_client.tool_functions}, '
+            f'queue_intro_and_song={"queue_intro_and_song" in llm_client.tool_functions}, '
             f'listener={"get_listener_by_telegram" in llm_client.tool_functions}, '
             f'list_stations={"list_stations" in llm_client.tool_functions}, '
             f'get_station_live={"get_station_live" in llm_client.tool_functions}'

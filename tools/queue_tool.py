@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from typing import Optional, Dict, Any
@@ -7,20 +8,26 @@ from api.queue_api_client import QueueAPIClient
 
 logger = logging.getLogger(__name__)
 
+TEST_CHAT_ID = 123
 
-async def queue_intro_and_song(
+
+async def _bg_queue_and_notify(
         brand: str,
         song_uuid: str,
         generated_tts_path: str,
-        priority: int = 8,
-        notify_telegram_chat_id: Optional[int] = None
-) -> Dict[str, Any]:
-
-    if not brand or not song_uuid or not generated_tts_path:
-        return {"success": False, "error": "brand, song_uuid, generated_tts_path are required"}
+        priority: int,
+        chat_id: int,
+        operation_id: str
+):
+    from util.db_manager import DBManager
+    from memory.user_memory_manager import UserMemoryManager
+    from repos.history_repo import HistoryRepository
+    from llm.llm_request import invoke_chat
+    from rest.app_setup import cfg, llm_factory, TELEGRAM_TOKEN
+    from cnst.llm_types import LlmType
+    from util.template_loader import render_template
 
     try:
-        from rest.app_setup import cfg, TELEGRAM_TOKEN
         client = QueueAPIClient(cfg)
         process_id = uuid.uuid4().hex
 
@@ -37,73 +44,99 @@ async def queue_intro_and_song(
             payload=payload
         )
 
-        last_event = await client.wait_until_done(brand, process_id)
+        result_text = f"Queue request accepted for {brand}."
 
-        if notify_telegram_chat_id is not None:
-            text = f"Queue job completed for {brand}. processId={process_id}"
+    except Exception as e:
+        logger.error(f"Queue job failed: {e}", exc_info=True)
+        result_text = f"Error: {str(e)}"
+
+    try:
+        db_pool = DBManager.get_pool()
+        user_memory = UserMemoryManager(db_pool)
+        repo = HistoryRepository(user_memory)
+
+        data_state = await user_memory.load(chat_id)
+        history = data_state["history"] if data_state else []
+        telegram_username = data_state.get("telegram_name", "") if data_state else ""
+
+        system_prompt = render_template("chat/queue_results_system.hbs", {})
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        if history:
+            last_user_msg = None
+            for h in reversed(history):
+                if h.get("role") == "user":
+                    last_user_msg = h.get("text", "")
+                    break
+            if last_user_msg:
+                messages.append({"role": "user", "content": last_user_msg})
+                messages.append({"role": "assistant", "content": f"Queueing your song for {brand}..."})
+
+        messages.append({
+            "role": "user",
+            "content": f"The queue operation completed: {result_text}"
+        })
+
+        llm_client = llm_factory.get_llm_client(
+            LlmType.GROQ,
+            enable_sound_fragment_tool=False,
+            enable_listener_tool=False,
+            enable_stations_tools=False
+        )
+        llm_result = await invoke_chat(llm_client=llm_client, messages=messages, return_full_history=True)
+        reply = llm_result.actual_result
+
+        await repo.update_from_result(chat_id, telegram_username, brand, history, llm_result)
+
+        if chat_id == TEST_CHAT_ID:
+            print(f"[TEST MODE] Would send to Telegram chat_id={chat_id}: {reply}")
+        else:
             async with httpx.AsyncClient() as http_client:
                 await http_client.post(
                     f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                    json={"chat_id": notify_telegram_chat_id, "text": text}
+                    json={"chat_id": chat_id, "text": reply}
                 )
-
-        return {
-            "success": True,
-            "process_id": process_id,
-            "enqueue_result": enqueue_result,
-            "last_event": last_event
-        }
     except Exception as e:
-        logger.error(f"enqueue_intro_song_rest failed: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        logger.error(f"Error in _bg_queue_and_notify LLM trigger: {e}")
 
 
-async def enqueue(
+async def queue_intro_and_song(
         brand: str,
-        merging_method: str,
-        sound_fragments: Dict[str, str],
-        file_paths: Dict[str, str],
-        priority: int = 10,
+        song_uuid: str,
+        generated_tts_path: str,
+        priority: int = 8,
+        telegram_chat_id: Optional[int] = None
 ) -> Dict[str, Any]:
-    if not brand or not merging_method or not sound_fragments or not file_paths:
-        return {"success": False, "error": "brand, merging_method, sound_fragments, file_paths are required"}
 
-    try:
-        from rest.app_setup import cfg
-        client = QueueAPIClient(cfg)
-        process_id = uuid.uuid4().hex
+    if not brand or not song_uuid or not generated_tts_path:
+        return {"success": False, "error": "brand, song_uuid, generated_tts_path are required"}
 
-        payload: Dict[str, Any] = {
-            "mergingMethod": merging_method,
-            "soundFragments": sound_fragments,
-            "filePaths": file_paths,
-            "priority": priority,
-        }
+    op_id = uuid.uuid4().hex
 
-        enqueue_result = await client.enqueue_add(
-            brand=brand,
-            process_id=process_id,
-            payload=payload
+    asyncio.create_task(
+        _bg_queue_and_notify(
+            brand,
+            song_uuid,
+            generated_tts_path,
+            priority,
+            telegram_chat_id,
+            op_id
         )
+    )
 
-        last_event = await client.wait_until_done(brand, process_id)
-
-        return {
-            "success": True,
-            "process_id": process_id,
-            "enqueue_result": enqueue_result,
-            "last_event": last_event
-        }
-    except Exception as e:
-        logger.error(f"enqueue_merge_rest failed: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+    return {
+        "success": True,
+        "accepted": True,
+        "processing": True,
+        "operation_id": op_id
+    }
 
 
 def get_tool_definition() -> Dict[str, Any]:
     return {
         "type": "function",
         "function": {
-            "name": "queue_intro_song",
+            "name": "queue_intro_and_song",
             "description": "Generate a short intro via TTS and enqueue INTRO+SONG to the brand's radio queue.",
             "parameters": {
                 "type": "object",
@@ -111,9 +144,10 @@ def get_tool_definition() -> Dict[str, Any]:
                     "brand": {"type": "string", "description": "Brand slug"},
                     "song_uuid": {"type": "string", "description": "UUID of the selected song"},
                     "generated_tts_path": {"type": "string", "description": "Path to generated TTS file"},
-                    "priority": {"type": "integer", "description": "Priority of the queue item", "minimum": 8, "maximum": 10, "default": 8}
+                    "priority": {"type": "integer", "description": "Priority of the queue item", "minimum": 8, "maximum": 10, "default": 8},
+                    "telegram_chat_id": {"type": "integer", "description": "Telegram chat ID"}
                 },
-                "required": ["brand", "song_uuid", "generated_tts_path"]
+                "required": ["brand", "song_uuid", "generated_tts_path", "telegram_chat_id"]
             }
         }
     }

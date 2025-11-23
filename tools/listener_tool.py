@@ -10,14 +10,13 @@ _listener_api: Optional[ListenerAPI] = None
 def set_listener_api(api: ListenerAPI) -> None:
     global _listener_api
     _listener_api = api
+    if not _listener_api:
+        logger.error("ListenerAPI not initialized")
 
 
 async def get_listener_by_telegram(telegram_name: str) -> Dict[str, Any]:
-    if not _listener_api:
-        logger.error("ListenerAPI not initialized")
-        return {"error": "ListenerAPI not available"}
-    api = _listener_api
-    listener = await api.get_listener_by_telegram_name(telegram_name)
+
+    listener = await _listener_api.get_listener_by_telegram_name(telegram_name)
     
     if not listener:
         return {"found": False, "telegram_name": telegram_name}

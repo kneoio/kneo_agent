@@ -41,7 +41,7 @@ class LlmFactory:
                 default_headers=headers if isinstance(headers, dict) else None
             )
 
-    def get_llm_client(self, llm_type: LlmType, internet_mcp=None, enable_sound_fragment_tool=False, enable_listener_tool=False, enable_stations_tools=False):
+    def get_llm_client(self, llm_type: LlmType, internet_mcp=None, enable_sound_fragment_tool=False, enable_listener_tool=False, enable_stations_tools=False, enable_queue_tool=False):
         if not self.logger:
             self.logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class LlmFactory:
             loop_id = id(loop)
         except RuntimeError:
             loop_id = 0
-        cache_key = f"{llm_type}_{internet_mcp is not None}_{enable_sound_fragment_tool}_{enable_listener_tool}_{enable_stations_tools}_{loop_id}"
+        cache_key = f"{llm_type}_{internet_mcp is not None}_{enable_sound_fragment_tool}_{enable_listener_tool}_{enable_stations_tools}_{enable_queue_tool}_{loop_id}"
         if cache_key in self.clients:
             client = self.clients[cache_key]
             client.llm_type = llm_type
@@ -82,6 +82,9 @@ class LlmFactory:
             if enable_sound_fragment_tool:
                 from tools.sound_fragment_tool import get_brand_sound_fragment
                 client.tool_functions["get_brand_sound_fragment"] = get_brand_sound_fragment
+            if enable_queue_tool:
+                from tools.queue_tool import queue_intro_and_song
+                client.tool_functions["queue_intro_and_song"] = queue_intro_and_song
             if enable_listener_tool:
                 from tools.listener_tool import get_listener_by_telegram
                 client.tool_functions["get_listener_by_telegram"] = get_listener_by_telegram
@@ -102,6 +105,9 @@ class LlmFactory:
             if enable_sound_fragment_tool:
                 from tools.sound_fragment_tool import get_brand_sound_fragment
                 client.tool_functions["get_brand_sound_fragment"] = get_brand_sound_fragment
+            if enable_queue_tool:
+                from tools.queue_tool import queue_intro_and_song
+                client.tool_functions["queue_intro_and_song"] = queue_intro_and_song
             if enable_listener_tool:
                 from tools.listener_tool import get_listener_by_telegram
                 client.tool_functions["get_listener_by_telegram"] = get_listener_by_telegram
@@ -122,6 +128,9 @@ class LlmFactory:
             if enable_sound_fragment_tool:
                 from tools.sound_fragment_tool import get_brand_sound_fragment
                 client.tool_functions["get_brand_sound_fragment"] = get_brand_sound_fragment
+            if enable_queue_tool:
+                from tools.queue_tool import queue_intro_and_song
+                client.tool_functions["queue_intro_and_song"] = queue_intro_and_song
             if enable_listener_tool:
                 from tools.listener_tool import get_listener_by_telegram
                 client.tool_functions["get_listener_by_telegram"] = get_listener_by_telegram
@@ -141,6 +150,9 @@ class LlmFactory:
             if enable_sound_fragment_tool:
                 from tools.sound_fragment_tool import get_brand_sound_fragment
                 client.bind_tool_function("get_brand_sound_fragment", get_brand_sound_fragment)
+            if enable_queue_tool:
+                from tools.queue_tool import queue_intro_and_song
+                client.bind_tool_function("queue_intro_and_song", queue_intro_and_song)
             if enable_listener_tool:
                 from tools.listener_tool import get_listener_by_telegram
                 client.bind_tool_function("get_listener_by_telegram", get_listener_by_telegram)
@@ -148,7 +160,7 @@ class LlmFactory:
                 from tools.stations_tool import list_stations, get_station_live
                 client.bind_tool_function("list_stations", list_stations)
                 client.bind_tool_function("get_station_live", get_station_live)
-            if internet_mcp or enable_sound_fragment_tool or enable_listener_tool or enable_stations_tools:
+            if internet_mcp or enable_sound_fragment_tool or enable_listener_tool or enable_stations_tools or enable_queue_tool:
                 self.logger.info(f"LLM client ({llm_type.name}) initialized with tools enabled")
             else:
                 self.logger.info(f"LLM client ({llm_type.name}) initialized without tools")
