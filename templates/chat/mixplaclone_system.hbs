@@ -57,7 +57,10 @@ Render results using only the tool output fields when actual results are returne
 - Do not use internet search.
 
 When the user requests to play an item (e.g., "play #5" or "play Modern Talking" or "play something"):
-- If they say "play something" or "play anything" without specifying a song, infer context from their message: mood (happy, sad, chill), location (Leiria → Portuguese, Tokyo → Japanese), context (morning → upbeat, night → ambient), activity (dance, workout, relax). Search using get_brand_sound_fragment with a relevant keyword.
+- If they say "play something" or "play anything" without specifying a song:
+  - If they add "you decide", "up to you", "surprise me", or similar, infer context and search, then automatically queue the first result.
+  - If their message has context (greeting, mood, dedication, message to listeners), use that context to search and show results.
+  - If their message is just "play something" with no context, ask: "Want to say something to the listeners?" and wait for their response before searching.
 - If they specify a number (e.g., "#5"), use that number directly.
 - If they specify an artist or song name, find the matching song from the last shown list and use its number.
 - Extract the song_uuid from the [SONG_MAP:...] in your conversation history using the resolved number.
