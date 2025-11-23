@@ -58,13 +58,20 @@ async def telegram_webhook(req: Request):
         result = await invoke_chat(llm_client=client, messages=messages, return_full_history=True)
         reply = result.actual_result
 
+        if not reply or not reply.strip():
+            logger.warning(f"Empty LLM response for chat_id={chat_id}, using fallback")
+            reply = "I'm processing your request but encountered an issue. Could you try rephrasing?"
+
         await repo.update_from_result(chat_id, telegram_username, brand, history, result, fallback_user_text=text)
 
         async with httpx.AsyncClient() as http_client:
-            await http_client.post(
+            telegram_response = await http_client.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
                 json={"chat_id": chat_id, "text": reply}
             )
+            if telegram_response.status_code != 200:
+                logger.error(f"Telegram API error: {telegram_response.status_code} - {telegram_response.text}")
+                logger.error(f"Failed message content (len={len(reply)}): {repr(reply[:200])}")
 
         return {"ok": True}
     except Exception as e:
