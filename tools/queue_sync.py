@@ -19,7 +19,8 @@ async def enqueue(
         sound_fragments: Dict[str, str],
         file_paths: Dict[str, str],
         priority: int = 10,
-        max_retries: int = 3
+        max_retries: int = 3,
+        timeout_s: int = 120
 ) -> Dict[str, Any]:
     if not brand or not merging_method or not sound_fragments or not file_paths:
         return {"success": False, "error": "brand, merging_method, sound_fragments, file_paths are required"}
@@ -43,7 +44,17 @@ async def enqueue(
                 payload=payload
             )
 
-            last_event = await client.wait_until_done(brand, process_id)
+            last_event = await client.wait_until_done(brand, process_id, timeout_s=timeout_s)
+
+            if last_event is None:
+                logger.warning(f"Queue operation timed out after {timeout_s}s for process_id={process_id}")
+                raise TimeoutError(f"Queue operation timed out after {timeout_s}s")
+
+            status = last_event.get("status")
+            if status == "ERROR":
+                error_msg = last_event.get("message", "Unknown error")
+                logger.error(f"Queue operation failed with ERROR status: {error_msg}")
+                raise RuntimeError(f"Queue operation failed: {error_msg}")
 
             return {
                 "success": True,
