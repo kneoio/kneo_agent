@@ -39,7 +39,7 @@ async def _bg_fetch_and_push(
             offset=offset
         )
 
-        items_raw = result.get("items", [])
+        items_raw = result if isinstance(result, list) else result.get("items", [])
         lines = []
         song_map = {}
         for idx, r in enumerate(items_raw, start=1):
@@ -51,8 +51,11 @@ async def _bg_fetch_and_push(
 
         results_text = "\n".join(lines) if lines else "No results."
         results_text += f"\n\n[SONG_MAP:{song_map}]"
+        
+        logger.info(f"Search results for '{keyword}': {len(items_raw)} items found")
 
     except Exception as e:
+        logger.error(f"Search API error: {e}", exc_info=True)
         results_text = f"Error: {str(e)}"
 
     try:
