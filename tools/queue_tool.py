@@ -68,11 +68,15 @@ async def _bg_queue_and_notify(
             payload=payload
         )
 
-        result_text = f"Successfully queued intro+song for {brand}."
+        logger.info(f"Queue enqueue successful for {brand}, process_id={process_id}")
+        result_text = f"Successfully queued intro+song for {brand}. The song will play shortly."
 
     except Exception as e:
         logger.error(f"Queue job failed: {e}", exc_info=True)
-        result_text = f"Error: {str(e)}"
+        if "ReadTimeout" in str(e) or "timeout" in str(e).lower():
+            result_text = "Queue request timed out. The song may still be processing. Please wait a moment before trying again."
+        else:
+            result_text = f"Queue failed: {str(e)}"
 
     try:
         db_pool = DBManager.get_pool()
