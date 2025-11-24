@@ -57,15 +57,21 @@ class ConversationSummarizer:
                 logger.info(f"Chat {chat_id} history too short ({len(history)} messages), skipping summarization")
                 return
                 
-            summary_prompt = self._build_summary_prompt(history)
+            conversation_text = self._build_conversation_text(history)
+            
+            from util.template_loader import render_template
+            system_prompt = render_template("summarizer/conversation_summary_system.hbs", {})
+            user_prompt = render_template("summarizer/conversation_summary.hbs", {
+                "conversation_text": conversation_text
+            })
             
             from cnst.llm_types import LlmType
             llm_client = self.llm_factory.get_llm_client(LlmType.GROQ)
             
             from llm.llm_request import invoke_chat
             messages = [
-                {"role": "system", "content": "You are a conversation summarizer. Summarize the key points, user preferences, and context from the conversation history."},
-                {"role": "user", "content": summary_prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ]
             
             result = await invoke_chat(llm_client=llm_client, messages=messages)
@@ -91,7 +97,7 @@ class ConversationSummarizer:
         except Exception as e:
             logger.error(f"Error summarizing chat {chat_id}: {e}", exc_info=True)
             
-    def _build_summary_prompt(self, history: list) -> str:
+    def _build_conversation_text(self, history: list) -> str:
         conversation_text = []
         
         for msg in history:
@@ -105,12 +111,4 @@ class ConversationSummarizer:
                 
         full_text = "\n".join(conversation_text[-30:])
         
-        return f"""Summarize this conversation in 2-3 sentences, focusing on:
-- User preferences (music taste, greetings, dedications)
-- Recent song requests and queue activity
-- Any ongoing context or topics
-
-Conversation:
-{full_text}
-
-Summary:"""
+        return full_text
