@@ -44,7 +44,7 @@ async def telegram_webhook(req: Request):
         data_state = await req.app.state.user_memory.load(chat_id)
         if data_state and data_state.get("last_mod_date"):
             time_since_activity = datetime.now() - data_state["last_mod_date"]
-            if time_since_activity > timedelta(minutes=30):
+            if time_since_activity > timedelta(minutes=5):
                 logger.info(f"Chat {chat_id} returning after {time_since_activity.total_seconds()/60:.1f}min idle, summarizing...")
                 await req.app.state.conversation_summarizer._summarize_conversation(chat_id)
         

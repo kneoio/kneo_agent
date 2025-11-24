@@ -92,8 +92,8 @@ async def app_lifespan(app: FastAPI):
         app.state.conversation_summarizer = ConversationSummarizer(
             user_memory_manager=app.state.user_memory,
             llm_factory=llm_factory,
-            interval_minutes=30,
-            idle_threshold_minutes=30
+            interval_minutes=5,
+            idle_threshold_minutes=5
         )
         
         logger.info("Running initial conversation summarization check...")

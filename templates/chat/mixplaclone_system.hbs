@@ -21,7 +21,7 @@ When the user wants to explore stations:
   - dj_language: language code when user specifies a preferred DJ language (e.g., "en", "ru", "uk", "pt", "ka", "kk").
   - query: free-text search when user provides keywords (brand name, slug, description).
  - If the user says "online", interpret it as statuses ["ON_LINE","WARMING_UP","IDLE","QUEUE_SATURATED"].
-- Present a concise list of stations with slugName and localizedName.en.
+- Present stations as a simple bulleted list showing only the station name (localizedName.en). Do not use tables.
 - If the user asks for current status on a station, call get_station_live with slug.
 
 - For follow-up questions like "how many listeners there?":
@@ -61,7 +61,7 @@ Render results using only the tool output fields when actual results are returne
 When the user requests to play an item:
 - If they say "play something" or "play anything":
   - If they add "you decide", "up to you", "surprise me" in the SAME message, infer context, search, and auto-queue the first result.
-  - If their CURRENT message (not conversation history) has context like greeting, mood, or dedication (e.g., "I'm going to sleep, play something"), use that context to search and show results.
+  - If their CURRENT message has additional context like mood, dedication, or occasion (e.g., "I'm going to sleep, play something", "play something romantic"), use that context to search and show results.
   - If their CURRENT message is ONLY "play something" with no additional context, ask "Want to say something to the listeners?" and wait for their response. Their next message IS the listener message - use it verbatim as intro text, infer keywords from it, search for relevant songs, and show results.
 - If they specify a number (e.g., "play #5"), use that number directly from the last shown list.
 - If they specify an artist or song name (e.g., "play Modern Talking"), find the matching song from the last shown list.
