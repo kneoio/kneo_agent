@@ -89,21 +89,12 @@ class AudioProcessor:
             self.logger.error("Dialogue TTS failed: empty or None input from LLM")
             return None, "Dialogue TTS failed: LLM returned no dialogue content"
 
-        dialogue = ""
         try:
             dialogue = json.loads(dialogue_json)
-        except Exception:
-            try:
-                extracted = self._extract_json_array(dialogue_json)
-                if not extracted:
-                    self.logger.error(f"Dialogue TTS failed: no JSON array in LLM output")
-                    return None, "Dialogue TTS failed: no JSON array found in LLM response"
-                sanitized = self._sanitize_dialogue_json(extracted)
-                dialogue = json.loads(sanitized)
-            except Exception as se:
-                self.logger.error(f"Dialogue TTS parse failed after sanitization: {se}")
-                self.logger.error(f"Dialogue raw: {dialogue_json[:500]}")
-                return None, f"Dialogue TTS failed: {str(se)}"
+        except Exception as e:
+            self.logger.error(f"Dialogue TTS parse failed: {e}")
+            self.logger.error(f"Dialogue raw: {dialogue_json[:500]}")
+            return None, f"Dialogue TTS failed: {str(e)}"
 
         settings = {"volume_normalization": "on"}
         try:
