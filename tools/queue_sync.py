@@ -104,6 +104,23 @@ async def enqueue(
                 return {"success": False, "error": str(e), "saved_to": str(filename)}
 
 
+async def clear_failed_queue_requests() -> int:
+    if not FAILED_QUEUE_DIR.exists():
+        return 0
+    
+    failed_files = list(FAILED_QUEUE_DIR.glob("*.json"))
+    count = len(failed_files)
+    
+    for file_path in failed_files:
+        try:
+            file_path.unlink()
+        except Exception as e:
+            logger.error(f"Error deleting {file_path.name}: {e}")
+    
+    logger.info(f"Cleared {count} failed queue request files")
+    return count
+
+
 async def retry_failed_queue_requests() -> Dict[str, Any]:
     if not FAILED_QUEUE_DIR.exists():
         return {"retried": 0, "success": 0, "failed": 0}

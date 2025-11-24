@@ -86,6 +86,12 @@ async def app_lifespan(app: FastAPI):
             logger.error(f"Failed to initialize AudioProcessor: {e}", exc_info=True)
             logger.warning("Queue tool will not be available")
 
+        logger.info("Clearing failed queue requests...")
+        from tools.queue_sync import clear_failed_queue_requests
+        cleared_count = await clear_failed_queue_requests()
+        if cleared_count > 0:
+            logger.info(f"Cleared {cleared_count} failed queue request(s)")
+
         logger.info("Starting ConversationSummarizer...")
         from memory.conversation_summarizer import ConversationSummarizer
         import asyncio
@@ -95,6 +101,10 @@ async def app_lifespan(app: FastAPI):
             interval_minutes=30,
             idle_threshold_minutes=30
         )
+        
+        logger.info("Running initial conversation summarization check...")
+        await app.state.conversation_summarizer._check_and_summarize_conversations()
+        
         app.state.summarizer_task = asyncio.create_task(app.state.conversation_summarizer.start())
         logger.info("ConversationSummarizer started")
 
