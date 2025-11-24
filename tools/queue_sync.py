@@ -65,6 +65,24 @@ async def enqueue(
         except Exception as e:
             logger.error(f"enqueue attempt {attempt + 1}/{max_retries} failed: {e}")
             if attempt < max_retries - 1:
+                existing_status = await client.check_process_status(brand, process_id, timeout_s=5)
+                if existing_status:
+                    logger.info(f"Process {process_id} already exists with status={existing_status}, waiting for completion...")
+                    if existing_status in ("DONE", "ERROR"):
+                        return {
+                            "success": existing_status == "DONE",
+                            "process_id": process_id,
+                            "status": existing_status,
+                            "note": "Found existing process instead of retrying"
+                        }
+                    last_event = await client.wait_until_done(brand, process_id, timeout_s=timeout_s)
+                    if last_event and last_event.get("status") == "DONE":
+                        return {
+                            "success": True,
+                            "process_id": process_id,
+                            "last_event": last_event,
+                            "note": "Completed existing process instead of retrying"
+                        }
                 wait_time = 2 ** attempt
                 logger.info(f"Retrying in {wait_time}s...")
                 await asyncio.sleep(wait_time)

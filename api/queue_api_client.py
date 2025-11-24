@@ -62,3 +62,16 @@ class QueueAPIClient:
                 break
             await asyncio.sleep(0)
         return last
+    
+    async def check_process_status(self, brand: str, process_id: str, timeout_s: int = 5) -> Optional[str]:
+        try:
+            start = time.time()
+            async for ev in self.stream_progress(brand, process_id):
+                status = ev.get("status")
+                if status:
+                    return status
+                if (time.time() - start) > timeout_s:
+                    break
+            return None
+        except Exception:
+            return None
