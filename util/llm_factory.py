@@ -3,6 +3,7 @@ from typing import Dict
 
 from langchain_anthropic import ChatAnthropic
 from langchain_groq import ChatGroq
+
 from openai import AsyncOpenAI
 
 from cnst.llm_types import LlmType
@@ -66,16 +67,6 @@ class LlmFactory:
             )
         elif llm_type == LlmType.GROQ:
             cfg = self.config.get('groq')
-            base_client = ChatGroq(
-                model=cfg.get('model'),
-                temperature=cfg.get('temperature'),
-                api_key=cfg.get('api_key')
-            )
-        elif llm_type == LlmType.KIMI and self.moonshot_client:
-            cfg = self.config.get('moonshot', {})
-            model = cfg.get('model')
-            temperature = cfg.get('temperature')
-            client = OpenAIAdapter(self.moonshot_client, model=model, temperature=temperature)
             client.llm_type = llm_type
             if internet_mcp:
                 client.tool_functions["search_internet"] = internet_mcp.search_internet
@@ -93,7 +84,39 @@ class LlmFactory:
                 client.tool_functions["list_stations"] = list_stations
                 client.tool_functions["get_station_live"] = get_station_live
             self.clients[cache_key] = client
-            return client
+            
+        elif llm_type == LlmType.GOOGLE:
+            # Use the official google-generativeai library directly to avoid
+            # incompatibilities with the langchain_google_genai wrapper.
+            import google.generativeai as genai
+            cfg = self.config.get('google', {})
+            if not cfg:
+                self.logger.error('Google config missing')
+                raise ValueError('Missing google config')
+            api_key = cfg.get('api_key')
+            model_name = cfg.get('model')
+            temperature = cfg.get('temperature', 0.0)
+            # Configure the library (global config)
+            genai.configure(api_key=api_key)
+            # Create a simple adapter that matches the LangChainAdapter interface
+            class _GoogleAdapter:
+                def __init__(self, model, temperature):
+                    self.model = model
+                    self.temperature = temperature
+                    self.llm_type = None
+                async def ainvoke(self, prompt: str, tools=None):
+                    # GenerationConfig can be used to set temperature
+                    generation_config = genai.GenerationConfig(temperature=self.temperature)
+                    # generate_content is synchronous; run in a thread to avoid blocking
+                    import asyncio
+                    response = await asyncio.to_thread(self.model.generate_content, prompt, generation_config=generation_config)
+                    # The response object has .text attribute for the generated string
+                    class _Resp:
+                        def __init__(self, content):
+                            self.content = content
+                    return _Resp(response.text)
+            base_client = _GoogleAdapter(genai.GenerativeModel(model_name), temperature)
+
         elif llm_type == LlmType.DEEPSEEK and self.deepseek_client:
             cfg = self.config.get('deepseek', {})
             model = cfg.get('model')
@@ -142,7 +165,11 @@ class LlmFactory:
             return client
 
         if base_client is not None:
-            client = LangChainAdapter(base_client)
+            # For Google we already have a compatible adapter, so return it directly
+            if llm_type == LlmType.GOOGLE:
+                client = base_client
+            else:
+                client = LangChainAdapter(base_client)
             client.llm_type = llm_type
 
             if internet_mcp:

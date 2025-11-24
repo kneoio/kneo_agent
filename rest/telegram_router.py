@@ -56,7 +56,7 @@ async def telegram_webhook(req: Request):
         messages, history, _ = await repo.build_messages(chat_id, system_prompt)
         messages.append({"role": "user", "content": text})
 
-        forced_llm = LlmType.GROQ
+        forced_llm = LlmType.GOOGLE
         client = llm_factory.get_llm_client(
             forced_llm,
             enable_sound_fragment_tool=True,

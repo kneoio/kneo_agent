@@ -42,3 +42,16 @@ class LangChainAdapter:
             bound_client = self.base_client.bind_tools(tools)
             return await bound_client.ainvoke(lc_messages)
         return await self.base_client.ainvoke(lc_messages)
+
+    async def ainvoke(self, prompt: str, tools=None):
+        """Convenient async call for a simple prompt.
+
+        Args:
+            prompt: The user prompt string.
+            tools: Optional list of tool definitions to bind.
+        Returns:
+            The response from the underlying LangChain client.
+        """
+        # Convert the plain string prompt into the message format expected by ``invoke``.
+        messages = [{"role": "user", "content": prompt}]
+        return await self.invoke(messages, tools)

@@ -10,5 +10,6 @@ class LlmType(Enum):
     DEEPSEEK = "DEEPSEEK"
     OPENROUTER = "OPENROUTER"
     MOONSHOT = "MOONSHOT"
+    GOOGLE = "GOOGLE"
 
 
