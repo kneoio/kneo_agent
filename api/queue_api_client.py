@@ -1,7 +1,5 @@
-import asyncio
 import json
-import time
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -33,45 +31,3 @@ class QueueAPIClient:
             except json.JSONDecodeError:
                 return {}
 
-    async def stream_progress(self, brand: str, process_id: str) -> AsyncIterator[Dict[str, Any]]:
-        url = f"{self.base_url}/{brand}/queue/progress/{process_id}/stream"
-        headers = self._headers({"Accept": "text/event-stream"})
-        async with httpx.AsyncClient(timeout=None) as c:
-            async with c.stream("GET", url, headers=headers) as r:
-                async for line in r.aiter_lines():
-                    if not line:
-                        continue
-                    if line.startswith("data:"):
-                        data = line[5:].strip()
-                        try:
-                            obj = json.loads(data)
-                            yield obj
-                        except Exception:
-                            yield {"data": data}
-
-    async def wait_until_done(self, brand: str, process_id: str, timeout_s: Optional[int] = 600) -> Optional[
-        Dict[str, Any]]:
-        start = time.time()
-        last: Optional[Dict[str, Any]] = None
-        async for ev in self.stream_progress(brand, process_id):
-            last = ev
-            status = ev.get("status")
-            if status in ("DONE", "ERROR"):
-                break
-            if timeout_s is not None and (time.time() - start) > timeout_s:
-                break
-            await asyncio.sleep(0)
-        return last
-    
-    async def check_process_status(self, brand: str, process_id: str, timeout_s: int = 5) -> Optional[str]:
-        try:
-            start = time.time()
-            async for ev in self.stream_progress(brand, process_id):
-                status = ev.get("status")
-                if status:
-                    return status
-                if (time.time() - start) > timeout_s:
-                    break
-            return None
-        except Exception:
-            return None
