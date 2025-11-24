@@ -14,7 +14,7 @@ TEST_CHAT_ID = 123
 
 async def _bg_fetch_and_push(
         brand: str,
-        keyword: str,
+        keyword: Optional[str],
         limit: Optional[int],
         offset: Optional[int],
         chat_id: int,
@@ -52,7 +52,8 @@ async def _bg_fetch_and_push(
         results_text = "\n".join(lines) if lines else "No results."
         results_text += f"\n\n[SONG_MAP:{song_map}]"
         
-        logger.info(f"Search results for '{keyword}': {len(items_raw)} items found")
+        search_type = "search" if keyword else "browse"
+        logger.info(f"{search_type.capitalize()} results for '{keyword or 'latest'}': {len(items_raw)} items found")
 
     except Exception as e:
         logger.error(f"Search API error: {e}", exc_info=True)
@@ -78,7 +79,8 @@ async def _bg_fetch_and_push(
                     break
             if last_user_msg:
                 messages.append({"role": "user", "content": last_user_msg})
-                messages.append({"role": "assistant", "content": f"Searching for '{keyword}' in {brand}..."})
+                action = f"Searching for '{keyword}'" if keyword else "Fetching latest songs"
+                messages.append({"role": "assistant", "content": f"{action} in {brand}..."})
 
         messages.append({
             "role": "user",
@@ -111,7 +113,7 @@ async def _bg_fetch_and_push(
 
 async def get_brand_sound_fragment(
         brand: str,
-        keyword: str,
+        keyword: Optional[str] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         telegram_chat_id: Optional[int] = None
@@ -142,17 +144,17 @@ def get_tool_definition() -> Dict[str, Any]:
         "type": "function",
         "function": {
             "name": "get_brand_sound_fragment",
-            "description": "Search brand sound fragments by keyword.",
+            "description": "Search or browse brand sound fragments. If keyword is empty/missing, returns latest songs for browsing.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "brand": {"type": "string", "description": "Brand slug"},
-                    "keyword": {"type": "string", "description": "Search keyword"},
+                    "keyword": {"type": "string", "description": "Search keyword. Leave empty to browse latest songs."},
                     "limit": {"type": "integer", "description": "Maximum number of results"},
                     "offset": {"type": "integer", "description": "Offset for pagination"},
                     "telegram_chat_id": {"type": "integer", "description": "Telegram chat ID"}
                 },
-                "required": ["brand", "keyword", "telegram_chat_id"]
+                "required": ["brand", "telegram_chat_id"]
             }
         }
     }

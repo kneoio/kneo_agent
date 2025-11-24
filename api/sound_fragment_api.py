@@ -12,13 +12,13 @@ class BrandSoundFragmentsAPI:
         self.api_timeout = broadcaster.get("api_timeout", 60)
         self.logger = logging.getLogger(__name__)
 
-    async def search(self, brand: str, keyword: str, limit: Optional[int] = None, offset: Optional[int] = None) -> Dict[str, Any]:
-        if not keyword or not isinstance(keyword, str):
-            raise ValueError("keyword is required")
+    async def search(self, brand: str, keyword: Optional[str] = None, limit: Optional[int] = None, offset: Optional[int] = None) -> Dict[str, Any]:
         if not self.api_base_url:
             raise ValueError("API base URL not configured")
         
-        params = {"keyword": keyword.strip()}
+        params = {}
+        if keyword and keyword.strip():
+            params["keyword"] = keyword.strip()
         if limit is not None:
             params["limit"] = limit
         if offset is not None:
