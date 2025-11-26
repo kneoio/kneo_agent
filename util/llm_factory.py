@@ -66,24 +66,12 @@ class LlmFactory:
                 api_key=cfg.get('api_key')
             )
         elif llm_type == LlmType.GROQ:
-            cfg = self.config.get('groq')
-            client.llm_type = llm_type
-            if internet_mcp:
-                client.tool_functions["search_internet"] = internet_mcp.search_internet
-            if enable_sound_fragment_tool:
-                from tools.sound_fragment_tool import get_brand_sound_fragment
-                client.tool_functions["get_brand_sound_fragment"] = get_brand_sound_fragment
-            if enable_queue_tool:
-                from tools.queue_tool import queue_intro_and_song
-                client.tool_functions["queue_intro_and_song"] = queue_intro_and_song
-            if enable_listener_tool:
-                from tools.listener_tool import get_listener_by_telegram
-                client.tool_functions["get_listener_by_telegram"] = get_listener_by_telegram
-            if enable_stations_tools:
-                from tools.stations_tool import list_stations, get_station_live
-                client.tool_functions["list_stations"] = list_stations
-                client.tool_functions["get_station_live"] = get_station_live
-            self.clients[cache_key] = client
+            cfg = self.config.get('groq', {})
+            base_client = ChatGroq(
+                model=cfg.get('model'),
+                temperature=cfg.get('temperature'),
+                groq_api_key=cfg.get('api_key')
+            )
             
         elif llm_type == LlmType.GOOGLE:
             # Use the official google-generativeai library directly to avoid

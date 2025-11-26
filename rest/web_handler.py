@@ -9,14 +9,11 @@ from cnst.search_engine import SearchEngine
 from cnst.translation_types import TranslationType
 from llm.llm_request import invoke_intro, translate_content
 from llm.llm_response import LlmResponse
-from memory.brand_user_summorizer import BrandUserSummarizer
 from rest.app_setup import app_lifespan, llm_factory, internet, cors_settings, cfg
 from rest.app_state import AppState
 from rest.prompt_request import PromptRequest
 from rest.search_request import SearchRequest
-from rest.telegram_router import router as telegram_router
 from rest.translation_request import TranslateRequest
-from tools.radio_dj_v2 import RadioDJV2
 from util.template_loader import render_template
 from rest.chat_router import router as chat_router
 
@@ -34,7 +31,6 @@ app.add_middleware(
     allow_headers=["X-API-Key"] + cors_settings["allow_headers"],
 )
 
-app.include_router(telegram_router)
 app.include_router(chat_router)
 
 API_KEY = cfg["web_handler"]["api_key"]
@@ -89,30 +85,14 @@ async def test_prompt(req: PromptRequest):
 
 
 
-@app.post("/debug/summarize/{brand}", dependencies=[Depends(verify_api_key)])
-async def debug_summarize(brand: str):
-    result = await app.state.summarizer.summarize(brand)
-    return {"summary": result}
-
-
 @app.get("/debug/brand_memory", dependencies=[Depends(verify_api_key)])
 async def debug_brand_memory():
-    return RadioDJV2.memory_manager.memory
+    return {}
 
 
 @app.get("/debug/user_memory", dependencies=[Depends(verify_api_key)])
 async def debug_user_memory():
-    return await app.state.user_memory.get_all()
-
-
-@app.get("/debug/listener_summary/{brand}", dependencies=[Depends(verify_api_key)])
-async def debug_listener_summary(brand: str):
-    summarizer = BrandUserSummarizer(
-        app.state.db,
-        llm_factory.get_llm_client(LlmType.GROQ),
-        LlmType.GROQ
-    )
-    return {"summary": await summarizer.summarize(brand)}
+    return {}
 
 @app.get("/health", dependencies=[Depends(verify_api_key)])
 def health():

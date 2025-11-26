@@ -22,9 +22,6 @@ async def _bg_queue_and_notify(
         chat_id: int,
         operation_id: str
 ):
-    from util.db_manager import DBManager
-    from memory.user_memory_manager import UserMemoryManager
-    from repos.history_repo import HistoryRepository
     from llm.llm_request import invoke_chat
     from rest.app_setup import cfg, llm_factory, TELEGRAM_TOKEN, get_audio_processor
     from cnst.llm_types import LlmType
@@ -79,27 +76,8 @@ async def _bg_queue_and_notify(
             result_text = f"Queue failed: {str(e)}"
 
     try:
-        db_pool = DBManager.get_pool()
-        user_memory = UserMemoryManager(db_pool)
-        repo = HistoryRepository(user_memory)
-
-        data_state = await user_memory.load(chat_id)
-        history = data_state["history"] if data_state else []
-        telegram_username = data_state.get("telegram_name", "") if data_state else ""
-
         system_prompt = render_template("chat/queue_results_system.hbs", {})
         messages = [{"role": "system", "content": system_prompt}]
-        
-        if history:
-            last_user_msg = None
-            for h in reversed(history):
-                if h.get("role") == "user":
-                    last_user_msg = h.get("text", "")
-                    break
-            if last_user_msg:
-                messages.append({"role": "user", "content": last_user_msg})
-                messages.append({"role": "assistant", "content": f"Queueing your song for {brand}..."})
-
         messages.append({
             "role": "user",
             "content": f"The queue operation completed: {result_text}"
@@ -111,10 +89,8 @@ async def _bg_queue_and_notify(
             enable_listener_tool=False,
             enable_stations_tools=False
         )
-        llm_result = await invoke_chat(llm_client=llm_client, messages=messages, return_full_history=True)
+        llm_result = await invoke_chat(llm_client=llm_client, messages=messages, return_full_history=False)
         reply = llm_result.actual_result
-
-        await repo.update_from_result(chat_id, telegram_username, brand, history, llm_result)
 
         if chat_id == TEST_CHAT_ID:
             print(f"[TEST MODE] Would send to Telegram chat_id={chat_id}: {reply}")

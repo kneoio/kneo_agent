@@ -8,14 +8,12 @@ from langgraph.graph import StateGraph, END
 from cnst.llm_types import LlmType
 from llm.llm_request import invoke_intro
 from llm.llm_response import LlmResponse
-from memory.brand_memory_manager import BrandMemoryManager
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
 from tools.queue_sync import enqueue
 
 
 class RadioDJV2:
-    memory_manager = BrandMemoryManager()
 
     def __init__(self, station: LiveRadioStation, audio_processor, target_dir: str,
                  llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
@@ -63,9 +61,7 @@ class RadioDJV2:
         return workflow.compile()
 
     async def _generate_intro(self, state: DJState) -> DJState:
-        memory_entries = RadioDJV2.memory_manager.get(self.brand)
-        memory_texts = [entry["text"] for entry in memory_entries if isinstance(entry, dict) and "text" in entry]
-        raw_mem = "\n".join(memory_texts)
+        raw_mem = ""
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
             self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}, DIALOGUE SETTING{idx + 1}: {prompt_item.dialogue}")
@@ -90,8 +86,7 @@ class RadioDJV2:
             state["intro_texts"].append(response.actual_result)
             state["song_ids"].append(prompt_item.songId)
             state["dialogue_states"].append(prompt_item.dialogue)
-            if not prompt_item.dialogue:
-                RadioDJV2.memory_manager.add(self.brand, response.actual_result)
+            
 
             self.ai_logger.info(f"{self.brand} RESULT{idx + 1}: {response.actual_result}")
 

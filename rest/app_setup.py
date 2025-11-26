@@ -8,8 +8,6 @@ from api.listener_api import ListenerAPI
 from api.stations_api import StationsAPI
 from core.config import load_config
 from mcp.external.internet_mcp import InternetMCP
-from memory.brand_memory_manager import BrandMemoryManager
-from memory.user_memory_manager import UserMemoryManager
 from util.db_manager import DBManager
 from util.llm_factory import LlmFactory
 
@@ -44,11 +42,7 @@ async def app_lifespan(app: FastAPI):
         await DBManager.init()
         app.state.db = DBManager.get_pool()
 
-        logger.info("Initializing BrandMemoryManager...")
-        app.state.brand_memory = BrandMemoryManager()
-
-        logger.info("Initializing UserMemoryManager...")
-        app.state.user_memory = UserMemoryManager(app.state.db)
+        
 
         logger.info("Initializing ListenerAPI...")
         app.state.listener_api = ListenerAPI(cfg)
@@ -64,7 +58,6 @@ async def app_lifespan(app: FastAPI):
         try:
             from elevenlabs.client import ElevenLabs
             from tools.audio_processor import AudioProcessor
-            
             global _audio_processor
             elevenlabs_cfg = cfg.get("elevenlabs", {})
             elevenlabs_client = ElevenLabs(api_key=elevenlabs_cfg.get("api_key"))
@@ -75,32 +68,8 @@ async def app_lifespan(app: FastAPI):
             logger.error(f"Failed to initialize AudioProcessor: {e}", exc_info=True)
             logger.warning("Queue tool will not be available")
 
-        logger.info("Starting ConversationSummarizer...")
-        from memory.conversation_summarizer import ConversationSummarizer
-        import asyncio
-        app.state.conversation_summarizer = ConversationSummarizer(
-            user_memory_manager=app.state.user_memory,
-            llm_factory=llm_factory,
-            interval_minutes=5,
-            idle_threshold_minutes=5
-        )
-        
-        logger.info("Running initial conversation summarization check...")
-        await app.state.conversation_summarizer._check_and_summarize_conversations()
-        
-        app.state.summarizer_task = asyncio.create_task(app.state.conversation_summarizer.start())
-        logger.info("ConversationSummarizer started")
-
         logger.info("Application startup completed successfully")
         yield
-        
-        logger.info("Stopping ConversationSummarizer...")
-        await app.state.conversation_summarizer.stop()
-        app.state.summarizer_task.cancel()
-        try:
-            await app.state.summarizer_task
-        except asyncio.CancelledError:
-            pass
 
     except Exception as e:
         logger.error(f"Error during application startup: {str(e)}", exc_info=True)
