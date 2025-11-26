@@ -4,17 +4,14 @@ from typing import Dict
 
 from fastapi import FastAPI
 
+from api.listener_api import ListenerAPI
+from api.stations_api import StationsAPI
 from core.config import load_config
-from cnst.llm_types import LlmType
+from mcp.external.internet_mcp import InternetMCP
 from memory.brand_memory_manager import BrandMemoryManager
 from memory.user_memory_manager import UserMemoryManager
-from memory.brand_summarizer import BrandSummarizer
-from tools.radio_dj_v2 import RadioDJV2
-from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
-from mcp.external.internet_mcp import InternetMCP
-from api.stations_api import StationsAPI
-from api.listener_api import ListenerAPI
+from util.llm_factory import LlmFactory
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +59,6 @@ async def app_lifespan(app: FastAPI):
         app.state.stations_api = StationsAPI(cfg)
         from tools.stations_tool import set_stations_api
         set_stations_api(app.state.stations_api)
-
-        logger.info("Initializing BrandSummarizer...")
-        app.state.summarizer = BrandSummarizer(
-            llm_client=llm_factory.get_llm_client(LlmType.GROQ),
-            db_pool=app.state.db,
-            memory_manager=RadioDJV2.memory_manager,
-            llm_type=LlmType.GROQ
-        )
 
         logger.info("Initializing AudioProcessor for queue tool...")
         try:

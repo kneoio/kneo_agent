@@ -18,3 +18,4 @@ pybars3>=0.9.7
 asyncpg>=0.26.0
 httpx>=0.25.1
 openai>=1.0.0
+google-generativeai>=0.8.0

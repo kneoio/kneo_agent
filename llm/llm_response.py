@@ -56,6 +56,14 @@ class LlmResponse(BaseModel):
                 return content
             else:
                 return str(content)
+        # Fallback for providers that expose only `.text`
+        if hasattr(self.raw_response, "text"):
+            try:
+                txt = getattr(self.raw_response, "text", None)
+                if isinstance(txt, str):
+                    return txt
+            except Exception:
+                pass
         
         if isinstance(self.raw_response, dict):
             if "content" in self.raw_response:

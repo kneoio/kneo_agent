@@ -16,6 +16,24 @@ from tools.stations_tool import (
 logger = logging.getLogger(__name__)
 
 
+def _combine_messages(messages: list) -> str:
+    parts = []
+    for m in messages or []:
+        role = m.get("role")
+        content = m.get("content")
+        if not content:
+            continue
+        if role == "system":
+            parts.append(f"System: {content}")
+        elif role == "assistant":
+            parts.append(f"Assistant: {content}")
+        elif role == "tool":
+            parts.append(f"Tool: {content}")
+        else:
+            parts.append(f"User: {content}")
+    return "\n\n".join(parts)
+
+
 async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str, enable_tools: bool = True) -> Any:
     memory_block = (
         "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
@@ -88,7 +106,11 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
         logger.debug(f"invoke_chat: No tools available for {llm_client.llm_type.name}")
 
     try:
-        response = await llm_client.invoke(messages=messages, tools=tools)
+        if hasattr(llm_client, "invoke"):
+            response = await llm_client.invoke(messages=messages, tools=tools)
+        else:
+            combined = _combine_messages(messages)
+            response = await llm_client.ainvoke(combined)
     except Exception as e:
         return LlmResponse.from_invoke_error(e, llm_client.llm_type)
 
@@ -152,7 +174,11 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
                     safe_name = getattr(getattr(tool_call, 'function', None), 'name', None)
                 logger.error(f"invoke_chat tool execution error for {safe_name}: {e}")
 
-        response = await llm_client.invoke(messages=messages, tools=tools)
+        if hasattr(llm_client, "invoke"):
+            response = await llm_client.invoke(messages=messages, tools=tools)
+        else:
+            combined_followup = _combine_messages(messages)
+            response = await llm_client.ainvoke(combined_followup)
         try:
             clen = len(getattr(response, 'content', '') or '')
             logger.info(f"invoke_chat: follow-up response content length={clen}")
@@ -169,17 +195,25 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
 
 async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> 'LlmResponse':
     full_prompt = f"{prompt}\n\nInput:\n{to_translate}"
-    response = await llm_client.invoke(messages=[
+    tp_messages = [
         {"role": "system", "content": "You are a professional translator."},
         {"role": "user", "content": full_prompt}
-    ])
+    ]
+    if hasattr(llm_client, "invoke"):
+        response = await llm_client.invoke(messages=tp_messages)
+    else:
+        response = await llm_client.ainvoke(_combine_messages(tp_messages))
     print(f"RAW: {response}")
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
 
 
 async def translate_content(llm_client: Any, content: str) -> 'LlmResponse':
-    response = await llm_client.invoke(messages=[
+    tc_messages = [
         {"role": "system", "content": "You are a professional translator."},
         {"role": "user", "content": content}
-    ])
+    ]
+    if hasattr(llm_client, "invoke"):
+        response = await llm_client.invoke(messages=tc_messages)
+    else:
+        response = await llm_client.ainvoke(_combine_messages(tc_messages))
     return LlmResponse.parse_plain_response(response, llm_client.llm_type)
