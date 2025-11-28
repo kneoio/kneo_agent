@@ -12,6 +12,7 @@ from memory.brand_memory_manager import BrandMemoryManager
 from models.live_container import LiveRadioStation
 from tools.dj_state import DJState
 from tools.queue_sync import enqueue
+from repos.brand_memory_repo import brand_memory_repo
 
 
 class RadioDJV2:
@@ -65,7 +66,21 @@ class RadioDJV2:
     async def _generate_intro(self, state: DJState) -> DJState:
         memory_entries = RadioDJV2.memory_manager.get(self.brand)
         memory_texts = [entry["text"] for entry in memory_entries if isinstance(entry, dict) and "text" in entry]
-        raw_mem = "\n".join(memory_texts)
+        
+        summary_text = ""
+        try:
+            from datetime import date
+            db_summary = await brand_memory_repo.get(self.brand, date.today())
+            if db_summary and db_summary.summary:
+                summary_text = db_summary.summary.get("summary", "")
+        except Exception as e:
+            self.logger.warning(f"Failed to load database summary for brand {self.brand}: {e}")
+        
+        if summary_text.strip():
+            raw_mem = f"Recent Summary: {summary_text}\n\nRecent Interactions:\n" + "\n".join(memory_texts)
+        else:
+            raw_mem = "\n".join(memory_texts)
+        
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
             self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}, DIALOGUE SETTING{idx + 1}: {prompt_item.dialogue}")
@@ -85,8 +100,6 @@ class RadioDJV2:
             else:
                 response = LlmResponse.parse_plain_response(raw_response, self.llm_type)
             
-            #print(self.brand)
-            #print(response)
             state["intro_texts"].append(response.actual_result)
             state["song_ids"].append(prompt_item.songId)
             state["dialogue_states"].append(prompt_item.dialogue)

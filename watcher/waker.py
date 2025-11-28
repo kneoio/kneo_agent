@@ -14,6 +14,8 @@ from api.live_stations_api import LiveStationsAPI
 from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
 from cnst.paths import MERGED_AUDIO_DIR
+from tools.radio_dj_v2 import RadioDJV2
+from memory.memory_summarizer import MemorySummarizer
 
 
 class Waker:
@@ -28,6 +30,8 @@ class Waker:
         self.last_activity_time = time.time()
         self.db_pool = None
         self.processed_status = (config or {}).get("waker", {}).get("processed_status")
+        self.loop_counter = 0
+        self.memory_manager = RadioDJV2.memory_manager
 
         self.target_dir = str(MERGED_AUDIO_DIR)
         os.makedirs(self.target_dir, exist_ok=True)
@@ -83,6 +87,41 @@ class Waker:
                 self.brand_queue.task_done()
         return had_success
 
+    async def _summarize_memories(self):
+        if not self.memory_manager.memory:
+            logging.info("No memories to summarize")
+            return
+
+        summarizer_llm_type = self.config.get("summarizer", {}).get("llm_type", LlmType.GOOGLE)
+        llm_client = self.llmFactory.get_llm_client(LlmType(summarizer_llm_type), self.internet_mcp)
+        
+        if llm_client is None:
+            logging.warning(f"LLM client not available for summarization with llmType='{summarizer_llm_type}'")
+            return
+
+        summarizer = MemorySummarizer(llm_client, LlmType(summarizer_llm_type))
+        
+        for brand, memory_entries in list(self.memory_manager.memory.items()):
+            if not memory_entries:
+                continue
+                
+            memory_snapshot = memory_entries.copy()
+                
+            try:
+                summary_data = await summarizer.summarize_brand_memory(brand, memory_snapshot)
+                if summary_data:
+                    success = await summarizer.save_summary(brand, summary_data)
+                    if success:
+                        newest_timestamp = max(entry["t"] for entry in memory_snapshot)
+                        self.memory_manager.remove_entries_before(brand, newest_timestamp)
+                        logging.info(f"Summarized and saved memory for brand {brand}, removed {len(memory_snapshot)} entries")
+                    else:
+                        logging.error(f"Failed to save summary for brand {brand}")
+                else:
+                    logging.warning(f"No summary generated for brand {brand}")
+            except Exception as e:
+                logging.error(f"Error summarizing memory for brand {brand}: {e}")
+
     async def _async_run(self):
         self.internet_mcp = InternetMCP(config=self.config, default_engine="Perplexity")
         self.live_stations_mcp = LiveStationsAPI(self.config)
@@ -113,6 +152,8 @@ class Waker:
         try:
             while True:
                 had_activity = False
+                self.loop_counter += 1
+                
                 try:
                     live_container = await self.live_stations_mcp.get_live_radio_stations(self.processed_status)
                     if live_container and len(live_container) > 0:
@@ -122,6 +163,12 @@ class Waker:
                         had_activity = await self.process_brand_queue()
                 except Exception as e:
                     logging.error(f"Waker error: {e}")
+
+                if self.loop_counter % 5 == 0:
+                    try:
+                        await self._summarize_memories()
+                    except Exception as e:
+                        logging.error(f"Memory summarization error: {e}")
 
                 self._update_interval(had_activity)
                 next_run_ts = time.time() + self.current_interval

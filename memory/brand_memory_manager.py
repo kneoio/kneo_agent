@@ -55,6 +55,15 @@ class BrandMemoryManager:
         self.memory.pop(brand, None)
         self.filters.pop(brand, None)
 
+    def remove_entries_before(self, brand: str, timestamp: str):
+        m = self.memory.get(brand)
+        if not m:
+            return
+        
+        m[:] = [entry for entry in m if entry["t"] > timestamp]
+        if len(m) > 20:
+            m[:] = m[-20:]
+
     def clear_all(self):
         self.memory.clear()
         self.filters.clear()

@@ -48,6 +48,31 @@ class BrandMemoryRepo:
                 summary=row.get("summary"),
             )
 
+    async def update(self, brand: str, day: date, summary: Dict[str, Any]) -> BrandMemory:
+        await DBManager.init()
+        pool = DBManager.get_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE mixpla__brand_memory 
+                SET last_mod_date = now(), summary = $3::jsonb
+                WHERE brand = $1 AND day = $2
+                RETURNING id, last_mod_date, brand, day, summary
+                """,
+                brand,
+                day,
+                json.dumps(summary),
+            )
+            if not row:
+                raise ValueError(f"No existing record found for brand {brand} on {day}")
+            return BrandMemory(
+                id=row.get("id"),
+                last_mod_date=row.get("last_mod_date"),
+                brand=row.get("brand"),
+                day=row.get("day"),
+                summary=row.get("summary"),
+            )
+
 
 brand_memory_repo = BrandMemoryRepo()
 
