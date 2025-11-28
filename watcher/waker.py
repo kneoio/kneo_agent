@@ -88,6 +88,7 @@ class Waker:
         return had_success
 
     async def _summarize_memories(self):
+        logging.info(f"_summarize_memories called. Memory manager state: {list(self.memory_manager.memory.keys())}")
         if not self.memory_manager.memory:
             logging.info("No memories to summarize")
             return
@@ -165,10 +166,13 @@ class Waker:
                     logging.error(f"Waker error: {e}")
 
                 if self.loop_counter % 5 == 0:
+                    logging.info(f"Loop counter: {self.loop_counter}, triggering memory summarization")
                     try:
                         await self._summarize_memories()
                     except Exception as e:
                         logging.error(f"Memory summarization error: {e}")
+                else:
+                    logging.debug(f"Loop counter: {self.loop_counter}, skipping summarization")
 
                 self._update_interval(had_activity)
                 next_run_ts = time.time() + self.current_interval
