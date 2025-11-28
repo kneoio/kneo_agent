@@ -4,7 +4,6 @@ from typing import Dict
 from elevenlabs import ElevenLabs
 
 from api.broadcaster_client import BroadcasterAPIClient
-from api.interaction_memory import InteractionMemory
 from cnst.llm_types import LlmType
 from models.live_container import LiveRadioStation
 from tools.audio_processor import AudioProcessor
@@ -23,16 +22,12 @@ class DJRunner:
         self.api_client = api_client
         self.db_pool = db_pool
 
-        self.memory = InteractionMemory(
-            brand=self.brand,
-            api_client=self.api_client
-        )
         elevenlabs_inst = ElevenLabs(api_key=config.get("elevenlabs").get("api_key"))
 
         self.audio_processor = AudioProcessor(
             elevenlabs_inst,
             station,
-            self.memory
+            None
         )
 
         from cnst.paths import MERGED_AUDIO_DIR

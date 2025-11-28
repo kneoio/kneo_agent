@@ -120,12 +120,9 @@ class LlmFactory:
                 from tools.queue_tool import queue_intro_and_song
                 client.tool_functions["queue_intro_and_song"] = queue_intro_and_song
             if enable_listener_tool:
-                from tools.listener_tool import get_listener_by_telegram
-                client.tool_functions["get_listener_by_telegram"] = get_listener_by_telegram
+                pass
             if enable_stations_tools:
-                from tools.stations_tool import list_stations, get_station_live
-                client.tool_functions["list_stations"] = list_stations
-                client.tool_functions["get_station_live"] = get_station_live
+                pass
             self.clients[cache_key] = client
             return client
         elif llm_type == LlmType.OPENROUTER and self.openrouter_client:
@@ -143,12 +140,9 @@ class LlmFactory:
                 from tools.queue_tool import queue_intro_and_song
                 client.tool_functions["queue_intro_and_song"] = queue_intro_and_song
             if enable_listener_tool:
-                from tools.listener_tool import get_listener_by_telegram
-                client.tool_functions["get_listener_by_telegram"] = get_listener_by_telegram
+                pass
             if enable_stations_tools:
-                from tools.stations_tool import list_stations, get_station_live
-                client.tool_functions["list_stations"] = list_stations
-                client.tool_functions["get_station_live"] = get_station_live
+                pass
             self.clients[cache_key] = client
             return client
 
@@ -169,12 +163,9 @@ class LlmFactory:
                 from tools.queue_tool import queue_intro_and_song
                 client.bind_tool_function("queue_intro_and_song", queue_intro_and_song)
             if enable_listener_tool:
-                from tools.listener_tool import get_listener_by_telegram
-                client.bind_tool_function("get_listener_by_telegram", get_listener_by_telegram)
+                pass
             if enable_stations_tools:
-                from tools.stations_tool import list_stations, get_station_live
-                client.bind_tool_function("list_stations", list_stations)
-                client.bind_tool_function("get_station_live", get_station_live)
+                pass
             if internet_mcp or enable_sound_fragment_tool or enable_listener_tool or enable_stations_tools or enable_queue_tool:
                 self.logger.info(f"LLM client ({llm_type.name}) initialized with tools enabled")
             else:

@@ -3,12 +3,11 @@ import logging
 from typing import Optional, Tuple
 from elevenlabs.client import ElevenLabs
 
-from api.interaction_memory import InteractionMemory
 from models.live_container import LiveRadioStation
 
 
 class AudioProcessor:
-    def __init__(self, elevenlabs_inst: ElevenLabs, station: LiveRadioStation, memory: InteractionMemory):
+    def __init__(self, elevenlabs_inst: ElevenLabs, station: LiveRadioStation, memory):
         self.elevenlabs_inst = elevenlabs_inst
         self.station = station
         self.memory = memory

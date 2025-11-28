@@ -9,7 +9,6 @@ from cnst.translation_types import TranslationType
 from llm.llm_request import invoke_intro, translate_content
 from llm.llm_response import LlmResponse
 from rest.app_setup import app_lifespan, llm_factory, internet, cors_settings, cfg
-from rest.app_state import AppState
 from rest.prompt_request import PromptRequest
 from rest.translation_request import TranslateRequest
 from util.template_loader import render_template
@@ -18,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 logger.info("Initializing FastAPI application...")
 app = FastAPI(lifespan=app_lifespan)
-app.state = AppState()  # type: ignore
 logger.info("FastAPI application initialized")
 
 app.add_middleware(

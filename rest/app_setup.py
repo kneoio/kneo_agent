@@ -4,8 +4,6 @@ from typing import Dict
 
 from fastapi import FastAPI
 
-from api.listener_api import ListenerAPI
-from api.stations_api import StationsAPI
 from core.config import load_config
 from mcp.external.internet_mcp import InternetMCP
 from util.db_manager import DBManager
@@ -41,18 +39,6 @@ async def app_lifespan(app: FastAPI):
         logger.info("Initializing database connection...")
         await DBManager.init()
         app.state.db = DBManager.get_pool()
-
-        
-
-        logger.info("Initializing ListenerAPI...")
-        app.state.listener_api = ListenerAPI(cfg)
-        from tools.listener_tool import set_listener_api
-        set_listener_api(app.state.listener_api)
-
-        logger.info("Initializing StationsAPI...")
-        app.state.stations_api = StationsAPI(cfg)
-        from tools.stations_tool import set_stations_api
-        set_stations_api(app.state.stations_api)
 
         logger.info("Initializing AudioProcessor for queue tool...")
         try:

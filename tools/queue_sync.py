@@ -1,11 +1,10 @@
 import logging
 import uuid
 from typing import Dict, Any
-
+import httpx
 from api.queue_api_client import QueueAPIClient
 
 logger = logging.getLogger(__name__)
-
 
 
 async def enqueue(
@@ -41,8 +40,9 @@ async def enqueue(
             "process_id": process_id,
             "enqueue_result": enqueue_result
         }
+    except httpx.ReadTimeout as e:
+        logger.warning(f"Queue enqueue timeout for {brand}, process_id={process_id}: {e}")
+        return {"success": False, "error": "timeout"}
     except Exception as e:
         logger.error(f"Queue enqueue failed: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
-
-
