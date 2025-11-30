@@ -97,6 +97,25 @@ class LlmFactory:
                 def bind_tool_function(self, name: str, func):
                     self.tool_functions[name] = func
                 
+                def _convert_messages_to_prompt(self, messages):
+                    parts = []
+                    for msg in messages:
+                        role = msg.get("role")
+                        content = msg.get("content")
+                        if not content:
+                            continue
+                        if role == "system":
+                            parts.append(f"System: {content}")
+                        elif role == "assistant":
+                            parts.append(f"Assistant: {content}")
+                        elif role == "user":
+                            parts.append(f"User: {content}")
+                    return "\n\n".join(parts)
+                
+                async def invoke(self, messages, tools=None):
+                    prompt = self._convert_messages_to_prompt(messages)
+                    return await self.ainvoke(prompt, tools)
+                
                 async def ainvoke(self, prompt: str, tools=None):
                     generation_config = genai.GenerationConfig(temperature=self.temperature)
                     import asyncio
