@@ -92,13 +92,15 @@ class LlmFactory:
                     self.model = model
                     self.temperature = temperature
                     self.llm_type = None
+                    self.tool_functions = {}
+                
+                def bind_tool_function(self, name: str, func):
+                    self.tool_functions[name] = func
+                
                 async def ainvoke(self, prompt: str, tools=None):
-                    # GenerationConfig can be used to set temperature
                     generation_config = genai.GenerationConfig(temperature=self.temperature)
-                    # generate_content is synchronous; run in a thread to avoid blocking
                     import asyncio
                     response = await asyncio.to_thread(self.model.generate_content, prompt, generation_config=generation_config)
-                    # The response object has .text attribute for the generated string
                     class _Resp:
                         def __init__(self, content):
                             self.content = content
