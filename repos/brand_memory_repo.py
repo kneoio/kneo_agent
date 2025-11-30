@@ -18,12 +18,14 @@ class BrandMemoryRepo:
             )
             if not row:
                 return None
+            summary_raw = row.get("summary")
+            summary_dict = json.loads(summary_raw) if isinstance(summary_raw, str) else summary_raw
             return BrandMemory(
                 id=row.get("id"),
                 last_mod_date=row.get("last_mod_date"),
                 brand=row.get("brand"),
                 day=row.get("day"),
-                summary=row.get("summary"),
+                summary=summary_dict,
             )
 
     async def insert(self, brand: str, day: date, summary: Dict[str, Any]) -> BrandMemory:
@@ -40,12 +42,14 @@ class BrandMemoryRepo:
                 day,
                 json.dumps(summary),
             )
+            summary_raw = row.get("summary")
+            summary_dict = json.loads(summary_raw) if isinstance(summary_raw, str) else summary_raw
             return BrandMemory(
                 id=row.get("id"),
                 last_mod_date=row.get("last_mod_date"),
                 brand=row.get("brand"),
                 day=row.get("day"),
-                summary=row.get("summary"),
+                summary=summary_dict,
             )
 
     async def update(self, brand: str, day: date, summary: Dict[str, Any]) -> BrandMemory:
@@ -65,12 +69,14 @@ class BrandMemoryRepo:
             )
             if not row:
                 raise ValueError(f"No existing record found for brand {brand} on {day}")
+            summary_raw = row.get("summary")
+            summary_dict = json.loads(summary_raw) if isinstance(summary_raw, str) else summary_raw
             return BrandMemory(
                 id=row.get("id"),
                 last_mod_date=row.get("last_mod_date"),
                 brand=row.get("brand"),
                 day=row.get("day"),
-                summary=row.get("summary"),
+                summary=summary_dict,
             )
 
 
