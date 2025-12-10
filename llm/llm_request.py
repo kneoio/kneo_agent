@@ -4,12 +4,14 @@ from typing import Any
 
 from cnst.search_engine import SearchEngine
 from llm.llm_response import LlmResponse
+from llm.finetune_logger import get_finetune_logger
 from mcp.external.internet_mcp import InternetMCP
 from tools.sound_fragment_tool import get_tool_definition as get_sound_fragment_tool_definition
 from tools.queue_tool import get_tool_definition as get_queue_tool_definition
  
 
 logger = logging.getLogger(__name__)
+_ft_logger = get_finetune_logger()
 
 
 def _combine_messages(messages: list) -> str:
@@ -50,13 +52,29 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
     else:
         logger.debug(f"invoke_intro: Tools disabled or not available for {llm_client.llm_type.name}")
 
-    response = await llm_client.invoke(
-        messages=[
-            {"role": "system", "content": "You are a professional radio DJ"},
-            {"role": "user", "content": full_prompt}
-        ],
-        tools=tools
-    )
+    messages = [
+        {"role": "system", "content": "You are a professional radio DJ"},
+        {"role": "user", "content": full_prompt}
+    ]
+
+    response = await llm_client.invoke(messages=messages, tools=tools)
+
+    try:
+        response_content = ""
+        if hasattr(response, 'content'):
+            response_content = response.content if isinstance(response.content, str) else str(response.content)
+        tool_calls_data = getattr(response, 'tool_calls', None)
+        _ft_logger.log_interaction(
+            function_name="invoke_intro",
+            llm_type=llm_client.llm_type.name,
+            messages=messages,
+            response_content=response_content,
+            tools=tools,
+            tool_calls=tool_calls_data,
+            metadata={"enable_tools": enable_tools, "has_on_air_memory": bool(on_air_memory)}
+        )
+    except Exception as e:
+        logger.debug(f"invoke_intro: finetune logging failed: {e}")
 
     return response
 
@@ -177,6 +195,23 @@ async def invoke_chat(llm_client: Any, messages: list, return_full_history: bool
     llm_response = LlmResponse.parse_plain_response(response, llm_client.llm_type)
     if return_full_history:
         llm_response.full_messages = messages
+
+    try:
+        _ft_logger.log_interaction(
+            function_name="invoke_chat",
+            llm_type=llm_client.llm_type.name,
+            messages=messages,
+            response_content=llm_response.actual_result,
+            tools=tools,
+            tool_calls=getattr(response, 'tool_calls', None),
+            tool_results=[m for m in messages if m.get("role") == "tool"] if messages else None,
+            reasoning=llm_response.reasoning,
+            thinking=llm_response.thinking,
+            metadata={"return_full_history": return_full_history}
+        )
+    except Exception as e:
+        logger.debug(f"invoke_chat: finetune logging failed: {e}")
+
     return llm_response
 
 
@@ -191,7 +226,21 @@ async def translate_prompt(llm_client: Any, prompt: str, to_translate: str) -> '
     else:
         response = await llm_client.ainvoke(_combine_messages(tp_messages))
     print(f"RAW: {response}")
-    return LlmResponse.parse_plain_response(response, llm_client.llm_type)
+    llm_response = LlmResponse.parse_plain_response(response, llm_client.llm_type)
+
+    try:
+        _ft_logger.log_interaction(
+            function_name="translate_prompt",
+            llm_type=llm_client.llm_type.name,
+            messages=tp_messages,
+            response_content=llm_response.actual_result,
+            reasoning=llm_response.reasoning,
+            thinking=llm_response.thinking
+        )
+    except Exception as e:
+        logger.debug(f"translate_prompt: finetune logging failed: {e}")
+
+    return llm_response
 
 
 async def translate_content(llm_client: Any, content: str) -> 'LlmResponse':
@@ -203,4 +252,18 @@ async def translate_content(llm_client: Any, content: str) -> 'LlmResponse':
         response = await llm_client.invoke(messages=tc_messages)
     else:
         response = await llm_client.ainvoke(_combine_messages(tc_messages))
-    return LlmResponse.parse_plain_response(response, llm_client.llm_type)
+    llm_response = LlmResponse.parse_plain_response(response, llm_client.llm_type)
+
+    try:
+        _ft_logger.log_interaction(
+            function_name="translate_content",
+            llm_type=llm_client.llm_type.name,
+            messages=tc_messages,
+            response_content=llm_response.actual_result,
+            reasoning=llm_response.reasoning,
+            thinking=llm_response.thinking
+        )
+    except Exception as e:
+        logger.debug(f"translate_content: finetune logging failed: {e}")
+
+    return llm_response
