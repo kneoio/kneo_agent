@@ -16,3 +16,4 @@ config.yaml
 /app_logs/
 *.mp3
 /.windsurf/
+/finetune_data/

@@ -32,7 +32,7 @@ def _combine_messages(messages: list) -> str:
     return "\n\n".join(parts)
 
 
-async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str, enable_tools: bool = True) -> Any:
+async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str) -> Any:
     memory_block = (
         "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
         f"{on_air_memory}\n\n"
@@ -44,34 +44,24 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
         f"Draft input:\n{draft}"
     )
 
-    tools = None
-    if enable_tools and hasattr(llm_client, 'tool_functions') and llm_client.tool_functions:
-        internet_tool = SearchEngine.Perplexity.value
-        tools = [InternetMCP.get_tool_definition(default_engine=internet_tool)]
-        logger.info(f'invoke_intro: Internet tools "{internet_tool}" enabled for {llm_client.llm_type.name}')
-    else:
-        logger.debug(f"invoke_intro: Tools disabled or not available for {llm_client.llm_type.name}")
 
     messages = [
         {"role": "system", "content": "You are a professional radio DJ"},
         {"role": "user", "content": full_prompt}
     ]
 
-    response = await llm_client.invoke(messages=messages, tools=tools)
+    response = await llm_client.invoke(messages=messages)
 
     try:
         response_content = ""
         if hasattr(response, 'content'):
             response_content = response.content if isinstance(response.content, str) else str(response.content)
-        tool_calls_data = getattr(response, 'tool_calls', None)
         _ft_logger.log_interaction(
             function_name="invoke_intro",
             llm_type=llm_client.llm_type.name,
             messages=messages,
             response_content=response_content,
-            tools=tools,
-            tool_calls=tool_calls_data,
-            metadata={"enable_tools": enable_tools, "has_on_air_memory": bool(on_air_memory)}
+            metadata={"has_on_air_memory": bool(on_air_memory)}
         )
     except Exception as e:
         logger.debug(f"invoke_intro: finetune logging failed: {e}")
