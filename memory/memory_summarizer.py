@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, UTC, date
 from typing import Dict, Any, List, Optional
 
-from llm.llm_request import invoke_intro
+from llm.llm_response import LlmResponse
 from repos.brand_memory_repo import brand_memory_repo
 from util.template_loader import render_template
 
@@ -29,15 +29,11 @@ class MemorySummarizer:
         })
 
         try:
-            raw_response = await invoke_intro(
-                llm_client=self.llm_client,
-                prompt=prompt,
-                draft="",
-                on_air_memory="",
-                enable_tools=False
-            )
-            
-            from llm.llm_response import LlmResponse
+            messages = [
+                {"role": "system", "content": "You are a memory summarization assistant."},
+                {"role": "user", "content": prompt}
+            ]
+            raw_response = await self.llm_client.invoke(messages=messages)
             response = LlmResponse.parse_plain_response(raw_response, self.llm_type)
             
             summary_data = {
