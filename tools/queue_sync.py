@@ -41,7 +41,7 @@ async def enqueue(
             "enqueue_result": enqueue_result
         }
     except httpx.ReadTimeout as e:
-        logger.warning(f"Queue enqueue timeout for {brand}, process_id={process_id}: {e}")
+        logger.warning(f"Queue enqueue client timed out (server may still complete) for {brand}, process_id={process_id}: {e}")
         return {"success": False, "error": "timeout"}
     except Exception as e:
         logger.error(f"Queue enqueue failed: {e}", exc_info=True)

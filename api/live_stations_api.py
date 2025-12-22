@@ -17,7 +17,7 @@ class LiveStationsAPI:
                 return None
             live_container = LiveContainer.from_dict(result)
             if len(live_container) > 0:
-                self.logger.info(f"Retrieved {len(live_container)} radio stations from broadcaster")
+                self.logger.info(f"Retrieved {len(live_container)} stream from broadcaster")
             return live_container
         except Exception as e:
             self.logger.error(f"Error calling /api/ai/live/stations: {e}")
