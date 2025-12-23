@@ -60,6 +60,7 @@ class LiveRadioStation:
     songsCount: int = 1
     llmType: Optional[str] = None
     searchEngineType: Optional[str] = None
+    streamType: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'LiveRadioStation':
@@ -84,7 +85,8 @@ class LiveRadioStation:
             preferredLang=data.get("preferredLang"),
             songsCount=songs_count,
             llmType=llm_type,
-            searchEngineType=search_engine
+            searchEngineType=search_engine,
+            streamType=data.get("streamType")
         )
 
 

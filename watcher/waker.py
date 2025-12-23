@@ -32,6 +32,7 @@ class Waker:
         self.processed_status = (config or {}).get("waker", {}).get("processed_status")
         self.loop_counter = 0
         self.memory_manager = RadioDJV2.memory_manager
+        self.station_stream_types = {}
 
         self.target_dir = str(MERGED_AUDIO_DIR)
         os.makedirs(self.target_dir, exist_ok=True)
@@ -81,6 +82,8 @@ class Waker:
         while not self.brand_queue.empty():
             station = self.brand_queue.get()
             try:
+                if station.streamType:
+                    self.station_stream_types[station.slugName] = station.streamType
                 ok = await self._process_single_station(station)
                 had_success = had_success or ok
             finally:
@@ -104,6 +107,11 @@ class Waker:
         
         for brand, memory_entries in list(self.memory_manager.memory.items()):
             if not memory_entries:
+                continue
+            
+            stream_type = self.station_stream_types.get(brand)
+            if stream_type == "ONE_TIME_STREAM":
+                logging.info(f"Skipping summarization for brand {brand} (ONE_TIME_STREAM)")
                 continue
                 
             memory_snapshot = memory_entries.copy()
