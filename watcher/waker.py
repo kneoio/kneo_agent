@@ -27,7 +27,9 @@ class Waker:
         self.llmFactory = LlmFactory(config)
         self.last_activity_time = time.time()
         self.db_pool = None
-        self.processed_status = (config or {}).get("waker", {}).get("processed_status")
+        waker_config = (config or {}).get("waker", {})
+        self.processed_status_radio = waker_config.get("processed_status_radio")
+        self.processed_status_one_time = waker_config.get("processed_status_one_time")
         self.loop_counter = 0
         self.memory_manager = RadioDJV2.memory_manager
         self.station_stream_types = {}
@@ -161,12 +163,19 @@ class Waker:
                 self.loop_counter += 1
                 
                 try:
-                    live_container = await self.live_stations_mcp.get_live_radio_stations(self.processed_status)
-                    if live_container and len(live_container) > 0:
-                        for station in live_container.radioStations:
+                    radio_container = await self.live_stations_mcp.get_live_radio_stations(self.processed_status_radio)
+                    if radio_container and len(radio_container) > 0:
+                        for station in radio_container.radioStations:
                             if station.radioStationStatus != BrandStatus.QUEUE_SATURATED.value:
                                 self.brand_queue.put(station)
-                        had_activity = await self.process_brand_queue()
+                    
+                    one_time_container = await self.live_stations_mcp.get_live_radio_stations(self.processed_status_one_time)
+                    if one_time_container and len(one_time_container) > 0:
+                        for station in one_time_container.radioStations:
+                            if station.radioStationStatus != BrandStatus.QUEUE_SATURATED.value:
+                                self.brand_queue.put(station)
+                    
+                    had_activity = await self.process_brand_queue()
                 except Exception as e:
                     logging.error(f"Waker error: {e}")
 
