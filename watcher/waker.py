@@ -9,7 +9,6 @@ from api.broadcaster_client import BroadcasterAPIClient
 from cnst.brand_status import BrandStatus
 from cnst.llm_types import LlmType
 from core.dj_runner import DJRunner
-from mcp.external.internet_mcp import InternetMCP
 from api.live_stations_api import LiveStationsAPI
 from util.llm_factory import LlmFactory
 from util.db_manager import DBManager
@@ -23,7 +22,6 @@ class Waker:
         self.config = config
         self.loop = None
         self.live_stations_mcp = None
-        self.internet_mcp = None
         self.api_client = None
         self.brand_queue = Queue()
         self.llmFactory = LlmFactory(config)
@@ -41,7 +39,7 @@ class Waker:
         self.BASE_INTERVAL = 60
         self.TIMEOUT_PER_STATION = 300
         self.MIN_INTERVAL = 30
-        self.MAX_INTERVAL = 120
+        self.MAX_INTERVAL = 80
         self.BACKOFF_FACTOR = 1.5
         self.ACTIVITY_THRESHOLD = 240
         self.current_interval = self.BASE_INTERVAL
@@ -50,7 +48,7 @@ class Waker:
         try:
             logging.info(f"Processing brand: {station.name}")
             llmType = LlmType(station.llmType) if station.llmType else None
-            llmClient = self.llmFactory.get_llm_client(llmType, self.internet_mcp)
+            llmClient = self.llmFactory.get_llm_client(llmType, None)
 
             if llmClient is None:
                 logging.warning(f"LLM client not available for station {station.name} with llmType='{station.llmType}'")
@@ -97,7 +95,7 @@ class Waker:
             return
 
         summarizer_llm_type = self.config.get("summarizer", {}).get("llm_type", LlmType.GOOGLE)
-        llm_client = self.llmFactory.get_llm_client(LlmType(summarizer_llm_type), self.internet_mcp)
+        llm_client = self.llmFactory.get_llm_client(LlmType(summarizer_llm_type), None)
         
         if llm_client is None:
             logging.warning(f"LLM client not available for summarization with llmType='{summarizer_llm_type}'")
@@ -132,7 +130,6 @@ class Waker:
                 logging.error(f"Error summarizing memory for brand {brand}: {e}")
 
     async def _async_run(self):
-        self.internet_mcp = InternetMCP(config=self.config, default_engine="Perplexity")
         self.live_stations_mcp = LiveStationsAPI(self.config)
         self.api_client = BroadcasterAPIClient(self.config)
 
