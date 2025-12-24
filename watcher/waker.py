@@ -111,7 +111,6 @@ class Waker:
             
             stream_type = self.station_stream_types.get(brand)
             if stream_type == "ONE_TIME_STREAM":
-                logging.info(f"Skipping summarization for brand {brand} (ONE_TIME_STREAM)")
                 continue
                 
             memory_snapshot = memory_entries.copy()

@@ -192,11 +192,19 @@ class RadioDJV2:
                 result is True or (isinstance(result, dict) and result.get("success"))
             )
 
+            if not state["broadcast_success"]:
+                self.logger.warning(
+                    f"Queue failed - abandoned audio files: {state['audio_file_paths']}"
+                )
+
             self.ai_logger.info(f"{self.brand} RESULT: {state['broadcast_success']}")
             self.ai_logger.info(f"{self.brand} - End ---------------------------------")
 
         except Exception as e:
             self.logger.error(f"Error broadcasting audio: {e}")
+            self.logger.warning(
+                f"Queue exception - abandoned audio files: {state.get('audio_file_paths', [])}"
+            )
             state["broadcast_success"] = False
 
         return state
