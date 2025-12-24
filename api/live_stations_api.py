@@ -15,6 +15,9 @@ class LiveStationsAPI:
             if result is None:
                 self.logger.warning("No data returned from /api/ai/live/stations")
                 return None
+            if not isinstance(result, dict):
+                self.logger.error(f"Invalid response type from /api/ai/live/stations: {type(result)}, value: {result}")
+                return None
             live_container = LiveContainer.from_dict(result)
             if len(live_container) > 0:
                 self.logger.info(f"Retrieved {len(live_container)} stream from broadcaster")

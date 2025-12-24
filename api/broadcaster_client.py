@@ -28,6 +28,9 @@ class BroadcasterAPIClient:
                 )
                 response.raise_for_status()
                 return response.json()
+        except json.JSONDecodeError as e:
+            self.logger.error(f"API GET request to {url} returned invalid JSON: {e}")
+            return None
         except httpx.HTTPError as e:
             self.logger.error(f"API GET request to {url} failed: {e}")
             return None
