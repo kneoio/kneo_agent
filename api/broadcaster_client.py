@@ -18,7 +18,6 @@ class BroadcasterAPIClient:
 
     def get(self, endpoint, params=None):
         url = f"{self.base_url}/{endpoint}"
-        #self.logger.info(f"Making GET request to: {url} with params {params}")
         try:
             response = requests.get(
                 url,
@@ -29,7 +28,7 @@ class BroadcasterAPIClient:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"API GET request failed: {e}")
+            self.logger.error(f"API GET request to {url} failed: {e}")
             return None
 
     def post(self, endpoint, data):
