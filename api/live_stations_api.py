@@ -12,7 +12,7 @@ class LiveStationsAPI:
     async def get_live_radio_stations(self, use_statuses: str | None = None) -> Optional[LiveContainer]:
         try:
             result = self.client.get(f"ai/live/stations?statuses={use_statuses}")
-            if not result:
+            if result is None:
                 self.logger.warning("No data returned from /api/ai/live/stations")
                 return None
             live_container = LiveContainer.from_dict(result)
