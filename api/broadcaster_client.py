@@ -1,6 +1,6 @@
 import logging
 import json
-import requests
+import httpx
 
 
 class BroadcasterAPIClient:
@@ -16,84 +16,89 @@ class BroadcasterAPIClient:
             headers['Authorization'] = f'Bearer {self.api_key}'
         return headers
 
-    def get(self, endpoint, params=None):
+    async def get(self, endpoint, params=None):
         url = f"{self.base_url}/{endpoint}"
         try:
-            response = requests.get(
-                url,
-                headers=self._get_headers(),
-                params=params,
-                timeout=self.api_timeout
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
+            timeout = httpx.Timeout(self.api_timeout if self.api_timeout else 30.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.get(
+                    url,
+                    headers=self._get_headers(),
+                    params=params
+                )
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPError as e:
             self.logger.error(f"API GET request to {url} failed: {e}")
             return None
 
-    def post(self, endpoint, data):
+    async def post(self, endpoint, data):
         url = f"{self.base_url}/{endpoint}"
         try:
-            response = requests.post(
-                url,
-                headers=self._get_headers(),
-                json=data,
-                timeout=self.api_timeout
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API POST request failed: {e}")
-            return None
-
-    def put(self, endpoint, data):
-        url = f"{self.base_url}/{endpoint}"
-        try:
-            response = requests.put(
-                url,
-                headers=self._get_headers(),
-                json=data,
-                timeout=self.api_timeout
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API PUT request failed: {e}")
-            return None
-
-    def patch(self, endpoint, data):
-        url = f"{self.base_url}/{endpoint}"
-        try:
-            response = requests.patch(
-                url,
-                headers=self._get_headers(),
-                json=data,
-                timeout=self.api_timeout
-            )
-            response.raise_for_status()
-            try:
+            timeout = httpx.Timeout(self.api_timeout if self.api_timeout else 30.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    url,
+                    headers=self._get_headers(),
+                    json=data
+                )
+                response.raise_for_status()
                 return response.json()
-            except json.JSONDecodeError:
-                self.logger.info(
-                    f"API PATCH request to {url} successful (Status: {response.status_code}), but no JSON content.")
-                return {}
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API PATCH request failed: {e}")
+        except httpx.HTTPError as e:
+            self.logger.error(f"API POST request to {url} failed: {e}")
             return None
 
-    def delete(self, endpoint, params=None):
+    async def put(self, endpoint, data):
         url = f"{self.base_url}/{endpoint}"
         try:
-            response = requests.delete(
-                url,
-                headers=self._get_headers(),
-                params=params,
-                timeout=self.api_timeout
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API DELETE request failed: {e}")
+            timeout = httpx.Timeout(self.api_timeout if self.api_timeout else 30.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.put(
+                    url,
+                    headers=self._get_headers(),
+                    json=data
+                )
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPError as e:
+            self.logger.error(f"API PUT request to {url} failed: {e}")
+            return None
+
+    async def patch(self, endpoint, data):
+        url = f"{self.base_url}/{endpoint}"
+        try:
+            timeout = httpx.Timeout(self.api_timeout if self.api_timeout else 30.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.patch(
+                    url,
+                    headers=self._get_headers(),
+                    json=data
+                )
+                response.raise_for_status()
+                try:
+                    return response.json()
+                except json.JSONDecodeError:
+                    self.logger.info(
+                        f"API PATCH request to {url} successful (Status: {response.status_code}), but no JSON content.")
+                    return {}
+        except httpx.HTTPError as e:
+            self.logger.error(f"API PATCH request to {url} failed: {e}")
+            return None
+
+    async def delete(self, endpoint, params=None):
+        url = f"{self.base_url}/{endpoint}"
+        try:
+            timeout = httpx.Timeout(self.api_timeout if self.api_timeout else 30.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.delete(
+                    url,
+                    headers=self._get_headers(),
+                    params=params
+                )
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPError as e:
+            self.logger.error(f"API DELETE request to {url} failed: {e}")
             return None
 
     async def close(self):
