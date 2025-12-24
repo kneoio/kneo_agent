@@ -28,7 +28,7 @@ class BroadcasterAPIClient:
                 )
                 response.raise_for_status()
                 json_data = response.json()
-                self.logger.debug(f"API GET response from {url}: {json_data}")
+                self.logger.info(f"API GET response from {url}: {type(json_data)} - {str(json_data)[:200]}")
                 return json_data
         except json.JSONDecodeError as e:
             self.logger.error(f"API GET request to {url} returned invalid JSON: {e}")
