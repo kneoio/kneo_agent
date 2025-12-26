@@ -64,11 +64,12 @@ class LiveRadioStation:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'LiveRadioStation':
-        tts_data = data.get("tts", {})
+        tts_data = data.get("tts")
+        if tts_data is None:
+            raise ValueError(f"Station {data.get('name', 'unknown')} has null tts config")
         prompts_list = [PromptItem.from_dict(p) for p in data.get("prompts", [])]
         songs_count = len(prompts_list) if prompts_list else 1
         
-        # Get llmType and searchEngineType from the first prompt if available
         llm_type = prompts_list[0].llmType if prompts_list else None
         search_engine = prompts_list[0].searchEngineType if prompts_list else None
         
