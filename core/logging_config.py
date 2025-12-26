@@ -48,6 +48,9 @@ def setup_logging(console_level=logging.INFO, file_level=logging.DEBUG, log_dire
     root_logger.addHandler(file_handler)
 
     setup_ai_loggers(absolute_log_directory, rotate_when, rotate_interval, rotate_backup_count)
+    
+    httpx_logger = logging.getLogger('httpx')
+    httpx_logger.setLevel(logging.WARNING)
 
     logging.info(f"Logging setup complete. Logs directed to {log_file_path} with rotation.")
     return root_logger
