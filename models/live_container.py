@@ -49,7 +49,7 @@ class PromptItem:
 class LiveRadioStation:
     name: str
     slugName: str
-    radioStationStatus: str
+    streamStatus: str
     djName: str
     info: str
     tts: TtsConfig
@@ -61,6 +61,7 @@ class LiveRadioStation:
     llmType: Optional[str] = None
     searchEngineType: Optional[str] = None
     streamType: Optional[str] = None
+    languageTag: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'LiveRadioStation':
@@ -76,7 +77,7 @@ class LiveRadioStation:
         return cls(
             name=data.get("name"),
             slugName=data.get("slugName"),
-            radioStationStatus=data.get("radioStationStatus"),
+            streamStatus=data.get("radioStationStatus"),
             djName=data.get("djName"),
             info=data.get("info", ""),
             tts=TtsConfig.from_dict(tts_data),
@@ -87,7 +88,8 @@ class LiveRadioStation:
             songsCount=songs_count,
             llmType=llm_type,
             searchEngineType=search_engine,
-            streamType=data.get("streamType")
+            streamType=data.get("streamType"),
+            languageTag=data.get("languageTag")
         )
 
 
@@ -109,7 +111,7 @@ class LiveContainer:
         return None
 
     def get_stations_by_status(self, status: str) -> List[LiveRadioStation]:
-        return [station for station in self.radioStations if station.radioStationStatus == status]
+        return [station for station in self.radioStations if station.streamStatus == status]
 
     def get_all_station_names(self) -> List[str]:
         return [station.name for station in self.radioStations]

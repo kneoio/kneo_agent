@@ -26,6 +26,8 @@ class AudioProcessor:
         else:
             self.logger.info(f"TTS text length -------> : {len(text)} chars")
 
+        self.logger.info(f"TTS language_code: {self.station.languageTag}")
+
         try:
             voice_id = (self.station.tts.primaryVoice or "").strip()
             if not voice_id:
@@ -37,7 +39,8 @@ class AudioProcessor:
                 # model_id="eleven_multilingual_v2",
                 model_id="eleven_v3",
                 #output_format="mp3_44100_128"
-                output_format="mp3_44100_192"
+                output_format="mp3_44100_192",
+                language_code=self.station.languageTag
             )
 
             audio_data = b''.join(audio_stream)
