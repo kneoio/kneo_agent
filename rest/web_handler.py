@@ -11,7 +11,7 @@ from llm.llm_response import LlmResponse
 from rest.app_setup import app_lifespan, llm_factory, internet, cors_settings, cfg
 from rest.prompt_request import PromptRequest
 from rest.translation_request import TranslateRequest
-from util.template_loader import render_template
+from util.template_loader import render_template, template_exists
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,11 @@ async def verify_api_key(x_api_key: Annotated[str | None, Header()] = None):
 async def translate(req: TranslateRequest):
     client = llm_factory.get_llm_client(LlmType.GROQ)
 
-    template_path = "translation/prompt.hbs" if req.translationType == TranslationType.PROMPT else "translation/code.hbs"
+    if req.translationType == TranslationType.PROMPT:
+        lang_specific = f"translation/{req.language}_translate_prompt.hbs"
+        template_path = lang_specific if template_exists(lang_specific) else "translation/default_translate_prompt.hbs"
+    else:
+        template_path = "translation/code.hbs"
     to_translate_text = render_template(template_path, {
         "language": req.language,
         "toTranslate": req.toTranslate

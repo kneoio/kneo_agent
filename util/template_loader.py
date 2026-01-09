@@ -53,3 +53,9 @@ def get_template_loader() -> TemplateLoader:
 def render_template(template_path: str, context: Dict[str, Any]) -> str:
     loader = get_template_loader()
     return loader.render(template_path, context)
+
+
+def template_exists(template_path: str) -> bool:
+    loader = get_template_loader()
+    full_path = loader.templates_dir / template_path
+    return full_path.exists()

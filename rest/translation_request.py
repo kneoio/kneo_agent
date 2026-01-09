@@ -4,4 +4,4 @@ from cnst.translation_types import TranslationType
 class TranslateRequest(BaseModel):
     toTranslate: str
     translationType: TranslationType
-    language: str
+    language: str   #PT_PT | EN_US and so on
