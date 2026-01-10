@@ -76,7 +76,7 @@ class LlmFactory:
         elif llm_type == LlmType.GOOGLE:
             # Use the official google-generativeai library directly to avoid
             # incompatibilities with the langchain_google_genai wrapper.
-            import google.generativeai as genai
+            import google.genai as genai
             cfg = self.config.get('google', {})
             if not cfg:
                 self.logger.error('Google config missing')
@@ -84,11 +84,12 @@ class LlmFactory:
             api_key = cfg.get('api_key')
             model_name = cfg.get('model')
             temperature = cfg.get('temperature', 0.0)
-            # Configure the library (global config)
-            genai.configure(api_key=api_key)
+            # Create client with the new API
+            client = genai.Client(api_key=api_key)
             # Create a simple adapter that matches the LangChainAdapter interface
             class _GoogleAdapter:
-                def __init__(self, model, temperature):
+                def __init__(self, client, model, temperature):
+                    self.client = client
                     self.model = model
                     self.temperature = temperature
                     self.llm_type = None
@@ -117,14 +118,13 @@ class LlmFactory:
                     return await self.ainvoke(prompt, tools)
                 
                 async def ainvoke(self, prompt: str, tools=None):
-                    generation_config = genai.GenerationConfig(temperature=self.temperature)
                     import asyncio
-                    response = await asyncio.to_thread(self.model.generate_content, prompt, generation_config=generation_config)
+                    response = await asyncio.to_thread(self.client.models.generate_content, model=self.model, contents=prompt)
                     class _Resp:
                         def __init__(self, content):
                             self.content = content
                     return _Resp(response.text)
-            base_client = _GoogleAdapter(genai.GenerativeModel(model_name), temperature)
+            base_client = _GoogleAdapter(client, model_name, temperature)
 
         elif llm_type == LlmType.DEEPSEEK and self.deepseek_client:
             cfg = self.config.get('deepseek', {})
