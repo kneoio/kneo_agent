@@ -42,7 +42,7 @@ async def translate(req: TranslateRequest):
         lang_specific = f"translation/{req.language}_translate_prompt.hbs"
         if template_exists(lang_specific):
             template_path = lang_specific
-            logger.info(f"Using language-specific translation prompt: {lang_specific}")
+            logger.info(f"Using language-specific translation template: {lang_specific}")
         else:
             template_path = "translation/default_translate_prompt.hbs"
     else:
