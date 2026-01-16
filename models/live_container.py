@@ -23,7 +23,6 @@ class PromptItem:
     songId: str
     draft: str
     prompt: str
-    promptType: Optional[str] = None
     llmType: Optional[str] = None
     searchEngineType: Optional[str] = None
     startTime: Optional[str] = None
@@ -36,7 +35,6 @@ class PromptItem:
             songId=data.get("songId", ""),
             draft=data.get("draft", ""),
             prompt=data.get("prompt", ""),
-            promptType=data.get("promptType"),
             llmType=data.get("llmType"),
             searchEngineType=data.get("searchEngineType"),
             startTime=data.get("startTime"),

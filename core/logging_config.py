@@ -56,13 +56,15 @@ def setup_logging(console_level=logging.INFO, file_level=logging.DEBUG, log_dire
     return root_logger
 
 
-def setup_ai_loggers(log_directory, rotate_when='midnight', rotate_interval=1, rotate_backup_count=7):
-    ai_logger = logging.getLogger('tools.interaction_tools.ai')
+def setup_ai_loggers(log_directory, rotate_when='midnight', rotate_interval=1, rotate_backup_count=7, brand=None):
+    logger_name = f'tools.interaction_tools.ai{f".{brand}" if brand else ""}'
+    ai_logger = logging.getLogger(logger_name)
     ai_logger.setLevel(logging.INFO)
     ai_logger.propagate = False
 
     if not ai_logger.handlers:
-        ai_file = os.path.join(log_directory, 'ai_interactions.log')
+        log_filename = f'ai_interactions{f"_{brand}" if brand else ""}.log'
+        ai_file = os.path.join(log_directory, log_filename)
         ai_handler = logging.handlers.TimedRotatingFileHandler(
             ai_file, when=rotate_when, interval=rotate_interval,
             backupCount=rotate_backup_count, encoding='utf-8'
@@ -70,3 +72,9 @@ def setup_ai_loggers(log_directory, rotate_when='midnight', rotate_interval=1, r
         ai_formatter = logging.Formatter('%(asctime)s - %(message)s')
         ai_handler.setFormatter(ai_formatter)
         ai_logger.addHandler(ai_handler)
+
+
+def setup_brand_ai_logger(brand, log_directory="logs"):
+    """Setup AI logger for a specific brand"""
+    setup_ai_loggers(log_directory, brand=brand)
+    return logging.getLogger(f"tools.interaction_tools.ai.{brand}")

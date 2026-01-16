@@ -6,6 +6,7 @@ from typing import Tuple
 from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
+from core.logging_config import setup_brand_ai_logger
 from llm.llm_request import invoke_intro
 from llm.llm_response import LlmResponse
 from memory.brand_memory_manager import BrandMemoryManager
@@ -25,11 +26,11 @@ class RadioDJV2:
 
         self.llm_type = llm_type
         self.logger = logging.getLogger(__name__)
-        self.ai_logger = logging.getLogger("tools.interaction_tools.ai")
         self.llm = llm_client
         self.audio_processor = audio_processor
         self.live_station = station
         self.brand = station.slugName
+        self.ai_logger = setup_brand_ai_logger(self.brand)
         self.target_dir = target_dir
         self.db = db_pool
         #self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
