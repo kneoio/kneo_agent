@@ -2,19 +2,20 @@
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
-
 @dataclass
 class TtsConfig:
     primaryVoice: str
     secondaryVoice: str
     secondaryVoiceName: str
+    ttsEngineType: str
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TtsConfig':
         return cls(
             primaryVoice=data.get("primaryVoice", ""),
             secondaryVoice=data.get("secondaryVoice", ""),
-            secondaryVoiceName=data.get("secondaryVoiceName", "")
+            secondaryVoiceName=data.get("secondaryVoiceName", ""),
+            ttsEngineType=data.get("ttsEngineType", "")
         )
 
 

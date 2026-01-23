@@ -2,38 +2,26 @@ import os
 import random
 import time
 
-from dotenv import load_dotenv
-from google.cloud import texttospeech
+from google.cloud import texttospeech_v1
+from google.cloud.texttospeech_v1.types import VoiceSelectionParams, AudioConfig, SynthesisInput
+from core.config import load_config
 
-load_dotenv()
+config = load_config("../config.yaml")
+google_tts_config = config.get("google_tts", {})
 
-credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-if credentials_path and os.path.exists(credentials_path):
-    client = texttospeech.TextToSpeechClient.from_service_account_json(credentials_path)
-else:
-    client = texttospeech.TextToSpeechClient()
+credentials_path = google_tts_config.get("credentials_path")
+
+if not credentials_path:
+    raise ValueError("Missing google_tts.credentials_path in config.yaml")
+
+if not os.path.exists(credentials_path):
+    raise FileNotFoundError(f"Google TTS credentials file not found: {credentials_path}")
+
+client = texttospeech_v1.TextToSpeechClient.from_service_account_json(credentials_path)
 
 dj_phrases = [
     "You're listening to the hottest beats online",
-    "Keep it locked right here",
-    "We're commercial-free for the next hour",
-    "Don't touch that dial",
-    "Text your requests now",
-    "Up next, another great track",
-    "You're in the mix",
-    "That throwback jam taking you back",
-    "We're keeping it hot with these tracks",
-    "Shout out to everyone tuning in",
-    "Taking you into the weekend with this next set",
-    "Don't forget to follow us online",
-    "This one's climbing the charts",
-    "Perfect vibes for your day",
-    "You heard it here first",
-    "Back-to-back hits coming your way",
-    "Let's slow things down",
-    "Thanks for joining the conversation",
-    "Stay tuned for more great music",
-    "Keeping the rhythm going all day long"
+    "Keep it locked right here"
 ]
 
 metadata_dir = "metadata"
@@ -43,20 +31,20 @@ if not os.path.exists(metadata_dir):
 voices = client.list_voices()
 print("Available English voices:")
 for voice in voices.voices:
-    if voice.language_codes[0].startswith('en'):
-        print(f"- {voice.name} ({voice.ssml_gender.name})")
+    #if voice.language_codes[0].startswith('en'):
+    print(f"name: {voice.name}   gender:{voice.ssml_gender.name}")
 
 voice_name = "en-US-Wavenet-D"
 print(f"Using voice: {voice_name}")
 
-voice = texttospeech.VoiceSelectionParams(
-    language_code="en-US",
-    name=voice_name,
-)
+voice = VoiceSelectionParams({
+    "language_code": "en-US",
+    "name": voice_name,
+})
 
-audio_config = texttospeech.AudioConfig(
-    audio_encoding=texttospeech.AudioEncoding.MP3,
-)
+audio_config = AudioConfig({
+    "audio_encoding": 2,
+})
 
 for i, phrase in enumerate(dj_phrases):
     file_name = f"{metadata_dir}/dj_phrase_{i + 1}.mp3"
@@ -68,7 +56,7 @@ for i, phrase in enumerate(dj_phrases):
     print(f"Converting phrase {i + 1}/{len(dj_phrases)}: '{phrase}'")
 
     try:
-        synthesis_input = texttospeech.SynthesisInput(text=phrase)
+        synthesis_input = SynthesisInput({"text": phrase})
 
         response = client.synthesize_speech(
             input=synthesis_input,

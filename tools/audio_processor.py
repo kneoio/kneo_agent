@@ -1,14 +1,13 @@
-import json
 import logging
 from typing import Optional, Tuple
-from elevenlabs.client import ElevenLabs
 
 from models.live_container import LiveRadioStation
+from tts.tts_engine import TTSEngine
 
 
 class AudioProcessor:
-    def __init__(self, elevenlabs_inst: ElevenLabs, station: LiveRadioStation, memory):
-        self.elevenlabs_inst = elevenlabs_inst
+    def __init__(self, tts_engine: TTSEngine, station: LiveRadioStation, memory):
+        self.tts_engine = tts_engine
         self.station = station
         self.memory = memory
         self.logger = logging.getLogger(__name__)
@@ -33,23 +32,12 @@ class AudioProcessor:
             if not voice_id:
                 self.logger.error("Missing primaryVoice for TTS generation")
                 return None, "Missing primaryVoice for TTS generation"
-            audio_stream = self.elevenlabs_inst.text_to_speech.convert(
+            
+            return await self.tts_engine.generate_speech(
+                text=text,
                 voice_id=voice_id,
-                text=text[:1000],
-                # model_id="eleven_multilingual_v2",
-                model_id="eleven_v3",
-                #output_format="mp3_44100_128"
-                output_format="mp3_44100_192",
                 language_code=self.station.languageTag
             )
-
-            audio_data = b''.join(audio_stream)
-
-            if audio_data:
-                self.logger.info("TTS generation successful")
-                return audio_data, f"Generated TTS using voice: {voice_id}"
-            else:
-                return None, "TTS conversion resulted in empty audio"
 
         except Exception as e:
             self.logger.error(f"TTS generation failed: {e}")
@@ -67,20 +55,11 @@ class AudioProcessor:
             return None, "TTS conversion resulted in empty audio due to copyright content"
 
         try:
-            audio_stream = self.elevenlabs_inst.text_to_speech.convert(
+            return await self.tts_engine.generate_speech(
+                text=text,
                 voice_id=voice_id,
-                text=text[:1000],
-                model_id="eleven_turbo_v2",
-                output_format="mp3_44100_192"
+                language_code=None
             )
-
-            audio_data = b''.join(audio_stream)
-
-            if audio_data:
-                self.logger.info(f"Simple TTS generation successful ({len(text)} chars)")
-                return audio_data, f"Generated TTS using voice: {voice_id}"
-            else:
-                return None, "TTS conversion resulted in empty audio"
 
         except Exception as e:
             self.logger.error(f"Simple TTS generation failed: {e}")
@@ -92,21 +71,7 @@ class AudioProcessor:
             return None, "Dialogue TTS failed: LLM returned no dialogue content"
 
         try:
-            dialogue = json.loads(dialogue_json)
-        except Exception as e:
-            self.logger.error(f"Dialogue TTS parse failed: {e}")
-            self.logger.error(f"Dialogue raw: {dialogue_json[:500]}")
-            return None, f"Dialogue TTS failed: {str(e)}"
-
-        settings = {"volume_normalization": "on"}
-        try:
-            audio_stream = self.elevenlabs_inst.text_to_dialogue.convert(inputs=dialogue, settings=settings)
-            audio_data = b"".join(audio_stream)
-            if audio_data:
-                self.logger.info("Dialogue TTS generation successful")
-                return audio_data, "Generated multi-voice dialogue"
-            return None, "Dialogue TTS produced no data"
+            return await self.tts_engine.generate_dialogue(dialogue_json)
         except Exception as e:
             self.logger.error(f"Dialogue TTS failed: {e}")
-            self.logger.error(f"Dialogue: {dialogue}")
             return None, f"Dialogue TTS failed: {str(e)}"

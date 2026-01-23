@@ -11,6 +11,7 @@ from llm.llm_request import invoke_intro
 from llm.llm_response import LlmResponse
 from memory.brand_memory_manager import BrandMemoryManager
 from models.live_container import LiveRadioStation
+from tools.audio_processor import AudioProcessor
 from tools.dj_state import DJState
 from tools.queue_sync import enqueue
 from repos.brand_memory_repo import brand_memory_repo
@@ -19,7 +20,7 @@ from repos.brand_memory_repo import brand_memory_repo
 class RadioDJV2:
     memory_manager = BrandMemoryManager()
 
-    def __init__(self, station: LiveRadioStation, audio_processor, target_dir: str,
+    def __init__(self, station: LiveRadioStation, audio_processor: AudioProcessor, target_dir: str,
                  llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
         if db_pool is None:
             raise ValueError("db_pool parameter is required for RadioDJV2 initialization")

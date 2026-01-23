@@ -1,13 +1,12 @@
 import logging
 from typing import Dict
 
-from elevenlabs import ElevenLabs
-
 from api.broadcaster_client import BroadcasterAPIClient
 from cnst.llm_types import LlmType
 from models.live_container import LiveRadioStation
 from tools.audio_processor import AudioProcessor
 from tools.radio_dj_v2 import RadioDJV2
+from tts.tts_factory import TTSEngineFactory
 
 
 class DJRunner:
@@ -22,10 +21,15 @@ class DJRunner:
         self.api_client = api_client
         self.db_pool = db_pool
 
-        elevenlabs_inst = ElevenLabs(api_key=config.get("elevenlabs").get("api_key"))
+        tts_engine_type = station.tts.ttsEngineType
+        if not tts_engine_type:
+            self.logger.error(f"Station {station.name} has no ttsEngineType configured")
+            raise ValueError(f"Station {station.name} has no ttsEngineType configured")
+        
+        tts_engine = TTSEngineFactory.create_engine(tts_engine_type, config)
 
         self.audio_processor = AudioProcessor(
-            elevenlabs_inst,
+            tts_engine,
             station,
             None
         )
