@@ -32,9 +32,12 @@ class ElevenLabsTTSEngine(TTSEngine):
             self.logger.info(f"TTS text length: {len(text)} chars")
 
         try:
-            normalized_lang_code = language_code
-            if language_code and "-" in language_code:
-                normalized_lang_code = language_code.split("-")[0]
+            normalized_lang_code = None
+            if language_code:
+                if "-" in language_code:
+                    normalized_lang_code = language_code.split("-")[0]
+                else:
+                    normalized_lang_code = language_code
             
             self.logger.info(f"ElevenLabs TTS using voice={voice_id} lang={normalized_lang_code}")
             
