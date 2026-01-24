@@ -28,18 +28,24 @@ metadata_dir = "metadata"
 if not os.path.exists(metadata_dir):
     os.makedirs(metadata_dir)
 
-voices = client.list_voices()
-print("Available English voices:")
-for voice in voices.voices:
+#voices = client.list_voices()
+#print("Available English voices:")
+#for voice in voices.voices:
     #if voice.language_codes[0].startswith('en'):
-    print(f"name: {voice.name}   gender:{voice.ssml_gender.name}")
+#    print(f"name: {voice.name}   gender:{voice.ssml_gender.name}")
 
-voice_name = "en-US-Wavenet-D"
+voice_name = "Charon"
+#voice_name = "en-US-Wavenet-D"
+#voice_name = "en-US-Studio-O"
 print(f"Using voice: {voice_name}")
 
 voice = VoiceSelectionParams({
     "language_code": "en-US",
     "name": voice_name,
+    "model_name": "gemini-2.5-flash-preview-tts"
+    #"model_name": "gemini-2.5-flash-tts"
+    #"model_name": "gemini-2.5-pro-tts"
+
 })
 
 audio_config = AudioConfig({

@@ -28,8 +28,6 @@ class ElevenLabsTTSEngine(TTSEngine):
 
         if len(text) > 980:
             self.logger.warning(f"TTS text length approaching limit: {len(text)} chars")
-        else:
-            self.logger.info(f"TTS text length: {len(text)} chars")
 
         try:
             normalized_lang_code = None

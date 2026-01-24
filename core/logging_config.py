@@ -75,6 +75,11 @@ def setup_ai_loggers(log_directory, rotate_when='midnight', rotate_interval=1, r
 
 
 def setup_brand_ai_logger(brand, log_directory="logs"):
-    """Setup AI logger for a specific brand"""
-    setup_ai_loggers(log_directory, brand=brand)
+    absolute_log_directory = os.path.abspath(log_directory)
+    try:
+        os.makedirs(absolute_log_directory, exist_ok=True)
+    except OSError as e:
+        logging.error(f"Failed to create log directory {absolute_log_directory}: {e}")
+    
+    setup_ai_loggers(absolute_log_directory, brand=brand)
     return logging.getLogger(f"tools.interaction_tools.ai.{brand}")

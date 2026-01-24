@@ -1,0 +1,182 @@
+[
+  {
+    "id": "en-US-Chirp3-HD-Achernar",
+    "name": "Achernar",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Achird",
+    "name": "Achird",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Algenib",
+    "name": "Algenib",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Algieba",
+    "name": "Algieba",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Alnilam",
+    "name": "Alnilam",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Aoede",
+    "name": "Aoede",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Autonoe",
+    "name": "Autonoe",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Callirrhoe",
+    "name": "Callirrhoe",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Charon",
+    "name": "Charon",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Despina",
+    "name": "Despina",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Enceladus",
+    "name": "Enceladus",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Erinome",
+    "name": "Erinome",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Fenrir",
+    "name": "Fenrir",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Gacrux",
+    "name": "Gacrux",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Iapetus",
+    "name": "Iapetus",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Kore",
+    "name": "Kore",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Laomedeia",
+    "name": "Laomedeia",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Leda",
+    "name": "Leda",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Orus",
+    "name": "Orus",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Puck",
+    "name": "Puck",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Pulcherrima",
+    "name": "Pulcherrima",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Rasalgethi",
+    "name": "Rasalgethi",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Sadachbia",
+    "name": "Sadachbia",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Sadaltager",
+    "name": "Sadaltager",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Schedar",
+    "name": "Schedar",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Sulafat",
+    "name": "Sulafat",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Umbriel",
+    "name": "Umbriel",
+    "gender": "Male",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Vindemiatrix",
+    "name": "Vindemiatrix",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Zephyr",
+    "name": "Zephyr",
+    "gender": "Female",
+    "language": "en-US"
+  },
+  {
+    "id": "en-US-Chirp3-HD-Zubenelgenubi",
+    "name": "Zubenelgenubi",
+    "gender": "Male",
+    "language": "en-US"
+  }
+]
