@@ -6,7 +6,7 @@ from google.cloud import texttospeech_v1
 from google.cloud.texttospeech_v1.types import VoiceSelectionParams, AudioConfig, SynthesisInput
 from core.config import load_config
 
-config = load_config("../config.yaml")
+config = load_config("../../config.yaml")
 google_tts_config = config.get("google_tts", {})
 
 credentials_path = google_tts_config.get("credentials_path")
@@ -24,7 +24,7 @@ dj_phrases = [
     "Keep it locked right here"
 ]
 
-metadata_dir = "metadata"
+metadata_dir = "../metadata"
 if not os.path.exists(metadata_dir):
     os.makedirs(metadata_dir)
 

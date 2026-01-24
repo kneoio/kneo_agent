@@ -2,7 +2,7 @@ import os
 from google.cloud import texttospeech_v1beta1 as texttospeech
 from core.config import load_config
 
-config = load_config("../config.yaml")
+config = load_config("../../config.yaml")
 credentials_path = config.get("google_tts", {}).get("credentials_path")
 client = texttospeech.TextToSpeechClient.from_service_account_json(credentials_path)
 

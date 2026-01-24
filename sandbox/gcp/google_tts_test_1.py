@@ -3,7 +3,7 @@ import time
 from google.cloud import texttospeech_v1beta1 as texttospeech
 from core.config import load_config
 
-config = load_config("../config.yaml")
+config = load_config("../../config.yaml")
 google_tts_config = config.get("google_tts", {})
 credentials_path = google_tts_config.get("credentials_path")
 
@@ -20,7 +20,7 @@ dj_phrases = [
     "[cool, smooth] Keep it locked right here."
 ]
 
-metadata_dir = "metadata"
+metadata_dir = "../metadata"
 os.makedirs(metadata_dir, exist_ok=True)
 
 #voice_name = "en-US-Journey-D"

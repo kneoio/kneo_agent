@@ -21,7 +21,7 @@ class RadioDJV2:
     memory_manager = BrandMemoryManager()
 
     def __init__(self, station: LiveRadioStation, audio_processor: AudioProcessor, target_dir: str,
-                 llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
+                 llm_client=None, llm_type=LlmType.GROQ, db_pool=None, log_directory=None):
         if db_pool is None:
             raise ValueError("db_pool parameter is required for RadioDJV2 initialization")
 
@@ -31,7 +31,7 @@ class RadioDJV2:
         self.audio_processor = audio_processor
         self.live_station = station
         self.brand = station.slugName
-        self.ai_logger = setup_brand_ai_logger(self.brand)
+        self.ai_logger = setup_brand_ai_logger(self.brand, log_directory or "logs")
         self.target_dir = target_dir
         self.db = db_pool
         #self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)

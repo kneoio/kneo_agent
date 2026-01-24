@@ -35,13 +35,15 @@ class DJRunner:
         )
 
         from cnst.paths import MERGED_AUDIO_DIR
+        log_directory = config.get("logging", {}).get("directory", "logs")
         self.radio_dj = RadioDJV2(
             station=station,
             audio_processor=self.audio_processor,
             target_dir=str(MERGED_AUDIO_DIR),
             llm_client=llm_client,
             llm_type=llm_type,
-            db_pool=self.db_pool
+            db_pool=self.db_pool,
+            log_directory=log_directory
         )
 
     async def run(self) -> None:
