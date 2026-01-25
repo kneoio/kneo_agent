@@ -1,9 +1,10 @@
 import logging
 import os
+import re
 from typing import Optional, Tuple
 
-from google.cloud import texttospeech_v1
-from google.cloud.texttospeech_v1.types import VoiceSelectionParams, AudioConfig, SynthesisInput
+from google.cloud import texttospeech_v1beta1 as texttospeech
+from google.cloud.texttospeech_v1beta1.types import VoiceSelectionParams, AudioConfig, SynthesisInput
 
 from tts.tts_engine import TTSEngine
 
@@ -16,8 +17,13 @@ class GCPTTSEngine(TTSEngine):
         if not os.path.exists(credentials_path):
             raise FileNotFoundError(f"GCP TTS credentials file not found: {credentials_path}")
         
-        self.client = texttospeech_v1.TextToSpeechClient.from_service_account_json(credentials_path)
+        self.client = texttospeech.TextToSpeechClient.from_service_account_json(credentials_path)
         self.logger = logging.getLogger(__name__)
+
+    @staticmethod
+    def _strip_emotional_tags(text: str) -> str:
+        pattern = r'\[(?:excited|whispers|quietly|shouting|angry|sad|happy|laughing|crying|nervous|confident|calm|energetic|serious|playful|dramatic|cheerful|melancholic|mysterious|romantic|intense|gentle|firm|soft|loud|fast|slow|high|low)\]'
+        return re.sub(pattern, '', text, flags=re.IGNORECASE).strip()
 
     async def generate_speech(self, text: str, voice_id: str, language_code: Optional[str] = None) -> Tuple[Optional[bytes], str]:
         if not text:
@@ -31,34 +37,38 @@ class GCPTTSEngine(TTSEngine):
             self.logger.warning("Copyright content detected")
             return None, "TTS conversion resulted in empty audio due to copyright content"
 
-        if len(text) > 980:
-            self.logger.warning(f"TTS text length approaching limit: {len(text)} chars")
+        cleaned_text = self._strip_emotional_tags(text)
+        
+        if cleaned_text != text:
+            self.logger.info(f"Stripped emotional tags from TTS text")
+
+        if len(cleaned_text) > 980:
+            self.logger.warning(f"TTS text length approaching limit: {len(cleaned_text)} chars")
         else:
-            self.logger.info(f"TTS text length: {len(text)} chars")
+            self.logger.info(f"TTS text length: {len(cleaned_text)} chars")
 
         try:
             lang_code = language_code or "en-US"
             
-            voice_params = {
-                "language_code": lang_code,
-                "name": voice_id,
-            }
+            voice_params = VoiceSelectionParams(
+                language_code=lang_code,
+                name=voice_id,
+            )
             
-            if "gemini" in voice_id.lower() or ("chirp" in voice_id.lower() and "hd" in voice_id.lower()):
-                voice_params["model_name"] = "gemini-2.5-flash-tts"
-            elif not any(sep in voice_id for sep in ["-", "_"]):
-                voice_params["model_name"] = "gemini-2.5-flash-tts"
+            model_info = ""
             
-            model_info = f" model={voice_params.get('model_name', 'standard')}" if "model_name" in voice_params else ""
+            if "gemini" in voice_id.lower():
+                voice_params.model_name = "gemini-2.5-flash-tts"
+                model_info = f" model={voice_params.model_name}"
             self.logger.info(f"GCP TTS using voice={voice_id}{model_info} lang={lang_code}")
             
-            voice = VoiceSelectionParams(voice_params)
+            voice = voice_params
 
-            audio_config = AudioConfig({
-                "audio_encoding": 2,
-            })
+            audio_config = AudioConfig(
+                audio_encoding=texttospeech.AudioEncoding.MP3
+            )
 
-            synthesis_input = SynthesisInput({"text": text[:1000]})
+            synthesis_input = SynthesisInput(text=cleaned_text[:1000])
 
             response = self.client.synthesize_speech(
                 input=synthesis_input,
