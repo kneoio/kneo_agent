@@ -25,6 +25,13 @@ class GCPTTSEngine(TTSEngine):
         pattern = r'\[(?:excited|whispers|quietly|shouting|angry|sad|happy|laughing|crying|nervous|confident|calm|energetic|serious|playful|dramatic|cheerful|melancholic|mysterious|romantic|intense|gentle|firm|soft|loud|fast|slow|high|low)\]'
         return re.sub(pattern, '', text, flags=re.IGNORECASE).strip()
 
+    @staticmethod
+    def _strip_markdown_formatting(text: str) -> str:
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        text = re.sub(r'\*(.*?)\*', r'\1', text)
+        text = re.sub(r'_(.*?)_', r'\1', text)
+        return text.strip()
+
     async def generate_speech(self, text: str, voice_id: str, language_code: Optional[str] = None) -> Tuple[Optional[bytes], str]:
         if not text:
             return None, "No text provided for TTS"
@@ -38,9 +45,10 @@ class GCPTTSEngine(TTSEngine):
             return None, "TTS conversion resulted in empty audio due to copyright content"
 
         cleaned_text = self._strip_emotional_tags(text)
+        cleaned_text = self._strip_markdown_formatting(cleaned_text)
         
         if cleaned_text != text:
-            self.logger.info(f"Stripped emotional tags from TTS text")
+            self.logger.info(f"Stripped emotional tags and markdown formatting from TTS text")
 
         if len(cleaned_text) > 980:
             self.logger.warning(f"TTS text length approaching limit: {len(cleaned_text)} chars")
