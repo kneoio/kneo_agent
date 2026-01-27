@@ -85,9 +85,9 @@ class RadioDJV2:
         
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
-            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}, DIALOGUE SETTING{idx + 1}: {prompt_item.dialogue}")
-            self.ai_logger.info(f"{self.brand} DRAFT: {draft}")
-            self.ai_logger.info(f"{self.brand} PROMPT: {prompt_item.prompt[:80]}...")
+            title = prompt_item.promptTitle or f"Prompt {idx + 1}"
+            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}, prompt: {title}, Dialogue: {idx + 1}: {prompt_item.dialogue}")
+            self.ai_logger.info(f"{self.brand} Draft result: {draft}")
 
             raw_response = await invoke_intro(
                 llm_client=self.llm,

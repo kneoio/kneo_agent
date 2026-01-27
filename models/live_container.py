@@ -24,8 +24,8 @@ class PromptItem:
     songId: str
     draft: str
     prompt: str
+    promptTitle: Optional[str] = None
     llmType: Optional[str] = None
-    searchEngineType: Optional[str] = None
     startTime: Optional[str] = None
     oneTimeRun: bool = False
     dialogue: bool = False
@@ -36,8 +36,8 @@ class PromptItem:
             songId=data.get("songId", ""),
             draft=data.get("draft", ""),
             prompt=data.get("prompt", ""),
+            promptTitle=data.get("promptTitle"),
             llmType=data.get("llmType"),
-            searchEngineType=data.get("searchEngineType"),
             startTime=data.get("startTime"),
             oneTimeRun=bool(data.get("oneTimeRun", False)),
             dialogue=bool(data.get("podcast", False))
@@ -58,7 +58,6 @@ class LiveRadioStation:
     preferredLang: Optional[str] = None
     songsCount: int = 1
     llmType: Optional[str] = None
-    searchEngineType: Optional[str] = None
     streamType: Optional[str] = None
     languageTag: Optional[str] = None
 
@@ -71,7 +70,6 @@ class LiveRadioStation:
         songs_count = len(prompts_list) if prompts_list else 1
         
         llm_type = prompts_list[0].llmType if prompts_list else None
-        search_engine = prompts_list[0].searchEngineType if prompts_list else None
         
         return cls(
             name=data.get("name"),
@@ -86,7 +84,6 @@ class LiveRadioStation:
             preferredLang=data.get("preferredLang"),
             songsCount=songs_count,
             llmType=llm_type,
-            searchEngineType=search_engine,
             streamType=data.get("streamType"),
             languageTag=data.get("languageTag")
         )
