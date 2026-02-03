@@ -34,7 +34,7 @@ class RadioDJV2:
         self.ai_logger = setup_brand_ai_logger(self.brand, log_directory or "logs")
         self.target_dir = target_dir
         self.db = db_pool
-        #self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
+        # self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
         self.graph = self._build_graph()
 
     async def run(self) -> Tuple[bool, str, str]:
@@ -68,7 +68,7 @@ class RadioDJV2:
     async def _generate_intro(self, state: DJState) -> DJState:
         memory_entries = RadioDJV2.memory_manager.get(self.brand)
         memory_texts = [entry["text"] for entry in memory_entries if isinstance(entry, dict) and "text" in entry]
-        
+
         summary_text = ""
         try:
             from datetime import date
@@ -77,16 +77,17 @@ class RadioDJV2:
                 summary_text = db_summary.summary.get("summary", "")
         except Exception as e:
             self.logger.warning(f"Failed to load database summary for brand {self.brand}: {e}")
-        
+
         if summary_text.strip():
             raw_mem = f"Recent Summary: {summary_text}\n\nRecent Interactions:\n" + "\n".join(memory_texts)
         else:
             raw_mem = "\n".join(memory_texts)
-        
+
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
             title = prompt_item.promptTitle or f"Prompt {idx + 1}"
-            self.ai_logger.info(f"{self.brand} LLM: {self.llm_type.name}, prompt: {title}, Dialogue: {idx + 1}: {prompt_item.dialogue}")
+            self.ai_logger.info(
+                f"{self.brand} LLM: {self.llm_type.name}, prompt: {title}, Dialogue: {idx + 1}: {prompt_item.dialogue}")
             self.ai_logger.info(f"{self.brand} Draft result: {draft}")
 
             raw_response = await invoke_intro(
@@ -95,12 +96,12 @@ class RadioDJV2:
                 draft=draft,
                 on_air_memory=raw_mem
             )
-            
+
             if prompt_item.dialogue:
                 response = LlmResponse.parse_structured_response(raw_response, self.llm_type)
             else:
                 response = LlmResponse.parse_plain_response(raw_response, self.llm_type)
-            
+
             state["intro_texts"].append(response.actual_result)
             state["song_ids"].append(prompt_item.songId)
             state["dialogue_states"].append(prompt_item.dialogue)
