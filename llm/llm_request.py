@@ -5,6 +5,7 @@ from typing import Any
 from cnst.search_engine import SearchEngine
 from llm.llm_response import LlmResponse
 from llm.finetune_logger import get_finetune_logger
+from core.db_logger import setup_db_logger
 from mcp.external.internet_mcp import InternetMCP
 from tools.sound_fragment_tool import get_tool_definition as get_sound_fragment_tool_definition
 from tools.queue_tool import get_tool_definition as get_queue_tool_definition
@@ -32,11 +33,13 @@ def _combine_messages(messages: list) -> str:
     return "\n\n".join(parts)
 
 
-async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str) -> Any:
-    memory_block = (
-        "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
-        f"{on_air_memory}\n\n"
-    )
+async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str, brand: str = None, prompt_title: str = None) -> Any:
+    memory_block = ""
+    if on_air_memory:
+        memory_block = (
+            "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
+            f"{on_air_memory}\n\n"
+        )
 
     full_prompt = (
         f"{memory_block}"
@@ -44,6 +47,14 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
         f"Draft input:\n{draft}"
     )
 
+    logger.info(f"invoke_intro: full_prompt={full_prompt}")
+    
+    if brand:
+        db_logger = setup_db_logger(brand)
+        db_logger.info("LLM invoke_intro called", 
+                      extra={'event_type': 'llm_invoke', 'llm_type': llm_client.llm_type.name, 
+                            'has_memory': bool(on_air_memory), 'has_draft': bool(draft),
+                            'full_prompt': full_prompt, 'prompt_title': prompt_title})
 
     messages = [
         {"role": "system", "content": "You are a professional radio DJ"},
@@ -56,6 +67,13 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
         response_content = ""
         if hasattr(response, 'content'):
             response_content = response.content if isinstance(response.content, str) else str(response.content)
+        
+        if brand:
+            db_logger = setup_db_logger(brand)
+            db_logger.info("LLM response received", 
+                          extra={'event_type': 'llm_response', 'llm_type': llm_client.llm_type.name,
+                                'response_content': response_content})
+        
         _ft_logger.log_interaction(
             function_name="invoke_intro",
             llm_type=llm_client.llm_type.name,

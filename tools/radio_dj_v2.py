@@ -7,6 +7,7 @@ from langgraph.graph import StateGraph, END
 
 from cnst.llm_types import LlmType
 from core.logging_config import setup_brand_ai_logger
+from core.db_logger import setup_db_logger
 from llm.llm_request import invoke_intro
 from llm.llm_response import LlmResponse
 from memory.brand_memory_manager import BrandMemoryManager
@@ -32,6 +33,7 @@ class RadioDJV2:
         self.live_station = station
         self.brand = station.slugName
         self.ai_logger = setup_brand_ai_logger(self.brand, log_directory or "logs")
+        self.db_logger = setup_db_logger(self.brand)
         self.target_dir = target_dir
         self.db = db_pool
         # self.user_summary = BrandUserSummarizer(self.db, self.llm, llm_type)
@@ -39,7 +41,8 @@ class RadioDJV2:
 
     async def run(self) -> Tuple[bool, str, str]:
         self.logger.info(f"---------------------Interaction started ------------------------------")
-        self.ai_logger.info(f"{self.brand} - Start ---------------------------------")
+        self.ai_logger.info(f"Start ---------------------------------")
+        self.db_logger.info("Interaction started", extra={'event_type': 'interaction_start'})
         initial_state = {
             "brand": self.brand,
             "intro_texts": [],
@@ -86,15 +89,14 @@ class RadioDJV2:
         for idx, prompt_item in enumerate(self.live_station.prompts):
             draft = prompt_item.draft or ""
             title = prompt_item.promptTitle or f"Prompt {idx + 1}"
-            self.ai_logger.info(
-                f"{self.brand} LLM: {self.llm_type.name}, prompt: {title}, Dialogue: {idx + 1}: {prompt_item.dialogue}")
-            self.ai_logger.info(f"{self.brand} Draft result: {draft}")
 
             raw_response = await invoke_intro(
                 llm_client=self.llm,
                 prompt=prompt_item.prompt,
                 draft=draft,
-                on_air_memory=raw_mem
+                on_air_memory=raw_mem,
+                brand=self.brand,
+                prompt_title=title
             )
 
             if prompt_item.dialogue:
@@ -108,7 +110,11 @@ class RadioDJV2:
             if not prompt_item.dialogue:
                 RadioDJV2.memory_manager.add(self.brand, response.actual_result)
 
-            self.ai_logger.info(f"{self.brand} RESULT{idx + 1}: {response.actual_result}")
+            self.db_logger.info(f"Generated intro {idx + 1}", 
+                                   extra={'event_type': 'intro_generated', 'prompt_title': title, 
+                                         'dialogue': prompt_item.dialogue, 'intro_text': response.actual_result,
+                                         'prompt': prompt_item.prompt, 'draft': draft})
+            self.ai_logger.info(f"RESULT {idx + 1}: {response.actual_result}")
 
         return state
 
@@ -120,7 +126,9 @@ class RadioDJV2:
         for idx, (intro_text, is_dialogue) in enumerate(zip(state["intro_texts"], state["dialogue_states"])):
 
             try:
-                self.ai_logger.info(f"{self.brand} DIALOGUE MODE: {is_dialogue} for intro {idx + 1}")
+                self.ai_logger.info(f"DIALOGUE MODE: {is_dialogue} for intro {idx + 1}")
+                self.db_logger.info(f"Generating audio for intro {idx + 1}", 
+                                   extra={'event_type': 'audio_generation', 'dialogue_mode': is_dialogue})
 
                 if is_dialogue:
                     audio_data, reason = await self.audio_processor.generate_tts_dialogue(intro_text)
@@ -132,7 +140,9 @@ class RadioDJV2:
                     short_name = f"{self.brand}_intro{idx + 1}_{time_tag}"
                     file_path = self._save_audio_file(audio_data, short_name)
                     state["audio_file_paths"].append(file_path)
-                    self.ai_logger.info(f"{self.brand} AUDIO: {idx + 1}: {file_path}")
+                    self.ai_logger.info(f"AUDIO: {idx + 1}: {file_path}")
+                    self.db_logger.info(f"Audio generated for intro {idx + 1}", 
+                                       extra={'event_type': 'audio_generated', 'file_path': file_path})
                 else:
                     self.logger.warning(f"No audio generated for intro {idx + 1}: {reason}")
 
@@ -200,8 +210,10 @@ class RadioDJV2:
                     f"Queue failed - abandoned audio files: {state['audio_file_paths']}"
                 )
 
-            self.ai_logger.info(f"{self.brand} RESULT: {state['broadcast_success']}")
-            self.ai_logger.info(f"{self.brand} - End ---------------------------------")
+            self.ai_logger.info(f"RESULT: {state['broadcast_success']}")
+            self.db_logger.info(f"Broadcast completed: {state['broadcast_success']}", 
+                               extra={'event_type': 'broadcast_completed', 'success': state['broadcast_success']})
+            self.ai_logger.info(f"End ---------------------------------")
 
         except Exception as e:
             self.logger.error(f"Error broadcasting audio: {e}")
