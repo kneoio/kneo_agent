@@ -37,7 +37,7 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
     memory_block = ""
     if on_air_memory:
         memory_block = (
-            "Recent on-air atmosphere (DO NOT repeat this text; use only for mood/context):\n"
+            "PAST on-air atmosphere - DO NOT use song/artist info from this section, only for mood/context:\n"
             f"{on_air_memory}\n\n"
         )
 
