@@ -33,7 +33,8 @@ def _combine_messages(messages: list) -> str:
     return "\n\n".join(parts)
 
 
-async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str, brand: str = None, prompt_title: str = None) -> Any:
+async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str, brand: str = None,
+                       prompt_title: str = None) -> Any:
     memory_block = ""
     if on_air_memory:
         memory_block = (
@@ -51,16 +52,17 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
     )
 
     logger.info(f"invoke_intro: full_prompt={full_prompt}")
-    
+
     if brand:
         db_logger = setup_db_logger(brand)
-        db_logger.info("LLM invoke_intro called", 
-                      extra={'event_type': 'llm_invoke', 'llm_type': llm_client.llm_type.name, 
-                            'has_memory': bool(on_air_memory), 'has_draft': bool(draft),
-                            'full_prompt': full_prompt, 'prompt_title': prompt_title})
+        db_logger.info("LLM invoke_intro called",
+                       extra={'event_type': 'llm_invoke', 'llm_type': llm_client.llm_type.name,
+                              'has_memory': bool(on_air_memory), 'has_draft': bool(draft),
+                              'full_prompt': full_prompt, 'prompt_title': prompt_title})
 
     messages = [
-        {"role": "system", "content": "You are a professional radio DJ"},
+        {"role": "system",
+         "content": "You are a professional radio DJ. CRITICAL: Use ONLY song information from 'Draft input:'. NEVER use song names from PAST CONTEXT."},
         {"role": "user", "content": full_prompt}
     ]
 
