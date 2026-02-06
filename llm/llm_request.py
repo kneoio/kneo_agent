@@ -37,8 +37,11 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
     memory_block = ""
     if on_air_memory:
         memory_block = (
-            "PAST on-air atmosphere - DO NOT use song/artist info from this section, only for mood/context:\n"
-            f"{on_air_memory}\n\n"
+            "=== PAST CONTEXT (IGNORE SONG NAMES) ===\n"
+            "The following is ONLY for mood/atmosphere reference.\n"
+            "DO NOT copy or reuse any song titles or artist names from this section.\n"
+            f"{on_air_memory}\n"
+            "=== END PAST / NEW REQUEST BELOW ===\n\n"
         )
 
     full_prompt = (
