@@ -8,7 +8,7 @@ from cnst.llm_types import LlmType
 from cnst.translation_types import TranslationType
 from llm.llm_request import invoke_intro, translate_content
 from llm.llm_response import LlmResponse
-from rest.app_setup import app_lifespan, llm_factory, internet, cors_settings, cfg
+from rest.app_setup import app_lifespan, llm_factory, cors_settings, cfg
 from rest.prompt_request import PromptRequest
 from rest.translation_request import TranslateRequest
 from util.template_loader import render_template, template_exists
@@ -58,7 +58,7 @@ async def translate(req: TranslateRequest):
 
 @app.post("/prompt/test", dependencies=[Depends(verify_api_key)])
 async def test_prompt(req: PromptRequest):
-    client = llm_factory.get_llm_client(req.llm, internet_mcp=internet)
+    client = llm_factory.get_llm_client(req.llm)
 
     raw_response = await invoke_intro(client, req.prompt, req.draft, "")
     result = LlmResponse.parse_plain_response(raw_response, client.llm_type)

@@ -5,7 +5,6 @@ from typing import Dict
 from fastapi import FastAPI
 
 from core.config import load_config
-from mcp.external.internet_mcp import InternetMCP
 from util.db_manager import DBManager
 from util.llm_factory import LlmFactory
 
@@ -24,7 +23,6 @@ cors_settings = {
 }
 
 llm_factory = LlmFactory(cfg)
-internet = InternetMCP(config=cfg)
 
 _audio_processor = None
 

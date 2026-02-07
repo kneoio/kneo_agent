@@ -2,29 +2,19 @@ import asyncio
 import uuid
 from typing import Dict, Any, Optional
 
-import httpx
-
 from api.sound_fragment_api import BrandSoundFragmentsAPI
 from core.config import load_config
 
 import logging
 logger = logging.getLogger(__name__)
 
-TEST_CHAT_ID = 123
-
 async def _bg_fetch_and_push(
         brand: str,
         keyword: Optional[str],
         limit: Optional[int],
         offset: Optional[int],
-        chat_id: int,
         operation_id: str
 ):
-    from llm.llm_request import invoke_chat
-    from rest.app_setup import llm_factory, TELEGRAM_TOKEN
-    from cnst.llm_types import LlmType
-    from util.template_loader import render_template
-
     config = load_config("config.yaml")
 
     try:
@@ -51,47 +41,17 @@ async def _bg_fetch_and_push(
         
         search_type = "search" if keyword else "browse"
         logger.info(f"{search_type.capitalize()} results for '{keyword or 'latest'}': {len(items_raw)} items found")
+        logger.info(f"Search results for {brand}: {results_text}")
 
     except Exception as e:
         logger.error(f"Search API error: {e}", exc_info=True)
-        results_text = f"Error: {str(e)}"
-
-    try:
-        system_prompt = render_template("chat/search_results_system.hbs", {})
-        messages = [{"role": "system", "content": system_prompt}]
-        messages.append({
-            "role": "user",
-            "content": f"Here are the search results:\n\n{results_text}"
-        })
-
-        client = llm_factory.get_llm_client(
-            LlmType.GROQ,
-            enable_sound_fragment_tool=False,
-            enable_listener_tool=False,
-            enable_stations_tools=False
-        )
-        llm_result = await invoke_chat(llm_client=client, messages=messages, return_full_history=False)
-        reply = llm_result.actual_result
-
-        if chat_id == TEST_CHAT_ID:
-            print(f"[TEST MODE] Would send to Telegram chat_id={chat_id}: {reply}")
-        else:
-            async with httpx.AsyncClient() as http_client:
-                await http_client.post(
-                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                    json={"chat_id": chat_id, "text": reply}
-                )
-    except Exception as e:
-        import logging
-        logging.error(f"Error in _bg_fetch_and_push LLM trigger: {e}")
 
 
 async def get_brand_sound_fragment(
         brand: str,
         keyword: Optional[str] = None,
         limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        telegram_chat_id: Optional[int] = None
+        offset: Optional[int] = None
 ) -> Dict[str, Any]:
     op_id = uuid.uuid4().hex
 
@@ -101,7 +61,6 @@ async def get_brand_sound_fragment(
             keyword,
             limit,
             offset,
-            telegram_chat_id,
             op_id
         )
     )
@@ -114,22 +73,3 @@ async def get_brand_sound_fragment(
     }
 
 
-def get_tool_definition() -> Dict[str, Any]:
-    return {
-        "type": "function",
-        "function": {
-            "name": "get_brand_sound_fragment",
-            "description": "Search or browse brand sound fragments. If keyword is empty/missing, returns latest songs for browsing.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "brand": {"type": "string", "description": "Brand slug"},
-                    "keyword": {"type": "string", "description": "Search keyword. Leave empty to browse latest songs."},
-                    "limit": {"type": "integer", "description": "Maximum number of results"},
-                    "offset": {"type": "integer", "description": "Offset for pagination"},
-                    "telegram_chat_id": {"type": "integer", "description": "Telegram chat ID"}
-                },
-                "required": ["brand", "telegram_chat_id"]
-            }
-        }
-    }
