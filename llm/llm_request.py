@@ -10,24 +10,6 @@ logger = logging.getLogger(__name__)
 _ft_logger = get_finetune_logger()
 
 
-def _combine_messages(messages: list) -> str:
-    parts = []
-    for m in messages or []:
-        role = m.get("role")
-        content = m.get("content")
-        if not content:
-            continue
-        if role == "system":
-            parts.append(f"System: {content}")
-        elif role == "assistant":
-            parts.append(f"Assistant: {content}")
-        elif role == "tool":
-            parts.append(f"Tool: {content}")
-        else:
-            parts.append(f"User: {content}")
-    return "\n\n".join(parts)
-
-
 async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: str, brand: str = None,
                        prompt_title: str = None) -> Any:
     memory_block = ""
@@ -45,8 +27,6 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
         f"{prompt}\n\n"
         f"Draft input:\n{draft}"
     )
-
-    #logger.info(f"invoke_intro: full_prompt={full_prompt}")
 
     if brand:
         db_logger = setup_db_logger(brand)
@@ -87,16 +67,12 @@ async def invoke_intro(llm_client: Any, prompt: str, draft: str, on_air_memory: 
     return response
 
 
-
 async def translate_content(llm_client: Any, content: str) -> 'LlmResponse':
     tc_messages = [
         {"role": "system", "content": "You are a professional translator."},
         {"role": "user", "content": content}
     ]
-    if hasattr(llm_client, "invoke"):
-        response = await llm_client.invoke(messages=tc_messages)
-    else:
-        response = await llm_client.ainvoke(_combine_messages(tc_messages))
+    response = await llm_client.invoke(messages=tc_messages)
     llm_response = LlmResponse.parse_plain_response(response, llm_client.llm_type)
 
     try:
