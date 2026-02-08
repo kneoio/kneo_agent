@@ -11,5 +11,3 @@ class LlmType(Enum):
     OPENROUTER = "OPENROUTER"
     MOONSHOT = "MOONSHOT"
     GOOGLE = "GOOGLE"
-
-

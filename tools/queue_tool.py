@@ -9,6 +9,7 @@ from cnst.paths import MERGED_AUDIO_DIR
 
 logger = logging.getLogger(__name__)
 
+
 async def _bg_queue_and_notify(
         brand: str,
         song_uuid: str,
@@ -24,22 +25,22 @@ async def _bg_queue_and_notify(
         audio_processor = get_audio_processor()
         elevenlabs_cfg = cfg.get("elevenlabs", {})
         voice_id = elevenlabs_cfg.get("default_voice_id")
-        
+
         logger.info(f"Generating TTS for intro: {intro_text[:50]}...")
         audio_data, reason = await audio_processor.generate_tts_simple(intro_text, voice_id)
-        
+
         if not audio_data:
             raise ValueError(f"TTS generation failed: {reason}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{brand}_mixplaclone_intro_{timestamp}_{operation_id[:8]}.mp3"
         tts_path = str(MERGED_AUDIO_DIR / filename)
-        
+
         with open(tts_path, "wb") as f:
             f.write(audio_data)
-        
+
         logger.info(f"TTS saved to {tts_path}")
-        
+
         client = QueueAPIClient(cfg)
         process_id = uuid.uuid4().hex
 
@@ -74,7 +75,6 @@ async def queue_intro_and_song(
         intro_text: str,
         priority: int = 8
 ) -> Dict[str, Any]:
-
     if not brand or not song_uuid or not intro_text:
         return {"success": False, "error": "brand, song_uuid, intro_text are required"}
 
@@ -96,5 +96,3 @@ async def queue_intro_and_song(
         "processing": True,
         "operation_id": op_id
     }
-
-

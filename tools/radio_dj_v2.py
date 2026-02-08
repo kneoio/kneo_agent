@@ -223,11 +223,3 @@ class RadioDJV2:
             state["broadcast_success"] = False
 
         return state
-
-    async def _load_brand_summary(self):
-        async with self.db.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT summary FROM mixpla__brand_memory WHERE brand = $1 ORDER BY day DESC LIMIT 1",
-                self.brand
-            )
-            return row

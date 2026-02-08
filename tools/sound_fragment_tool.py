@@ -6,7 +6,9 @@ from api.sound_fragment_api import BrandSoundFragmentsAPI
 from core.config import load_config
 
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 async def _bg_fetch_and_push(
         brand: str,
@@ -38,7 +40,7 @@ async def _bg_fetch_and_push(
 
         results_text = "\n".join(lines) if lines else "No results."
         results_text += f"\n\n[SONG_MAP:{song_map}]"
-        
+
         search_type = "search" if keyword else "browse"
         logger.info(f"{search_type.capitalize()} results for '{keyword or 'latest'}': {len(items_raw)} items found")
         logger.info(f"Search results for {brand}: {results_text}")
@@ -71,5 +73,3 @@ async def get_brand_sound_fragment(
         "processing": True,
         "operation_id": op_id
     }
-
-

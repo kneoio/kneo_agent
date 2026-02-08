@@ -7,6 +7,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
+
 class LlmResponse(BaseModel):
     raw_response: Any
     llm_type: str
@@ -19,7 +20,7 @@ class LlmResponse(BaseModel):
             return self._structured_result
         return self._parse_content()
 
-    @property 
+    @property
     def reasoning(self) -> Optional[str]:
         if self.llm_type == LlmType.GROQ.name:
             if isinstance(self.raw_response, dict):
@@ -28,7 +29,8 @@ class LlmResponse(BaseModel):
                 return getattr(self.raw_response, "additional_kwargs", {}).get("reasoning_content")
         else:
             content = self._get_content_string()
-            return self._extract_between_tags(content, "search_quality_reflection", str) or self._extract_between_tags(content, "thinking", str)
+            return self._extract_between_tags(content, "search_quality_reflection", str) or self._extract_between_tags(
+                content, "thinking", str)
 
     @property
     def thinking(self) -> Optional[str]:
@@ -43,7 +45,7 @@ class LlmResponse(BaseModel):
     def _get_content_string(self) -> str:
         if hasattr(self.raw_response, "content"):
             content = self.raw_response.content
-            
+
             if isinstance(content, list):
                 parts = []
                 for block in content:
@@ -64,7 +66,7 @@ class LlmResponse(BaseModel):
                     return txt
             except Exception:
                 pass
-        
+
         if isinstance(self.raw_response, dict):
             if "content" in self.raw_response:
                 return self.raw_response["content"]
@@ -81,14 +83,14 @@ class LlmResponse(BaseModel):
                     return choice["message"]["content"]
                 elif "text" in choice:
                     return choice["text"]
-        
+
         if hasattr(self.raw_response, "choices") and self.raw_response.choices:
             first_choice = self.raw_response.choices[0]
             if hasattr(first_choice, "message") and hasattr(first_choice.message, "content"):
                 return first_choice.message.content
             elif hasattr(first_choice, "text"):
                 return first_choice.text
-        
+
         return f"[{self.llm_type}] no content"
 
     def _parse_content(self) -> str:
@@ -100,7 +102,7 @@ class LlmResponse(BaseModel):
             content = self._remove_xml_section(content, "search_quality_reflection")
         if self.search_quality:
             content = self._remove_xml_section(content, "search_quality_score")
-            
+
         return content.strip()
 
     @classmethod
@@ -110,20 +112,20 @@ class LlmResponse(BaseModel):
     @classmethod
     def parse_structured_response(cls, resp, llm_type: LlmType) -> 'LlmResponse':
         instance = cls.parse_plain_response(resp, llm_type)
-        
+
         if llm_type == LlmType.CLAUDE and hasattr(resp, 'response_metadata'):
             stop_reason = resp.response_metadata.get('stop_reason')
             if stop_reason == 'tool_use':
                 logger.error(f"Claude response interrupted by tool_use - incomplete dialogue generation")
                 instance._structured_result = None
                 return instance
-        
+
         text = instance._parse_content().strip()
         if not text:
             logger.error(f"Structured parse failed: empty content from {llm_type.name}")
             instance._structured_result = None
             return instance
-        
+
         match = re.search(r"(\[.*\]|\{.*\})", text, re.DOTALL)
         if match:
             json_block = match.group(1).strip()
@@ -136,7 +138,7 @@ class LlmResponse(BaseModel):
         else:
             logger.error(f"Structured parse: no JSON found in {llm_type.name} response")
             instance._structured_result = None
-        
+
         return instance
 
     @classmethod

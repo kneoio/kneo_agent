@@ -59,7 +59,7 @@ class BrandMemoryManager:
         m = self.memory.get(brand)
         if not m:
             return
-        
+
         m[:] = [entry for entry in m if entry["t"] > timestamp]
         if len(m) > 20:
             m[:] = m[-20:]

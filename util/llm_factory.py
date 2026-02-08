@@ -98,7 +98,8 @@ class LlmFactory:
                 def bind_tool_function(self, name: str, func):
                     self.tool_functions[name] = func
                 
-                def _convert_messages_to_prompt(self, messages):
+                @staticmethod
+                def _convert_messages_to_prompt(messages):
                     parts = []
                     for msg in messages:
                         role = msg.get("role")
@@ -115,9 +116,9 @@ class LlmFactory:
                 
                 async def invoke(self, messages, tools=None):
                     prompt = self._convert_messages_to_prompt(messages)
-                    return await self.ainvoke(prompt, tools)
+                    return await self.ai_invoke(prompt, tools)
                 
-                async def ainvoke(self, prompt: str, tools=None):
+                async def ai_invoke(self, prompt: str, tools=None):
                     import asyncio
                     response = await asyncio.to_thread(self.client.models.generate_content, model=self.model, contents=prompt)
                     class _Resp:

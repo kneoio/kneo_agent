@@ -29,17 +29,17 @@ class FineTuneLogger:
         return self._output_dir / filename
 
     def log_interaction(
-        self,
-        function_name: str,
-        llm_type: str,
-        messages: list,
-        response_content: str,
-        tools: Optional[list] = None,
-        tool_calls: Optional[list] = None,
-        tool_results: Optional[list] = None,
-        reasoning: Optional[str] = None,
-        thinking: Optional[str] = None,
-        metadata: Optional[dict] = None
+            self,
+            function_name: str,
+            llm_type: str,
+            messages: list,
+            response_content: str,
+            tools: Optional[list] = None,
+            tool_calls: Optional[list] = None,
+            tool_results: Optional[list] = None,
+            reasoning: Optional[str] = None,
+            thinking: Optional[str] = None,
+            metadata: Optional[dict] = None
     ) -> None:
         try:
             record = {

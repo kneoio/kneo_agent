@@ -13,7 +13,8 @@ class MemorySummarizer:
         self.llm_type = llm_type
         self.logger = logging.getLogger(__name__)
 
-    async def summarize_brand_memory(self, brand: str, memory_entries: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    async def summarize_brand_memory(self, brand: str, memory_entries: List[Dict[str, Any]]) -> Optional[
+        Dict[str, Any]]:
         if not memory_entries:
             return None
 
@@ -22,7 +23,7 @@ class MemorySummarizer:
             return None
 
         raw_mem = "\n".join(memory_texts)
-        
+
         prompt = render_template("summarizer/memory_summary.hbs", {
             "brand": brand,
             "memoryText": raw_mem
@@ -35,7 +36,7 @@ class MemorySummarizer:
             ]
             raw_response = await self.llm_client.invoke(messages=messages)
             response = LlmResponse.parse_plain_response(raw_response, self.llm_type)
-            
+
             summary_data = {
                 "summary": response.actual_result,
                 "entry_count": len(memory_entries),
@@ -43,9 +44,9 @@ class MemorySummarizer:
                 "oldest_entry": min(entry["t"] for entry in memory_entries),
                 "newest_entry": max(entry["t"] for entry in memory_entries)
             }
-            
+
             return summary_data
-            
+
         except Exception as e:
             self.logger.error(f"Error summarizing memory for brand {brand}: {e}")
             return None
@@ -54,18 +55,18 @@ class MemorySummarizer:
         try:
             today = date.today()
             existing = await brand_memory_repo.get(brand, today)
-            
+
             if existing:
                 merged_summary = existing.summary.copy()
                 merged_summary.update(summary_data)
                 merged_summary["last_updated"] = datetime.now(UTC).isoformat(timespec="seconds")
-                
+
                 await brand_memory_repo.update(brand, today, merged_summary)
             else:
                 await brand_memory_repo.insert(brand, today, summary_data)
-            
+
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error saving summary for brand {brand}: {e}")
             return False

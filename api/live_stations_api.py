@@ -9,6 +9,7 @@ class LiveStationsAPI:
     def __init__(self, config):
         self.client = BroadcasterAPIClient(config)
         self.logger = logging.getLogger(__name__)
+
     async def get_live_radio_stations(self, use_statuses: str | None = None) -> Optional[LiveContainer]:
         try:
             result = await self.client.get(f"ai/live/stations?statuses={use_statuses}")

@@ -12,10 +12,11 @@ class BrandSoundFragmentsAPI:
         self.api_timeout = broadcaster.get("api_timeout", 60)
         self.logger = logging.getLogger(__name__)
 
-    async def search(self, brand: str, keyword: Optional[str] = None, limit: Optional[int] = None, offset: Optional[int] = None) -> Dict[str, Any]:
+    async def search(self, brand: str, keyword: Optional[str] = None, limit: Optional[int] = None,
+                     offset: Optional[int] = None) -> Dict[str, Any]:
         if not self.api_base_url:
             raise ValueError("API base URL not configured")
-        
+
         params = {}
         if keyword and keyword.strip():
             params["keyword"] = keyword.strip()
@@ -23,12 +24,12 @@ class BrandSoundFragmentsAPI:
             params["limit"] = limit
         if offset is not None:
             params["offset"] = offset
-        
+
         url = f"{self.api_base_url}/ai/brand/{brand}/soundfragments"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        
+
         try:
             async with httpx.AsyncClient(timeout=self.api_timeout) as client:
                 response = await client.get(url, params=params, headers=headers)
@@ -40,4 +41,3 @@ class BrandSoundFragmentsAPI:
         except Exception as e:
             self.logger.error(f"Error calling /api/ai/brand/{brand}/soundfragments: {e}")
             raise
-

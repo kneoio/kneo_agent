@@ -19,7 +19,7 @@ class Queue:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    def send_to_broadcast(self, brand: str, song_uuid: str, audio_data: bytes, meta_data: str ) -> bool:
+    def send_to_broadcast(self, brand: str, song_uuid: str, audio_data: bytes, meta_data: str) -> bool:
         endpoint = f"{self.api_base_url}/{brand}/queue/{song_uuid}"
         upload_timeout = self.api_timeout * 10
 

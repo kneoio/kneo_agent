@@ -16,7 +16,7 @@ async def test_google_generation():
     print(f"Client type: {type(client)}")
     try:
         print("Attempting real generation call…")
-        response = await client.ainvoke("Hello, say 'Google integration works!'")
+        response = await client.ai_invoke("Hello, say 'Google integration works!'")
         print(f"Response: {response.content}")
     except Exception as e:
         print(f"Generation failed: {e}")

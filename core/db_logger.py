@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Optional
 from repos.interaction_log_repo import interaction_log_repo
 
 
@@ -19,7 +19,7 @@ class DBLoggerHandler(logging.Handler):
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-            
+
             metadata = {
                 'module': record.module,
                 'function': record.funcName,
@@ -27,28 +27,28 @@ class DBLoggerHandler(logging.Handler):
                 'thread': record.thread,
                 'process': record.process,
             }
-            
+
             # Add any extra attributes from the record
             for key, value in record.__dict__.items():
-                if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 
-                              'pathname', 'filename', 'module', 'exc_info', 
-                              'exc_text', 'stack_info', 'lineno', 'funcName',
-                              'created', 'msecs', 'relativeCreated', 'thread',
-                              'threadName', 'processName', 'process', 'message']:
+                if key not in ['name', 'msg', 'args', 'levelname', 'levelno',
+                               'pathname', 'filename', 'module', 'exc_info',
+                               'exc_text', 'stack_info', 'lineno', 'funcName',
+                               'created', 'msecs', 'relativeCreated', 'thread',
+                               'threadName', 'processName', 'process', 'message']:
                     metadata[key] = value
-            
+
             # Extract event_type from extra or use default
             event_type = getattr(record, 'event_type', 'general')
-            
+
             # Combine all metadata without truncation
             for key, value in record.__dict__.items():
-                if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 
-                              'pathname', 'filename', 'module', 'exc_info', 
-                              'exc_text', 'stack_info', 'lineno', 'funcName',
-                              'created', 'msecs', 'relativeCreated', 'thread',
-                              'threadName', 'processName', 'process', 'message']:
+                if key not in ['name', 'msg', 'args', 'levelname', 'levelno',
+                               'pathname', 'filename', 'module', 'exc_info',
+                               'exc_text', 'stack_info', 'lineno', 'funcName',
+                               'created', 'msecs', 'relativeCreated', 'thread',
+                               'threadName', 'processName', 'process', 'message']:
                     metadata[key] = value
-            
+
             # Schedule the async operation
             if loop.is_running():
                 # If loop is already running, create a task
@@ -80,17 +80,17 @@ class DBLoggerHandler(logging.Handler):
 
 def setup_db_logger(brand: str, correlation_id: Optional[str] = None) -> logging.Logger:
     logger = logging.getLogger(f"db_logger_{brand}")
-    
+
     # Remove existing handlers to avoid duplicates
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
-    
+
     # Add database handler
     db_handler = DBLoggerHandler(brand, correlation_id)
     logger.addHandler(db_handler)
     logger.setLevel(logging.INFO)
-    
+
     # Prevent propagation to root logger to avoid duplicate logs
     logger.propagate = False
-    
+
     return logger

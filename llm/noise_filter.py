@@ -3,16 +3,15 @@ from difflib import SequenceMatcher
 
 
 class NoiseFilter:
-
     GENERIC_PATTERNS = [
-        r"^hey[, ]",                              # "Hey Lumisonic fam..."
+        r"^hey[, ]",  # "Hey Lumisonic fam..."
         r"^hello[, ]",
         r"^hi[, ]",
         r"^yo[, ]",
         r"^what's up",
-        r"^now[ .]*\[pause\]?$",                  # "Now… [pause]"
-        r"^now[\s.]*$",                           # plain "Now..."
-        r"^\[.*\]$",                              # only audio tags
+        r"^now[ .]*\[pause\]?$",  # "Now… [pause]"
+        r"^now[\s.]*$",  # plain "Now..."
+        r"^\[.*\]$",  # only audio tags
     ]
 
     def __init__(self):

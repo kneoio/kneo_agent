@@ -2,6 +2,7 @@
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
+
 @dataclass
 class TtsConfig:
     primaryVoice: str
@@ -68,9 +69,9 @@ class LiveRadioStation:
             raise ValueError(f"Station {data.get('name', 'unknown')} has null tts config")
         prompts_list = [PromptItem.from_dict(p) for p in data.get("prompts", [])]
         songs_count = len(prompts_list) if prompts_list else 1
-        
+
         llm_type = prompts_list[0].llmType if prompts_list else None
-        
+
         return cls(
             name=data.get("name"),
             slugName=data.get("slugName"),
@@ -97,7 +98,7 @@ class LiveContainer:
     def from_dict(cls, data: Dict[str, Any]) -> 'LiveContainer':
         stations_data = data.get("radioStations", [])
         stations = [LiveRadioStation.from_dict(station) for station in stations_data]
-        
+
         return cls(radioStations=stations)
 
     def get_station_by_name(self, name: str) -> Optional[LiveRadioStation]:

@@ -14,7 +14,7 @@ class DJRunner:
                  llm_client=None, llm_type=LlmType.GROQ, db_pool=None):
         if db_pool is None:
             raise ValueError("db_pool parameter is required for DJRunner initialization")
-            
+
         self.logger = logging.getLogger(__name__)
         self.live_station = station
         self.brand = station.name
@@ -25,7 +25,7 @@ class DJRunner:
         if not tts_engine_type:
             self.logger.error(f"Station {station.name} has no ttsEngineType configured")
             raise ValueError(f"Station {station.name} has no ttsEngineType configured")
-        
+
         tts_engine = TTSEngineFactory.create_engine(tts_engine_type, config)
 
         self.audio_processor = AudioProcessor(
@@ -47,7 +47,8 @@ class DJRunner:
         )
 
     async def run(self) -> None:
-        self.logger.info(f"Starting DJ run for: {self.brand}, DJ: {self.live_station.djName}, Scene: {self.live_station.info}")
+        self.logger.info(
+            f"Starting DJ run for: {self.brand}, DJ: {self.live_station.djName}, Scene: {self.live_station.info}")
 
         try:
             broadcast_success, _, _ = await self.radio_dj.run()
@@ -60,7 +61,6 @@ class DJRunner:
             raise
 
         self.logger.info(f"DJ Agent run completed for brand: {self.brand}")
-
 
     async def cleanup(self):
         return

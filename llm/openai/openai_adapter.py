@@ -16,7 +16,7 @@ class OpenAIAdapter:
             role = m.get("role")
             content = m.get("content")
             openai_messages.append({"role": role, "content": content})
-        
+
         kwargs = {"model": self.model, "messages": openai_messages}
         if tools:
             kwargs["tools"] = tools
@@ -24,7 +24,7 @@ class OpenAIAdapter:
             kwargs["tool_choice"] = "none"
         if self.temperature is not None:
             kwargs["temperature"] = self.temperature
-        
+
         try:
             resp = await self.client.chat.completions.create(**kwargs)
             message = resp.choices[0].message

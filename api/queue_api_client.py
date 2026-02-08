@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-
 class QueueAPIClient:
     def __init__(self, config: Dict[str, Any]):
         b = config.get("broadcaster", {})
