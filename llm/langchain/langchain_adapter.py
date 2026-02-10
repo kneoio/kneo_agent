@@ -40,8 +40,8 @@ class LangChainAdapter:
         lc_messages = self._convert_messages(messages)
         if tools:
             bound_client = self.base_client.bind_tools(tools)
-            return await bound_client.ai_invoke(lc_messages)
-        return await self.base_client.ai_invoke(lc_messages)
+            return await bound_client.ainvoke(lc_messages)
+        return await self.base_client.ainvoke(lc_messages)
 
     async def ainvoke(self, prompt: str, tools=None):
         """Convenient async call for a simple prompt.
