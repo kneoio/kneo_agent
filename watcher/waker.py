@@ -96,7 +96,7 @@ class Waker:
             logging.info("No memories to summarize")
             return
 
-        summarizer_llm_type = self.config.get("summarizer", {}).get("llm_type", LlmType.GOOGLE)
+        summarizer_llm_type = self.config.get("summarizer", {}).get("llm_type", LlmType.GROQ)
         llm_client = self.llmFactory.get_llm_client(LlmType(summarizer_llm_type), None)
         
         if llm_client is None:
